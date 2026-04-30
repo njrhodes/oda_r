@@ -1,0 +1,26 @@
+# Hand-maintained NAMESPACE for odacore.
+# Run devtools::document() to regenerate from roxygen if @-tags are added.
+
+# ----- Primary public API -----
+export(oda_fit)
+export(oda_univariate_core)
+export(oda_multiclass_unioda_core)
+export(oda_rule_predict)
+export(oda_rule_predict_multiclass)
+
+# ----- Metrics -----
+export(oda_confusion_binary)
+export(oda_confusion_multiclass)
+export(oda_mean_pac)
+export(oda_ess_from_meanpac)
+export(oda_ess_from_mean)
+
+# ----- CTA -----
+export(oda_cta_fit)
+export(predict.cta_tree)
+export(print.cta_tree)
+export(cta_node_table)
+
+# ----- Imports -----
+importFrom(stats, fisher.test, qbeta, runif, setNames)
+importFrom(utils, combn, head)
