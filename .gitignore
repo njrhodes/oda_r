@@ -19,3 +19,5 @@ claude_watch.sh
 alert.sh
 inst/dev/timing_*.R
 inst/dev/diag_*.R
+*.log
+S
