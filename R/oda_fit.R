@@ -142,3 +142,13 @@ oda_fit <- function(
   fit$engine <- "multiclass"
   return(fit)
 }
+
+# ---- cta_fit: public wrapper for CTA ----------------------------------------
+
+cta_fit <- function(X, y, ...) {
+  cls <- sort(unique(y[!is.na(y)]))
+  if (length(cls) != 2L) {
+    stop("cta_fit currently supports binary class variables only", call. = FALSE)
+  }
+  oda_cta_fit(X = X, y = y, ...)
+}
