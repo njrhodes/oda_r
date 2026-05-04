@@ -46,7 +46,7 @@
 load_cta_demo <- function() {
   # testthat::test_path() resolves correctly under both devtools::test()
   # and R CMD check (the latter copies test files to the check temp dir).
-  f <- tryCatch(testthat::test_path("CTA_DEMO.CSV"), error = function(e) "")
+  f <- tryCatch(testthat::test_path("fixtures/cta_demo/CTA_DEMO.CSV"), error = function(e) "")
   if (!nzchar(f) || !file.exists(f)) skip("CTA_DEMO.CSV not found")
   read.csv(f, header = FALSE,
            col.names = c("V1","V2","V3","V4","V5","V6"))
