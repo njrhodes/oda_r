@@ -81,13 +81,22 @@ Test files in `tests/testthat/`:
 
 Gold values in tests come from MegaODA.exe output. When a test checks confusion matrices, it uses `confusion_raw()` (raw integer counts, C×C matrix) and `pac_overall()` (percentage of correct classifications).
 
-## Upcoming work (from `inst/dev/oda-faithful-spec.md`)
+## Canon references
 
-The next major feature is **CTA (Classification Tree Analysis)**, which chains ODA models as tree nodes. Before that branch:
+- `docs/ODA_CANON.md` — canonical `oda_fit()` / UniODA / MultiODA behavior spec.
+- `docs/CTA_CANON.md` — canonical `cta_fit()` / `oda_cta_fit()` behavior spec,
+  including ENUMERATE, pruning, LOO, and current gold fixture status.
+
+## Upcoming work
+
+CTA is partially implemented. Completed:
 1. ~~`oda_fit()` is the required dispatcher~~ — done.
-2. ~~`miss_codes` alias needs to be consistent across both engines~~ — done (`missing_code` alias added to `oda_multiclass_unioda_core`).
+2. ~~`miss_codes` alias needs to be consistent across both engines~~ — done.
 3. ~~LOO parameters on `oda_multiclass_unioda_core` should be consolidated into an `loo_opts` list~~ — done.
-4. ~~Several currently-exported internal functions should be moved off the export list~~ — already clean; none of the listed functions were in NAMESPACE.
+4. ~~Several currently-exported internal functions should be moved off the export list~~ — done.
+
+Open (do not resume without explicit instruction):
+- CTA_DEMO full-tree pruning — see `docs/CTA_CANON.md` for details.
 
 Implementation policy:
 First reproduce CTA.exe canonical behavior exactly.
