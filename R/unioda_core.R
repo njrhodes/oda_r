@@ -267,11 +267,11 @@ oda_mc_p_value <- function(
   if (is.null(ess_obs) || !is.finite(ess_obs))
     stop("oda_mc_p_value: ess_obs must be supplied and finite.")
 
-  # Convert stop confidence to probability scale.
-  # STOPUP uses the same CUTOFF threshold as STOP (mc_target), not mc_stopup.
-  # The canonical MegaODA command is: MC ITER N CUTOFF p STOP c
-  # There is no separate STOPUP threshold — both directions compare against CUTOFF.
-  conf_level   <- if (!is.na(mc_stop) && mc_stop > 1) mc_stop / 100 else mc_stop
+  # Convert stop confidence levels to probability scale.
+  # STOP  (lower-tail): early accept when upper CP bound < mc_target at conf_stop  confidence.
+  # STOPUP (upper-tail): early reject when lower CP bound > mc_target at conf_stopup confidence.
+  conf_stop   <- if (!is.na(mc_stop)   && mc_stop   > 1) mc_stop   / 100 else mc_stop
+  conf_stopup <- if (!is.na(mc_stopup) && mc_stopup > 1) mc_stopup / 100 else mc_stopup
 
   ge_count  <- 0L
   iter_used <- 0L
@@ -304,17 +304,19 @@ oda_mc_p_value <- function(
     if (ess_b >= ess_obs - 1e-12) ge_count <- ge_count + 1L
 
     # Clopper-Pearson early stopping
-    if (!is.na(conf_level) && b >= min_check && (b %% check_every == 0L)) {
+    if (b >= min_check && (b %% check_every == 0L)) {
       if (ge_count == 0L) {
-        lower <- 0; upper <- stats::qbeta(conf_level, 1, b)
+        lower <- 0
+        upper <- if (!is.na(conf_stop))   stats::qbeta(conf_stop,   1,           b)           else NA_real_
       } else if (ge_count == b) {
-        lower <- stats::qbeta(1 - conf_level, b, 1); upper <- 1
+        upper <- 1
+        lower <- if (!is.na(conf_stopup)) stats::qbeta(1 - conf_stopup, b,       1)           else NA_real_
       } else {
-        upper <- stats::qbeta(conf_level, ge_count + 1, b - ge_count)
-        lower <- stats::qbeta(1 - conf_level, ge_count, b - ge_count + 1)
+        upper <- if (!is.na(conf_stop))   stats::qbeta(conf_stop,   ge_count + 1, b - ge_count)      else NA_real_
+        lower <- if (!is.na(conf_stopup)) stats::qbeta(1 - conf_stopup, ge_count, b - ge_count + 1)  else NA_real_
       }
-      if (!is.na(mc_target) && upper < mc_target) break   # STOP:   99.9% sure p < CUTOFF
-      if (!is.na(mc_target) && lower > mc_target) break   # STOPUP: 99.9% sure p > CUTOFF
+      if (!is.na(mc_target) && !is.na(upper) && upper < mc_target) break   # STOP:   conf_stop   sure p < CUTOFF
+      if (!is.na(mc_target) && !is.na(lower) && lower > mc_target) break   # STOPUP: conf_stopup sure p > CUTOFF
     }
   }
 
