@@ -3,3 +3,9 @@
 ^\.gitignore$
 ^README\.md$
 ^\.claude$
+^CLAUDE\.md$
+^claude_watch\.sh$
+^data-raw$
+^docs$
+^\.Rproj\.user$
+^.*\.Rproj$
