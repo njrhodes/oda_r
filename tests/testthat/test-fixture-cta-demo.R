@@ -47,7 +47,9 @@ load_cta_demo <- function() {
         mc_iter     = 5000L,
         mc_target   = 0.05,
         mc_stop     = 99.9,
-        mc_stopup   = NA_real_,
+        # Enable canon-shaped STOPUP early rejection for nonsignificant MC candidates.
+        # NA_real_ disables upper stopping in R and is not proven CTA.exe behavior.
+        mc_stopup   = 99.9,
         mc_seed     = NULL,
         loo         = "stable",
         attr_names  = c("V2", "V3", "V4", "V5", "V6")

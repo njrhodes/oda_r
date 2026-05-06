@@ -326,6 +326,131 @@ oda_mc_p_value <- function(
        ess_obs   = ess_obs)
 }
 
+# ---- Algebraic ordered-cut LOO helper ------------------------------------ #
+
+# Fast count-table LOO for ordered_cut rules.
+#
+# Instead of calling oda_univariate_core() n times (once per fold), this
+# function builds a sorted unique-value count table and for each unique
+# (x value, class) bin simulates removing one observation algebraically:
+# decrement the bin count, rescan all cuts in ascending order using the same
+# priors-adjusted ESS formula as training, and predict the held-out x.  All
+# observations sharing the same (x value, class) bin receive the same LOO
+# prediction, so the inner loop runs over at most 2k bins rather than n folds.
+#
+# Conservative fallback: returns NULL when raw weights are non-uniform within
+# any bin (non-canonical case), leaving the caller to use full refits.
+#
+# Tie-breaking: strict > throughout preserves FIRST IDENTIFIED (ascending cut
+# scan) as the tertiary rule, matching oda_univariate_core().
+#
+# Returns: integer vector y_pred_loo of length n (same 0L/1L encoding as
+# oda_loo_for_rule), or NULL if the algebraic path is not applicable.
+oda_loo_ordered_cut_counts <- function(x, y, w, priors_on, rule) {
+
+  if (!identical(rule$type, "ordered_cut")) return(NULL)
+
+  y <- as.integer(y)
+  n <- length(y)
+
+  # Non-uniform raw weights: algebraic path requires uniform within-bin weights.
+  # With unit (or all-equal) w, every obs in a (val, class) bin is identical
+  # under the priors-adjusted ESS formula, so removing any one is equivalent.
+  if (length(unique(w)) > 1L) return(NULL)
+
+  obs  <- !is.na(x)
+  tc0  <- sum(y[obs] == 0L)
+  tc1  <- sum(y[obs] == 1L)
+  if (tc0 == 0L || tc1 == 0L) return(NULL)   # pure node; no split possible
+
+  vals <- sort(unique(x[obs]))
+  k    <- length(vals)
+  if (k < 2L) return(NULL)                   # no candidate cut exists
+
+  # Build count table: c0v[i], c1v[i] = raw class counts at vals[i]
+  c0v <- integer(k)
+  c1v <- integer(k)
+  for (i in seq_len(k)) {
+    m      <- obs & (x == vals[i])
+    c0v[i] <- sum(y[m] == 0L)
+    c1v[i] <- sum(y[m] == 1L)
+  }
+
+  # Scan helper: find best cut/direction on an adjusted count table.
+  # Uses the priors-adjusted PAC formula (uniform raw w):
+  #   ESS("0->1") = (cum0/tc0a + right1/tc1a - 1) * 100
+  #   ESS("1->0") = (right0/tc0a + cum1/tc1a  - 1) * 100
+  # Strict > keeps first-identified cut/direction when ESS ties.
+  .find_best <- function(c0a, c1a, tc0a, tc1a, vls) {
+    ka     <- length(vls)
+    best_e <- -Inf
+    best_c <- NA_real_
+    best_d <- NA_character_
+    cum0   <- 0L
+    cum1   <- 0L
+    for (i in seq_len(ka - 1L)) {
+      cum0 <- cum0 + c0a[i]
+      cum1 <- cum1 + c1a[i]
+      r0   <- tc0a - cum0
+      r1   <- tc1a - cum1
+      if ((cum0 + cum1) == 0L || (r0 + r1) == 0L) next
+      cut  <- (vls[i] + vls[i + 1L]) / 2.0
+      e01  <- (cum0 / tc0a + r1   / tc1a - 1.0) * 100.0  # "0->1"
+      e10  <- (r0   / tc0a + cum1 / tc1a - 1.0) * 100.0  # "1->0"
+      if (e01 > best_e) { best_e <- e01; best_c <- cut; best_d <- "0->1" }
+      if (e10 > best_e) { best_e <- e10; best_c <- cut; best_d <- "1->0" }
+    }
+    if (is.na(best_c)) NULL else list(cut = best_c, dir = best_d)
+  }
+
+  # Output vector: 0L by default; NA-x obs set at end.
+  y_pred_loo <- integer(n)
+
+  # LOO over unique (x value, class) bins.
+  for (vi in seq_len(k)) {
+    val <- vals[vi]
+    for (cls in c(0L, 1L)) {
+      bin_n <- if (cls == 0L) c0v[vi] else c1v[vi]
+      if (bin_n == 0L) next
+
+      # Remove one obs of `cls` at vals[vi].
+      c0a      <- c0v
+      c1a      <- c1v
+      if (cls == 0L) c0a[vi] <- c0a[vi] - 1L else c1a[vi] <- c1a[vi] - 1L
+      tc0a     <- tc0 - (cls == 0L)
+      tc1a     <- tc1 - (cls == 1L)
+
+      # Drop values now at zero total obs (cut topology may change).
+      keep_v   <- (c0a + c1a) > 0L
+      vls_a    <- vals[keep_v]
+      c0a_k    <- c0a[keep_v]
+      c1a_k    <- c1a[keep_v]
+
+      # Edge: one class eliminated or fewer than 2 distinct values remain.
+      if (tc0a == 0L || tc1a == 0L || length(vls_a) < 2L) {
+        loo_pred <- oda_rule_predict(val, rule)
+      } else {
+        best <- .find_best(c0a_k, c1a_k, tc0a, tc1a, vls_a)
+        if (is.null(best)) {
+          loo_pred <- oda_rule_predict(val, rule)
+        } else if (identical(best$dir, "0->1")) {
+          loo_pred <- if (val <= best$cut) 0L else 1L
+        } else {
+          loo_pred <- if (val <= best$cut) 1L else 0L
+        }
+      }
+
+      bin_mask             <- obs & (x == val) & (y == cls)
+      y_pred_loo[bin_mask] <- as.integer(loo_pred)
+    }
+  }
+
+  # NA-x observations: match oda_rule_predict(NA, rule) = NA_integer_.
+  if (any(!obs)) y_pred_loo[!obs] <- NA_integer_
+
+  y_pred_loo
+}
+
 # ---- LOO for a fixed UniODA rule ------------------------------------------ #
 
 #' True leave-one-out cross-validation for a UniODA rule.
@@ -378,82 +503,65 @@ oda_loo_for_rule <- function(
 
   y_pred_loo <- integer(n)
 
-  for (i in seq_len(n)) {
-    keep <- seq_len(n) != i
+  # For ordered_cut, try the algebraic count-table LOO first.  It reproduces
+  # full-refit results without n oda_univariate_core calls, and correctly
+  # detects tie-boundary instability that the former admissibility shortcut
+  # masked.  Falls back to full refits when algebraic path returns NULL.
+  #
+  # For binary_map: only one possible split; the training rule is always
+  # optimal as long as both values remain in the n-1 data.  Apply directly.
+  #
+  # All other rule types: full per-row refit via oda_univariate_core().
 
-    # MegaODA-faithful LOO STABLE: when the training rule is still valid on the
-    # n-1 fold, apply it directly to predict the held-out case instead of
-    # refitting.  This produces WESSL = WESS (LOO ESS = training ESS) for stable
-    # nodes, matching every STABLE node in MegaODA output.
-    #
-    # For ordered cuts: admissible iff both classes still appear on their
-    # correctly-predicted side of the cut in the n-1 data.  If inadmissible
-    # (one class is entirely removed from one side), fall through to a full
-    # refit — the resulting different rule may yield a different prediction for
-    # obs i, signalling genuine instability.
-    #
-    # For binary maps: only one split is possible; the training rule is always
-    # the optimal rule as long as both binary values remain in the n-1 data.
-    # Apply the training rule directly (avoids direction-flip artefacts from
-    # case-weighted LOO refits).
+  .loo_done <- FALSE
 
-    if (identical(rule$type, "ordered_cut")) {
-      x_k   <- x[keep]
-      y_k   <- y[keep]
-      w_k   <- w[keep]
-      w_k_a <- oda_apply_priors(y_k, w_k, priors_on)
-
-      left  <- !is.na(x_k) & x_k <= rule$cut_value
-      right <- !is.na(x_k) & x_k >  rule$cut_value
-
-      admissible <- if (rule$direction == "0->1") {
-        sum(w_k_a[left  & y_k == 0L]) > 0 &&
-        sum(w_k_a[right & y_k == 1L]) > 0
-      } else {                              # "1->0"
-        sum(w_k_a[left  & y_k == 1L]) > 0 &&
-        sum(w_k_a[right & y_k == 0L]) > 0
-      }
-
-      if (admissible) {
-        y_pred_loo[i] <- oda_rule_predict(x[i], rule)
-        next
-      }
-      # Fall through to full refit when training cut is inadmissible on n-1 obs
-
-    } else if (identical(rule$type, "binary_map")) {
-      # Binary attribute: only one possible split.  Apply the training rule
-      # directly as long as obs i has a non-missing value.
-      if (!is.na(x[i])) {
-        y_pred_loo[i] <- oda_rule_predict(x[i], rule)
-        next
-      }
+  if (identical(rule$type, "ordered_cut")) {
+    .alg <- oda_loo_ordered_cut_counts(x, y, w, priors_on, rule)
+    if (!is.null(.alg)) {
+      y_pred_loo <- .alg
+      .loo_done  <- TRUE
     }
+  }
 
-    fit_i <- oda_univariate_core(
-      x = x[keep], y = y[keep], w = w[keep],
-      attr_type    = attr_type,
-      priors_on    = priors_on,
-      primary      = primary,
-      secondary    = secondary,
-      miss_codes   = miss_codes,
-      loo          = "off",
-      mcarlo       = FALSE,
-      mc_iter      = mc_iter,
-      mc_target    = mc_target,
-      mc_stop      = mc_stop,
-      mc_stopup    = mc_stopup,
-      mc_adjust    = mc_adjust,
-      mc_seed      = if (is.null(mc_seed)) NULL else mc_seed + i,
-      chance_model = chance_model
-    )
+  if (!.loo_done) {
+    for (i in seq_len(n)) {
+      keep <- seq_len(n) != i
 
-    if (!isTRUE(fit_i$ok)) {
-      return(list(allowed = FALSE,
-                  reason  = paste0("loo_fit_failed_case_", i,
-                                   "_reason_", fit_i$reason),
-                  confusion = NULL, ess_loo = NA_real_, p_value = NA_real_))
+      if (identical(rule$type, "binary_map")) {
+        # Binary attribute: only one possible split.  Apply the training rule
+        # directly as long as obs i has a non-missing value.
+        if (!is.na(x[i])) {
+          y_pred_loo[i] <- oda_rule_predict(x[i], rule)
+          next
+        }
+      }
+
+      fit_i <- oda_univariate_core(
+        x = x[keep], y = y[keep], w = w[keep],
+        attr_type    = attr_type,
+        priors_on    = priors_on,
+        primary      = primary,
+        secondary    = secondary,
+        miss_codes   = miss_codes,
+        loo          = "off",
+        mcarlo       = FALSE,
+        mc_iter      = mc_iter,
+        mc_target    = mc_target,
+        mc_stop      = mc_stop,
+        mc_stopup    = mc_stopup,
+        mc_adjust    = mc_adjust,
+        mc_seed      = if (is.null(mc_seed)) NULL else mc_seed + i,
+        chance_model = chance_model
+      )
+
+      if (!isTRUE(fit_i$ok)) {
+        return(list(allowed = FALSE,
+                    reason  = paste0("loo_fit_failed_case_", i,
+                                     "_reason_", fit_i$reason),
+                    confusion = NULL, ess_loo = NA_real_, p_value = NA_real_))
+      }
+      y_pred_loo[i] <- oda_rule_predict(x[i], fit_i$rule)
     }
-    y_pred_loo[i] <- oda_rule_predict(x[i], fit_i$rule)
   }
 
   # ESS for LOO — use the same priors+case-weight scheme as training so that
