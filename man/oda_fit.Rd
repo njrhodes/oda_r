@@ -15,7 +15,8 @@ oda_fit(x, y, w = NULL,
         mcarlo = TRUE, mc_iter = 25000L, mc_target = 0.05,
         mc_stop = 99.9, mc_stopup = 20, mc_seed = NULL,
         loo = "off",
-        boundary_mode = c("megaoda_halfopen","right_closed"))
+        boundary_mode = c("megaoda_halfopen","right_closed"),
+        eval_order = c("mc_then_loo","loo_then_mc"))
 }
 \arguments{
   \item{x}{Attribute values (numeric, factor, character, or logical).}
@@ -50,6 +51,12 @@ oda_fit(x, y, w = NULL,
     \code{"stable"}, or \code{"pvalue"}.}
   \item{boundary_mode}{Boundary convention for multiclass ordered rules.
     Default \code{"megaoda_halfopen"} matches MegaODA.exe behaviour.}
+  \item{eval_order}{Controls whether Monte Carlo testing is run before LOO
+    validation or whether eligible ordered-cut LOO stability is checked
+    before Monte Carlo. The default \code{"mc_then_loo"} preserves
+    standalone UniODA behaviour. CTA tree building uses \code{"loo_then_mc"}
+    internally to reject LOO-unstable ordered-cut candidates before spending
+    MC iterations.}
 }
 \value{
 A named list with components:
