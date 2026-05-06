@@ -1,13 +1,19 @@
 # odacore
 
-Pure-R reimplementation of the MegaODA classification engine — binary-class
-UniODA and multiclass MultiODA for ordered and categorical attributes.
+Pure-R reimplementation of the MegaODA / CTA classification engine.
+
+- **UniODA** (`oda_univariate_core`) — binary-class ODA for ordered, categorical, and binary attributes
+- **MultiODA** (`oda_multiclass_unioda_core`) — multiclass ODA for ordered and categorical attributes
+- **`oda_fit`** — unified dispatcher: calls UniODA when C = 2, MultiODA when C ≥ 3
+- **CTA** (`oda_cta_fit`) — Classification Tree Analysis with ENUMERATE, LOO STABLE, and pruning
+
+All results are validated for exact parity against MegaODA.exe / CTA.exe golden outputs.
 
 ## Installation (development)
 
 ```r
 # install.packages("devtools")
-devtools::install_github("njrhodes/ODA", subdir = ".", ref = "rcore")
+devtools::install_github("njrhodes/oda_rcore")
 ```
 
 Or locally:
@@ -18,35 +24,71 @@ devtools::install("path/to/oda_rcore")
 
 ## Quick start
 
+### Binary class (C = 2)
+
 ```r
 library(odacore)
 
-# 3-class ordered example (iris Petal.Length)
+x <- c(1, 2, 3, 4, 5, 6, 7, 8)
+y <- c(0L, 0L, 0L, 0L, 1L, 1L, 1L, 1L)
+
+fit <- oda_fit(x, y, mcarlo = FALSE)
+fit$rule$cut_value   # 4.5
+fit$rule$direction   # "0->1"
+fit$ess              # 100
+```
+
+### Multiclass (C ≥ 3)
+
+```r
+library(odacore)
+
 y <- as.integer(factor(iris$Species,
-                        levels = c("setosa","versicolor","virginica")))
-fit <- oda_multiclass_unioda_core(
-  x          = iris$Petal.Length,
-  y          = y,
-  attr_type  = "ordered",
-  priors_on  = TRUE,
-  K_segments = 3L,
-  mcarlo     = TRUE,
-  loo        = "on"
+                        levels = c("setosa", "versicolor", "virginica")))
+fit <- oda_fit(
+  x         = iris$Petal.Length,
+  y         = y,
+  attr_type = "ordered",
+  priors_on = TRUE,
+  mcarlo    = TRUE,
+  loo       = "on"
 )
 
 fit$rule$cut_values   # c(2.45, 4.75)
 fit$rule$seg_classes  # c(1, 2, 3)
-fit$mean_pac          # ~95.3%
+fit$ess               # ~90.6
+```
+
+### Classification Tree Analysis
+
+```r
+library(odacore)
+
+X <- iris[, 1:4]
+y <- as.integer(iris$Species)
+
+tree <- oda_cta_fit(
+  X           = X,
+  y           = y,
+  priors_on   = TRUE,
+  alpha_split = 0.05,
+  prune_alpha = 0.05,
+  loo         = "stable",
+  mc_iter     = 25000L
+)
+
+predict(tree, X)
 ```
 
 ## Architecture
 
 ```
 R/
-├── utils.R          %||%, tick(), fmt helpers
-├── unioda_core.R    Binary-class ODA (oda_univariate_core)
-├── multioda_core.R  Multiclass ODA  (oda_multiclass_unioda_core)
-└── harness_utils.R  Diagnostic harness (confusion_raw, harness_loo_refit_*)
+├── utils.R          — %||%, tick(), fmt helpers (loaded first)
+├── unioda_core.R    — Binary-class engine: oda_univariate_core()
+├── multioda_core.R  — Multiclass engine: oda_multiclass_unioda_core()
+├── oda_fit.R        — Unified dispatcher: oda_fit() routes on C
+└── cta_core.R       — Classification tree: oda_cta_fit()
 ```
 
 ## Tie-breaking spec (MegaODA-faithful)
@@ -55,18 +97,28 @@ R/
 PRIMARY   = MAXSENS   (overall PAC in priors-weighted objective space)
 SECONDARY = SAMPLEREP (L1 distance: predicted vs observed class frequencies)
 TERTIARY  = FIRST IDENTIFIED (enumeration order — tick() integer quantisation)
-LOO       = refit-per-fold (no global rule reuse)
 ```
+
+LOO validity is a post-selection check, not a tie-break criterion.
 
 ## Running tests
 
 ```r
-devtools::test()           # all tests
-devtools::test(filter = "iris")          # iris gold only
-devtools::test(filter = "tie-breaking")  # SAMPLEREP isolation
+devtools::test()                          # all tests
+devtools::test(filter = "iris")           # iris multiclass gold
+devtools::test(filter = "fixture-cta")    # CTA_DEMO gold fixture
+devtools::test(filter = "tie-breaking")   # SAMPLEREP isolation
+devtools::check()                         # full R CMD check
 ```
 
 ## CI
 
-GitHub Actions runs `R CMD check` on ubuntu/windows/macos × R-release/R-devel
-on every push to `main` and `rcore` branches.
+GitHub Actions runs `R CMD check` on:
+
+| OS | R |
+|---|---|
+| ubuntu-latest | release, devel |
+| windows-latest | release |
+| macos-latest | release |
+
+Triggered on push/PR to `main`.
