@@ -632,10 +632,12 @@ oda_univariate_core <- function(
     mc_stopup  = NA_real_,
     mc_adjust  = FALSE,
     mc_seed    = NULL,
-    chance_model = c("class","attribute")
+    chance_model = c("class","attribute"),
+    eval_order   = c("mc_then_loo", "loo_then_mc")
 ) {
   chance_model <- match.arg(chance_model)
   loo          <- match.arg(loo)
+  eval_order   <- match.arg(eval_order)
 
   # Resolve missing_code alias → miss_codes
   if (!is.null(missing_code)) {
@@ -818,6 +820,25 @@ oda_univariate_core <- function(
   ess_attr   <- oda_ess_from_meanpac(mp_best, chance_a)
   ess_obj    <- if (chance_model == "class") ess_class else ess_attr
   pac        <- mp_best * 100
+
+  # 10a. Early LOO stability gate (loo_then_mc mode only).
+  # For ordered_cut rules with uniform weights, the algebraic count-table LOO
+  # can determine stability in O(k^2) time — far cheaper than MC. If it proves
+  # instability, reject before burning MC iterations.
+  # Conditions: eval_order=="loo_then_mc", loo=="stable", mcarlo==TRUE,
+  #             ordered_cut rule, algebraic helper applicable (uniform w).
+  if (eval_order == "loo_then_mc" && loo == "stable" &&
+      isTRUE(mcarlo) && identical(rule_best$type, "ordered_cut")) {
+    .pre_alg <- oda_loo_ordered_cut_counts(x, y, w_raw, priors_on, rule_best)
+    if (!is.null(.pre_alg)) {
+      .w_pre      <- oda_apply_priors(y, w_raw, priors_on)
+      .conf_pre   <- oda_confusion_binary(y, .pre_alg, .w_pre)
+      .chance_pre <- if (chance_model == "class") chance_class else chance_a
+      .ess_pre    <- oda_ess_from_meanpac(.conf_pre$mean_pac, .chance_pre)
+      if (!isTRUE(all.equal(ess_obj, .ess_pre, tolerance = 1e-12)))
+        return(list(ok = FALSE, reason = "loo_not_stable", type = "leaf"))
+    }
+  }
 
   # 11. Monte Carlo p-value
   mc_res <- NULL

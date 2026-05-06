@@ -253,7 +253,7 @@ oda_cta_fit <- function(
               mcarlo = TRUE, mc_iter = as.integer(mc_iter),
               mc_target = mc_target, mc_stop = mc_stop,
               mc_stopup = mc_stopup, mc_seed = seed_j,
-              loo = loo_arg),
+              loo = loo_arg, eval_order = "loo_then_mc"),
       error = function(e) list(ok = FALSE))
     if (!isTRUE(fit$ok))                                            return(NULL)
     p_mc <- fit$p_mc

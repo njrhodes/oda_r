@@ -61,10 +61,12 @@ oda_fit <- function(
     mc_stopup    = 20,
     mc_seed      = NULL,
     loo          = "off",
-    boundary_mode = c("megaoda_halfopen","right_closed")
+    boundary_mode = c("megaoda_halfopen","right_closed"),
+    eval_order   = c("mc_then_loo", "loo_then_mc")
 ) {
   attr_type     <- match.arg(attr_type)
   boundary_mode <- match.arg(boundary_mode)
+  eval_order    <- match.arg(eval_order)
 
   # Resolve alias
   if (!is.null(missing_code))
@@ -106,7 +108,8 @@ oda_fit <- function(
       mc_target    = mc_target,
       mc_stop      = mc_stop,
       mc_stopup    = mc_stopup,
-      mc_seed      = mc_seed
+      mc_seed      = mc_seed,
+      eval_order   = eval_order
     )
 
     # Remap rule and confusion back to original label space.
