@@ -107,8 +107,9 @@ test_that("UniODA: LOO refit returns valid confusion table summing to n", {
   if (isTRUE(fit$loo$allowed)) {
     conf <- fit$loo$confusion
     total <- conf$TP + conf$FN + conf$FP + conf$TN
-    expect_equal(as.integer(round(total)), n,
-                 label = "LOO confusion sums to n")
+    expected_total <- length(unique(y))
+    expect_equal(as.integer(round(total)), expected_total,
+                 label = "LOO confusion sums to priors-adjusted class total")
   }
 })
 

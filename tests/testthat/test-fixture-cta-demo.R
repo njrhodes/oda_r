@@ -22,7 +22,7 @@
 # ---- helpers ----------------------------------------------------------------
 
 load_cta_demo <- function() {
-  f <- tryCatch(testthat::test_path("CTA_DEMO.CSV"), error = function(e) "")
+  f <- tryCatch(testthat::test_path("fixtures/cta_demo/CTA_DEMO.CSV"), error = function(e) "")
   if (!nzchar(f) || !file.exists(f)) skip("CTA_DEMO.CSV not found")
   read.csv(f, header = FALSE,
            col.names = c("V1", "V2", "V3", "V4", "V5", "V6"))
@@ -47,7 +47,9 @@ load_cta_demo <- function() {
         mc_iter     = 5000L,
         mc_target   = 0.05,
         mc_stop     = 99.9,
-        mc_stopup   = NA_real_,
+        # Enable canon-shaped STOPUP early rejection for nonsignificant MC candidates.
+        # NA_real_ disables upper stopping in R and is not proven CTA.exe behavior.
+        mc_stopup   = 99.9,
         mc_seed     = NULL,
         loo         = "stable",
         attr_names  = c("V2", "V3", "V4", "V5", "V6")
@@ -96,6 +98,70 @@ test_that("cta-demo gold: depth-2 nodes are V6 (n=110) and V2 (n=90), both STABL
                label = "depth-2 attributes")
   expect_true(all(d2$loo_status == "STABLE"),
               info = paste("non-STABLE:", paste(d2$loo_status[d2$loo_status != "STABLE"], collapse = ",")))
+})
+
+test_that("cta-demo gold: root ESS >= 50% (MegaODA = 52.63%)", {
+  tree <- .cta_demo_fit()
+  root <- tree$nodes[[tree$root_id]]
+  expect_gte(root$ess, 50.0)
+})
+
+test_that("cta-demo gold: 8 split nodes (matching MegaODA node table)", {
+  tree <- .cta_demo_fit()
+  tbl  <- cta_node_table(tree)
+  n_split <- sum(!tbl$leaf)
+  expect_equal(n_split, 8L)
+})
+
+test_that("cta-demo gold: split node obs counts match MegaODA exactly", {
+  tree <- .cta_demo_fit()
+  tbl  <- cta_node_table(tree)
+  split_obs <- sort(tbl$n_obs[!tbl$leaf])
+  # MegaODA split node obs: 25,29,37,47,81,90,110,200
+  expect_equal(split_obs, sort(c(200L, 110L, 90L, 29L, 81L, 47L, 25L, 37L)))
+})
+
+test_that("cta-demo gold: split node attributes match MegaODA (V2x2, V3, V4x2, V5, V6x2)", {
+  tree <- .cta_demo_fit()
+  tbl  <- cta_node_table(tree)
+  split_attrs <- sort(tbl$attribute[!tbl$leaf])
+  expected    <- sort(c("V2", "V2", "V3", "V4", "V4", "V5", "V6", "V6"))
+  expect_equal(split_attrs, expected)
+})
+
+test_that("cta-demo gold: all split nodes have LOO = STABLE", {
+  tree <- .cta_demo_fit()
+  tbl  <- cta_node_table(tree)
+  split_loo <- tbl$loo_status[!tbl$leaf]
+  expect_true(all(split_loo == "STABLE"),
+              info = paste("non-STABLE:", paste(split_loo[split_loo != "STABLE"], collapse = ",")))
+})
+
+test_that("cta-demo gold: all split node p-values are finite", {
+  # p-values are RNG-dependent and are not assertable to exact values.
+  # Structure and ESS are the gold values.
+  tree <- .cta_demo_fit()
+  tbl  <- cta_node_table(tree)
+  p_vals <- tbl$p_mc[!tbl$leaf]
+  expect_true(all(is.finite(p_vals)))
+})
+
+test_that("cta-demo gold: depth-3 nodes are V3(29), V5(81), V6(47)", {
+  tree <- .cta_demo_fit()
+  tbl  <- cta_node_table(tree)
+  d3   <- tbl[tbl$depth == 3 & !tbl$leaf, ]
+  expect_equal(nrow(d3), 3L)
+  expect_equal(sort(d3$n_obs), c(29L, 47L, 81L))
+  expect_equal(sort(d3$attribute), c("V3", "V5", "V6"))
+})
+
+test_that("cta-demo gold: depth-4 nodes are both V4, obs 25 and 37", {
+  tree <- .cta_demo_fit()
+  tbl  <- cta_node_table(tree)
+  d4   <- tbl[tbl$depth == 4 & !tbl$leaf, ]
+  expect_equal(nrow(d4), 2L)
+  expect_equal(sort(d4$n_obs), c(25L, 37L))
+  expect_true(all(d4$attribute == "V4"))
 })
 
 # ---- full-tree performance --------------------------------------------------

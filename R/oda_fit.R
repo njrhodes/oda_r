@@ -61,10 +61,12 @@ oda_fit <- function(
     mc_stopup    = 20,
     mc_seed      = NULL,
     loo          = "off",
-    boundary_mode = c("megaoda_halfopen","right_closed")
+    boundary_mode = c("megaoda_halfopen","right_closed"),
+    eval_order   = c("mc_then_loo", "loo_then_mc")
 ) {
   attr_type     <- match.arg(attr_type)
   boundary_mode <- match.arg(boundary_mode)
+  eval_order    <- match.arg(eval_order)
 
   # Resolve alias
   if (!is.null(missing_code))
@@ -106,7 +108,8 @@ oda_fit <- function(
       mc_target    = mc_target,
       mc_stop      = mc_stop,
       mc_stopup    = mc_stopup,
-      mc_seed      = mc_seed
+      mc_seed      = mc_seed,
+      eval_order   = eval_order
     )
 
     # Remap rule and confusion back to original label space.
@@ -141,4 +144,14 @@ oda_fit <- function(
   )
   fit$engine <- "multiclass"
   return(fit)
+}
+
+# ---- cta_fit: public wrapper for CTA ----------------------------------------
+
+cta_fit <- function(X, y, ...) {
+  cls <- sort(unique(y[!is.na(y)]))
+  if (length(cls) != 2L) {
+    stop("cta_fit currently supports binary class variables only", call. = FALSE)
+  }
+  oda_cta_fit(X = X, y = y, ...)
 }

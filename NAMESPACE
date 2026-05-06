@@ -17,10 +17,11 @@ export(oda_ess_from_mean)
 
 # ----- CTA -----
 export(oda_cta_fit)
-export(predict.cta_tree)
-export(print.cta_tree)
+export(cta_fit)
 export(cta_node_table)
+S3method(predict, cta_tree)
+S3method(print, cta_tree)
 
 # ----- Imports -----
 importFrom(stats, fisher.test, qbeta, runif, setNames)
-importFrom(utils, combn, head)
+importFrom(utils, combn, head, modifyList)

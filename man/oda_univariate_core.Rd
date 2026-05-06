@@ -15,7 +15,8 @@ oda_univariate_core(x, y, w = NULL,
   loo = c("off","stable","pvalue"), loo_alpha = 0.05,
   mcarlo = TRUE, mc_iter = 25000L, mc_target = 0.05,
   mc_stop = 99.9, mc_stopup = NA_real_, mc_adjust = FALSE,
-  mc_seed = NULL, chance_model = c("class","attribute"))
+  mc_seed = NULL, chance_model = c("class","attribute"),
+  eval_order = c("mc_then_loo","loo_then_mc"))
 }
 \arguments{
   \item{x}{Attribute values.}
@@ -39,6 +40,12 @@ oda_univariate_core(x, y, w = NULL,
   \item{mc_seed}{RNG seed.}
   \item{chance_model}{\code{"class"} (1/2) or \code{"attribute"}
     (1/k_attr) baseline.}
+  \item{eval_order}{Controls whether Monte Carlo testing is run before LOO
+    validation or whether eligible ordered-cut LOO stability is checked
+    before Monte Carlo. The default \code{"mc_then_loo"} preserves
+    standalone UniODA behaviour. CTA tree building uses \code{"loo_then_mc"}
+    internally to reject LOO-unstable ordered-cut candidates before spending
+    MC iterations.}
 }
 \value{
 Named list. Key fields: \code{ok}, \code{rule}, \code{confusion} (list

@@ -267,11 +267,11 @@ oda_mc_p_value <- function(
   if (is.null(ess_obs) || !is.finite(ess_obs))
     stop("oda_mc_p_value: ess_obs must be supplied and finite.")
 
-  # Convert stop confidence to probability scale.
-  # STOPUP uses the same CUTOFF threshold as STOP (mc_target), not mc_stopup.
-  # The canonical MegaODA command is: MC ITER N CUTOFF p STOP c
-  # There is no separate STOPUP threshold — both directions compare against CUTOFF.
-  conf_level   <- if (!is.na(mc_stop) && mc_stop > 1) mc_stop / 100 else mc_stop
+  # Convert stop confidence levels to probability scale.
+  # STOP  (lower-tail): early accept when upper CP bound < mc_target at conf_stop  confidence.
+  # STOPUP (upper-tail): early reject when lower CP bound > mc_target at conf_stopup confidence.
+  conf_stop   <- if (!is.na(mc_stop)   && mc_stop   > 1) mc_stop   / 100 else mc_stop
+  conf_stopup <- if (!is.na(mc_stopup) && mc_stopup > 1) mc_stopup / 100 else mc_stopup
 
   ge_count  <- 0L
   iter_used <- 0L
@@ -304,17 +304,19 @@ oda_mc_p_value <- function(
     if (ess_b >= ess_obs - 1e-12) ge_count <- ge_count + 1L
 
     # Clopper-Pearson early stopping
-    if (!is.na(conf_level) && b >= min_check && (b %% check_every == 0L)) {
+    if (b >= min_check && (b %% check_every == 0L)) {
       if (ge_count == 0L) {
-        lower <- 0; upper <- stats::qbeta(conf_level, 1, b)
+        lower <- 0
+        upper <- if (!is.na(conf_stop))   stats::qbeta(conf_stop,   1,           b)           else NA_real_
       } else if (ge_count == b) {
-        lower <- stats::qbeta(1 - conf_level, b, 1); upper <- 1
+        upper <- 1
+        lower <- if (!is.na(conf_stopup)) stats::qbeta(1 - conf_stopup, b,       1)           else NA_real_
       } else {
-        upper <- stats::qbeta(conf_level, ge_count + 1, b - ge_count)
-        lower <- stats::qbeta(1 - conf_level, ge_count, b - ge_count + 1)
+        upper <- if (!is.na(conf_stop))   stats::qbeta(conf_stop,   ge_count + 1, b - ge_count)      else NA_real_
+        lower <- if (!is.na(conf_stopup)) stats::qbeta(1 - conf_stopup, ge_count, b - ge_count + 1)  else NA_real_
       }
-      if (!is.na(mc_target) && upper < mc_target) break   # STOP:   99.9% sure p < CUTOFF
-      if (!is.na(mc_target) && lower > mc_target) break   # STOPUP: 99.9% sure p > CUTOFF
+      if (!is.na(mc_target) && !is.na(upper) && upper < mc_target) break   # STOP:   conf_stop   sure p < CUTOFF
+      if (!is.na(mc_target) && !is.na(lower) && lower > mc_target) break   # STOPUP: conf_stopup sure p > CUTOFF
     }
   }
 
@@ -322,6 +324,131 @@ oda_mc_p_value <- function(
        ge_count  = ge_count,
        iter_used = iter_used,
        ess_obs   = ess_obs)
+}
+
+# ---- Algebraic ordered-cut LOO helper ------------------------------------ #
+
+# Fast count-table LOO for ordered_cut rules.
+#
+# Instead of calling oda_univariate_core() n times (once per fold), this
+# function builds a sorted unique-value count table and for each unique
+# (x value, class) bin simulates removing one observation algebraically:
+# decrement the bin count, rescan all cuts in ascending order using the same
+# priors-adjusted ESS formula as training, and predict the held-out x.  All
+# observations sharing the same (x value, class) bin receive the same LOO
+# prediction, so the inner loop runs over at most 2k bins rather than n folds.
+#
+# Conservative fallback: returns NULL when raw weights are non-uniform within
+# any bin (non-canonical case), leaving the caller to use full refits.
+#
+# Tie-breaking: strict > throughout preserves FIRST IDENTIFIED (ascending cut
+# scan) as the tertiary rule, matching oda_univariate_core().
+#
+# Returns: integer vector y_pred_loo of length n (same 0L/1L encoding as
+# oda_loo_for_rule), or NULL if the algebraic path is not applicable.
+oda_loo_ordered_cut_counts <- function(x, y, w, priors_on, rule) {
+
+  if (!identical(rule$type, "ordered_cut")) return(NULL)
+
+  y <- as.integer(y)
+  n <- length(y)
+
+  # Non-uniform raw weights: algebraic path requires uniform within-bin weights.
+  # With unit (or all-equal) w, every obs in a (val, class) bin is identical
+  # under the priors-adjusted ESS formula, so removing any one is equivalent.
+  if (length(unique(w)) > 1L) return(NULL)
+
+  obs  <- !is.na(x)
+  tc0  <- sum(y[obs] == 0L)
+  tc1  <- sum(y[obs] == 1L)
+  if (tc0 == 0L || tc1 == 0L) return(NULL)   # pure node; no split possible
+
+  vals <- sort(unique(x[obs]))
+  k    <- length(vals)
+  if (k < 2L) return(NULL)                   # no candidate cut exists
+
+  # Build count table: c0v[i], c1v[i] = raw class counts at vals[i]
+  c0v <- integer(k)
+  c1v <- integer(k)
+  for (i in seq_len(k)) {
+    m      <- obs & (x == vals[i])
+    c0v[i] <- sum(y[m] == 0L)
+    c1v[i] <- sum(y[m] == 1L)
+  }
+
+  # Scan helper: find best cut/direction on an adjusted count table.
+  # Uses the priors-adjusted PAC formula (uniform raw w):
+  #   ESS("0->1") = (cum0/tc0a + right1/tc1a - 1) * 100
+  #   ESS("1->0") = (right0/tc0a + cum1/tc1a  - 1) * 100
+  # Strict > keeps first-identified cut/direction when ESS ties.
+  .find_best <- function(c0a, c1a, tc0a, tc1a, vls) {
+    ka     <- length(vls)
+    best_e <- -Inf
+    best_c <- NA_real_
+    best_d <- NA_character_
+    cum0   <- 0L
+    cum1   <- 0L
+    for (i in seq_len(ka - 1L)) {
+      cum0 <- cum0 + c0a[i]
+      cum1 <- cum1 + c1a[i]
+      r0   <- tc0a - cum0
+      r1   <- tc1a - cum1
+      if ((cum0 + cum1) == 0L || (r0 + r1) == 0L) next
+      cut  <- (vls[i] + vls[i + 1L]) / 2.0
+      e01  <- (cum0 / tc0a + r1   / tc1a - 1.0) * 100.0  # "0->1"
+      e10  <- (r0   / tc0a + cum1 / tc1a - 1.0) * 100.0  # "1->0"
+      if (e01 > best_e) { best_e <- e01; best_c <- cut; best_d <- "0->1" }
+      if (e10 > best_e) { best_e <- e10; best_c <- cut; best_d <- "1->0" }
+    }
+    if (is.na(best_c)) NULL else list(cut = best_c, dir = best_d)
+  }
+
+  # Output vector: 0L by default; NA-x obs set at end.
+  y_pred_loo <- integer(n)
+
+  # LOO over unique (x value, class) bins.
+  for (vi in seq_len(k)) {
+    val <- vals[vi]
+    for (cls in c(0L, 1L)) {
+      bin_n <- if (cls == 0L) c0v[vi] else c1v[vi]
+      if (bin_n == 0L) next
+
+      # Remove one obs of `cls` at vals[vi].
+      c0a      <- c0v
+      c1a      <- c1v
+      if (cls == 0L) c0a[vi] <- c0a[vi] - 1L else c1a[vi] <- c1a[vi] - 1L
+      tc0a     <- tc0 - (cls == 0L)
+      tc1a     <- tc1 - (cls == 1L)
+
+      # Drop values now at zero total obs (cut topology may change).
+      keep_v   <- (c0a + c1a) > 0L
+      vls_a    <- vals[keep_v]
+      c0a_k    <- c0a[keep_v]
+      c1a_k    <- c1a[keep_v]
+
+      # Edge: one class eliminated or fewer than 2 distinct values remain.
+      if (tc0a == 0L || tc1a == 0L || length(vls_a) < 2L) {
+        loo_pred <- oda_rule_predict(val, rule)
+      } else {
+        best <- .find_best(c0a_k, c1a_k, tc0a, tc1a, vls_a)
+        if (is.null(best)) {
+          loo_pred <- oda_rule_predict(val, rule)
+        } else if (identical(best$dir, "0->1")) {
+          loo_pred <- if (val <= best$cut) 0L else 1L
+        } else {
+          loo_pred <- if (val <= best$cut) 1L else 0L
+        }
+      }
+
+      bin_mask             <- obs & (x == val) & (y == cls)
+      y_pred_loo[bin_mask] <- as.integer(loo_pred)
+    }
+  }
+
+  # NA-x observations: match oda_rule_predict(NA, rule) = NA_integer_.
+  if (any(!obs)) y_pred_loo[!obs] <- NA_integer_
+
+  y_pred_loo
 }
 
 # ---- LOO for a fixed UniODA rule ------------------------------------------ #
@@ -376,82 +503,65 @@ oda_loo_for_rule <- function(
 
   y_pred_loo <- integer(n)
 
-  for (i in seq_len(n)) {
-    keep <- seq_len(n) != i
+  # For ordered_cut, try the algebraic count-table LOO first.  It reproduces
+  # full-refit results without n oda_univariate_core calls, and correctly
+  # detects tie-boundary instability that the former admissibility shortcut
+  # masked.  Falls back to full refits when algebraic path returns NULL.
+  #
+  # For binary_map: only one possible split; the training rule is always
+  # optimal as long as both values remain in the n-1 data.  Apply directly.
+  #
+  # All other rule types: full per-row refit via oda_univariate_core().
 
-    # MegaODA-faithful LOO STABLE: when the training rule is still valid on the
-    # n-1 fold, apply it directly to predict the held-out case instead of
-    # refitting.  This produces WESSL = WESS (LOO ESS = training ESS) for stable
-    # nodes, matching every STABLE node in MegaODA output.
-    #
-    # For ordered cuts: admissible iff both classes still appear on their
-    # correctly-predicted side of the cut in the n-1 data.  If inadmissible
-    # (one class is entirely removed from one side), fall through to a full
-    # refit — the resulting different rule may yield a different prediction for
-    # obs i, signalling genuine instability.
-    #
-    # For binary maps: only one split is possible; the training rule is always
-    # the optimal rule as long as both binary values remain in the n-1 data.
-    # Apply the training rule directly (avoids direction-flip artefacts from
-    # case-weighted LOO refits).
+  .loo_done <- FALSE
 
-    if (identical(rule$type, "ordered_cut")) {
-      x_k   <- x[keep]
-      y_k   <- y[keep]
-      w_k   <- w[keep]
-      w_k_a <- oda_apply_priors(y_k, w_k, priors_on)
-
-      left  <- !is.na(x_k) & x_k <= rule$cut_value
-      right <- !is.na(x_k) & x_k >  rule$cut_value
-
-      admissible <- if (rule$direction == "0->1") {
-        sum(w_k_a[left  & y_k == 0L]) > 0 &&
-        sum(w_k_a[right & y_k == 1L]) > 0
-      } else {                              # "1->0"
-        sum(w_k_a[left  & y_k == 1L]) > 0 &&
-        sum(w_k_a[right & y_k == 0L]) > 0
-      }
-
-      if (admissible) {
-        y_pred_loo[i] <- oda_rule_predict(x[i], rule)
-        next
-      }
-      # Fall through to full refit when training cut is inadmissible on n-1 obs
-
-    } else if (identical(rule$type, "binary_map")) {
-      # Binary attribute: only one possible split.  Apply the training rule
-      # directly as long as obs i has a non-missing value.
-      if (!is.na(x[i])) {
-        y_pred_loo[i] <- oda_rule_predict(x[i], rule)
-        next
-      }
+  if (identical(rule$type, "ordered_cut")) {
+    .alg <- oda_loo_ordered_cut_counts(x, y, w, priors_on, rule)
+    if (!is.null(.alg)) {
+      y_pred_loo <- .alg
+      .loo_done  <- TRUE
     }
+  }
 
-    fit_i <- oda_univariate_core(
-      x = x[keep], y = y[keep], w = w[keep],
-      attr_type    = attr_type,
-      priors_on    = priors_on,
-      primary      = primary,
-      secondary    = secondary,
-      miss_codes   = miss_codes,
-      loo          = "off",
-      mcarlo       = FALSE,
-      mc_iter      = mc_iter,
-      mc_target    = mc_target,
-      mc_stop      = mc_stop,
-      mc_stopup    = mc_stopup,
-      mc_adjust    = mc_adjust,
-      mc_seed      = if (is.null(mc_seed)) NULL else mc_seed + i,
-      chance_model = chance_model
-    )
+  if (!.loo_done) {
+    for (i in seq_len(n)) {
+      keep <- seq_len(n) != i
 
-    if (!isTRUE(fit_i$ok)) {
-      return(list(allowed = FALSE,
-                  reason  = paste0("loo_fit_failed_case_", i,
-                                   "_reason_", fit_i$reason),
-                  confusion = NULL, ess_loo = NA_real_, p_value = NA_real_))
+      if (identical(rule$type, "binary_map")) {
+        # Binary attribute: only one possible split.  Apply the training rule
+        # directly as long as obs i has a non-missing value.
+        if (!is.na(x[i])) {
+          y_pred_loo[i] <- oda_rule_predict(x[i], rule)
+          next
+        }
+      }
+
+      fit_i <- oda_univariate_core(
+        x = x[keep], y = y[keep], w = w[keep],
+        attr_type    = attr_type,
+        priors_on    = priors_on,
+        primary      = primary,
+        secondary    = secondary,
+        miss_codes   = miss_codes,
+        loo          = "off",
+        mcarlo       = FALSE,
+        mc_iter      = mc_iter,
+        mc_target    = mc_target,
+        mc_stop      = mc_stop,
+        mc_stopup    = mc_stopup,
+        mc_adjust    = mc_adjust,
+        mc_seed      = if (is.null(mc_seed)) NULL else mc_seed + i,
+        chance_model = chance_model
+      )
+
+      if (!isTRUE(fit_i$ok)) {
+        return(list(allowed = FALSE,
+                    reason  = paste0("loo_fit_failed_case_", i,
+                                     "_reason_", fit_i$reason),
+                    confusion = NULL, ess_loo = NA_real_, p_value = NA_real_))
+      }
+      y_pred_loo[i] <- oda_rule_predict(x[i], fit_i$rule)
     }
-    y_pred_loo[i] <- oda_rule_predict(x[i], fit_i$rule)
   }
 
   # ESS for LOO — use the same priors+case-weight scheme as training so that
@@ -522,10 +632,12 @@ oda_univariate_core <- function(
     mc_stopup  = NA_real_,
     mc_adjust  = FALSE,
     mc_seed    = NULL,
-    chance_model = c("class","attribute")
+    chance_model = c("class","attribute"),
+    eval_order   = c("mc_then_loo", "loo_then_mc")
 ) {
   chance_model <- match.arg(chance_model)
   loo          <- match.arg(loo)
+  eval_order   <- match.arg(eval_order)
 
   # Resolve missing_code alias → miss_codes
   if (!is.null(missing_code)) {
@@ -557,8 +669,21 @@ oda_univariate_core <- function(
 
   # 6. Enumerate admissible rules -------------------------------------------
 
-  cand_rows  <- list()
-  preds_list <- list()   # index matches cand_rows for SAMPLEREP
+  # Accumulate candidate fields as parallel vectors; build cand_df once after
+  # enumeration. Avoids repeated data.frame() + deparse + make.names overhead
+  # in the inner candidate loop (the hot path for large ordered attributes).
+  cand_j         <- integer(0)
+  cand_direction <- character(0)
+  cand_cut_value <- numeric(0)
+  cand_pac       <- numeric(0)
+  cand_ess_class <- numeric(0)
+  cand_ess_attr  <- numeric(0)
+  cand_ess       <- numeric(0)
+  cand_sens_1    <- numeric(0)
+  cand_spec_0    <- numeric(0)
+  cand_mean_pac  <- numeric(0)
+  cand_balance   <- numeric(0)
+  preds_list     <- list()   # parallel to cand_* vectors; indexed by row_id
 
   add_candidate <- function(rule, j_index = NA_integer_) {
     y_pred    <- oda_rule_predict(x, rule)
@@ -570,23 +695,19 @@ oda_univariate_core <- function(
     ess_attr  <- oda_ess_from_meanpac(mp, chance_a)
     ess_obj   <- if (chance_model == "class") ess_class else ess_attr
 
-    row <- data.frame(
-      row_id    = length(preds_list) + 1L,
-      j         = j_index,
-      direction = rule$direction,
-      cut_value = if (!is.null(rule$cut_value)) rule$cut_value else NA_real_,
-      pac       = pac,
-      ess_class = ess_class,
-      ess_attr  = ess_attr,
-      ess       = ess_obj,
-      sens_1    = conf$sensitivity,
-      spec_0    = conf$specificity,
-      mean_pac  = mp,
-      balance   = abs(conf$sensitivity - conf$specificity),
-      stringsAsFactors = FALSE
-    )
-    cand_rows[[length(cand_rows) + 1L]] <<- row
     preds_list[[length(preds_list) + 1L]] <<- y_pred
+    cand_j         <<- c(cand_j,        j_index)
+    cand_direction <<- c(cand_direction, rule$direction)
+    cand_cut_value <<- c(cand_cut_value,
+                          if (!is.null(rule$cut_value)) rule$cut_value else NA_real_)
+    cand_pac       <<- c(cand_pac,       pac)
+    cand_ess_class <<- c(cand_ess_class, ess_class)
+    cand_ess_attr  <<- c(cand_ess_attr,  ess_attr)
+    cand_ess       <<- c(cand_ess,       ess_obj)
+    cand_sens_1    <<- c(cand_sens_1,    conf$sensitivity)
+    cand_spec_0    <<- c(cand_spec_0,    conf$specificity)
+    cand_mean_pac  <<- c(cand_mean_pac,  mp)
+    cand_balance   <<- c(cand_balance,   abs(conf$sensitivity - conf$specificity))
   }
 
   # --- binary attribute ---
@@ -654,10 +775,24 @@ oda_univariate_core <- function(
     }
   }
 
-  if (length(cand_rows) == 0L)
+  if (length(preds_list) == 0L)
     return(list(ok = FALSE, reason = "no_admissible_cut", type = "leaf"))
 
-  cand_df <- do.call(rbind, cand_rows)
+  cand_df <- data.frame(
+    row_id    = seq_along(preds_list),
+    j         = cand_j,
+    direction = cand_direction,
+    cut_value = cand_cut_value,
+    pac       = cand_pac,
+    ess_class = cand_ess_class,
+    ess_attr  = cand_ess_attr,
+    ess       = cand_ess,
+    sens_1    = cand_sens_1,
+    spec_0    = cand_spec_0,
+    mean_pac  = cand_mean_pac,
+    balance   = cand_balance,
+    stringsAsFactors = FALSE
+  )
 
   # 7. Tie-breaking defaults
   if (is.null(primary))   primary   <- if (priors_on) "maxsens" else "meansens"
@@ -708,6 +843,25 @@ oda_univariate_core <- function(
   ess_attr   <- oda_ess_from_meanpac(mp_best, chance_a)
   ess_obj    <- if (chance_model == "class") ess_class else ess_attr
   pac        <- mp_best * 100
+
+  # 10a. Early LOO stability gate (loo_then_mc mode only).
+  # For ordered_cut rules with uniform weights, the algebraic count-table LOO
+  # can determine stability in O(k^2) time — far cheaper than MC. If it proves
+  # instability, reject before burning MC iterations.
+  # Conditions: eval_order=="loo_then_mc", loo=="stable", mcarlo==TRUE,
+  #             ordered_cut rule, algebraic helper applicable (uniform w).
+  if (eval_order == "loo_then_mc" && loo == "stable" &&
+      isTRUE(mcarlo) && identical(rule_best$type, "ordered_cut")) {
+    .pre_alg <- oda_loo_ordered_cut_counts(x, y, w_raw, priors_on, rule_best)
+    if (!is.null(.pre_alg)) {
+      .w_pre      <- oda_apply_priors(y, w_raw, priors_on)
+      .conf_pre   <- oda_confusion_binary(y, .pre_alg, .w_pre)
+      .chance_pre <- if (chance_model == "class") chance_class else chance_a
+      .ess_pre    <- oda_ess_from_meanpac(.conf_pre$mean_pac, .chance_pre)
+      if (!isTRUE(all.equal(ess_obj, .ess_pre, tolerance = 1e-12)))
+        return(list(ok = FALSE, reason = "loo_not_stable", type = "leaf"))
+    }
+  }
 
   # 11. Monte Carlo p-value
   mc_res <- NULL
