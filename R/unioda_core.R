@@ -669,8 +669,21 @@ oda_univariate_core <- function(
 
   # 6. Enumerate admissible rules -------------------------------------------
 
-  cand_rows  <- list()
-  preds_list <- list()   # index matches cand_rows for SAMPLEREP
+  # Accumulate candidate fields as parallel vectors; build cand_df once after
+  # enumeration. Avoids repeated data.frame() + deparse + make.names overhead
+  # in the inner candidate loop (the hot path for large ordered attributes).
+  cand_j         <- integer(0)
+  cand_direction <- character(0)
+  cand_cut_value <- numeric(0)
+  cand_pac       <- numeric(0)
+  cand_ess_class <- numeric(0)
+  cand_ess_attr  <- numeric(0)
+  cand_ess       <- numeric(0)
+  cand_sens_1    <- numeric(0)
+  cand_spec_0    <- numeric(0)
+  cand_mean_pac  <- numeric(0)
+  cand_balance   <- numeric(0)
+  preds_list     <- list()   # parallel to cand_* vectors; indexed by row_id
 
   add_candidate <- function(rule, j_index = NA_integer_) {
     y_pred    <- oda_rule_predict(x, rule)
@@ -682,23 +695,19 @@ oda_univariate_core <- function(
     ess_attr  <- oda_ess_from_meanpac(mp, chance_a)
     ess_obj   <- if (chance_model == "class") ess_class else ess_attr
 
-    row <- data.frame(
-      row_id    = length(preds_list) + 1L,
-      j         = j_index,
-      direction = rule$direction,
-      cut_value = if (!is.null(rule$cut_value)) rule$cut_value else NA_real_,
-      pac       = pac,
-      ess_class = ess_class,
-      ess_attr  = ess_attr,
-      ess       = ess_obj,
-      sens_1    = conf$sensitivity,
-      spec_0    = conf$specificity,
-      mean_pac  = mp,
-      balance   = abs(conf$sensitivity - conf$specificity),
-      stringsAsFactors = FALSE
-    )
-    cand_rows[[length(cand_rows) + 1L]] <<- row
     preds_list[[length(preds_list) + 1L]] <<- y_pred
+    cand_j         <<- c(cand_j,        j_index)
+    cand_direction <<- c(cand_direction, rule$direction)
+    cand_cut_value <<- c(cand_cut_value,
+                          if (!is.null(rule$cut_value)) rule$cut_value else NA_real_)
+    cand_pac       <<- c(cand_pac,       pac)
+    cand_ess_class <<- c(cand_ess_class, ess_class)
+    cand_ess_attr  <<- c(cand_ess_attr,  ess_attr)
+    cand_ess       <<- c(cand_ess,       ess_obj)
+    cand_sens_1    <<- c(cand_sens_1,    conf$sensitivity)
+    cand_spec_0    <<- c(cand_spec_0,    conf$specificity)
+    cand_mean_pac  <<- c(cand_mean_pac,  mp)
+    cand_balance   <<- c(cand_balance,   abs(conf$sensitivity - conf$specificity))
   }
 
   # --- binary attribute ---
@@ -766,10 +775,24 @@ oda_univariate_core <- function(
     }
   }
 
-  if (length(cand_rows) == 0L)
+  if (length(preds_list) == 0L)
     return(list(ok = FALSE, reason = "no_admissible_cut", type = "leaf"))
 
-  cand_df <- do.call(rbind, cand_rows)
+  cand_df <- data.frame(
+    row_id    = seq_along(preds_list),
+    j         = cand_j,
+    direction = cand_direction,
+    cut_value = cand_cut_value,
+    pac       = cand_pac,
+    ess_class = cand_ess_class,
+    ess_attr  = cand_ess_attr,
+    ess       = cand_ess,
+    sens_1    = cand_sens_1,
+    spec_0    = cand_spec_0,
+    mean_pac  = cand_mean_pac,
+    balance   = cand_balance,
+    stringsAsFactors = FALSE
+  )
 
   # 7. Tie-breaking defaults
   if (is.null(primary))   primary   <- if (priors_on) "maxsens" else "meansens"
