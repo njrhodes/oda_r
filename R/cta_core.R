@@ -95,7 +95,8 @@ oda_cta_fit <- function(
     mc_seed     = NULL,
     loo         = "off",
     attr_names  = NULL,
-    K_segments  = NULL
+    K_segments  = NULL,
+    verbose     = FALSE
 ) {
   # ---- Validate and prep ----------------------------------------------------
   if (!is.data.frame(X)) X <- as.data.frame(X)
@@ -111,6 +112,11 @@ oda_cta_fit <- function(
   n_attrs <- ncol(X)
   C       <- length(unique(y))
   loo_arg <- if (is.numeric(loo)) "pvalue" else as.character(loo)
+
+  .vmsg <- if (isTRUE(verbose)) function(...) message(...) else function(...) invisible(NULL)
+  .vmsg("[CTA] fit: n=", n, " attrs=", n_attrs,
+        " mindenom=", mindenom, " loo=", loo_arg,
+        " mc_iter=", mc_iter)
 
   # ---- Inner helpers (closures over X, y, w, parameters) -------------------
 
@@ -214,7 +220,8 @@ oda_cta_fit <- function(
 
   # Fast screen: mcarlo=FALSE for all attributes at idx.
   # Returns list of list(j, ess), sorted by ess descending.
-  .fast_screen <- function(idx) {
+  .fast_screen <- function(idx, pos_label = "?") {
+    .vmsg("[CTA node ", pos_label, "] fast screen: ", length(idx), " obs, ", n_attrs, " attrs")
     if (length(idx) < mindenom) return(list())
     y_n <- y[idx]; w_n <- w[idx]
     if (length(unique(y_n)) < 2L) return(list())
@@ -247,6 +254,8 @@ oda_cta_fit <- function(
     y_n <- y[idx]; w_n <- w[idx]; x_j <- X[[j]][idx]
     seed_j <- if (is.null(mc_seed)) NULL else
       (as.integer(mc_seed) + as.integer(pos_id) * 100L + j) %% .Machine$integer.max
+    t0 <- proc.time()[["elapsed"]]
+    .vmsg("[CTA node ", pos_id, "] MC+LOO: ", attr_names[j])
     fit <- tryCatch(
       oda_fit(x = x_j, y = y_n, w = w_n, priors_on = priors_on,
               miss_codes = miss_codes, K_segments = K_segments,
@@ -256,24 +265,42 @@ oda_cta_fit <- function(
               loo = loo_arg, eval_order = "loo_then_mc",
               mindenom = mindenom),
       error = function(e) list(ok = FALSE))
-    if (!isTRUE(fit$ok))                                            return(NULL)
+    elapsed <- round(proc.time()[["elapsed"]] - t0, 1)
+    if (!isTRUE(fit$ok)) {
+      .vmsg("  -> rejected: ", fit$reason %||% "unknown", " (", elapsed, "s)")
+      return(NULL)
+    }
     p_mc <- fit$p_mc
-    if (is.na(p_mc) || p_mc >= alpha_split || p_mc >= prune_alpha) return(NULL)
+    if (is.na(p_mc) || p_mc >= alpha_split || p_mc >= prune_alpha) {
+      .vmsg("  -> rejected: p=", round(p_mc %||% NA_real_, 4), " (", elapsed, "s)")
+      return(NULL)
+    }
     ess <- .get_ess(fit)
-    if (is.na(ess) || ess < ess_min)                               return(NULL)
+    if (is.na(ess) || ess < ess_min) {
+      .vmsg("  -> rejected: ESS=", round(ess %||% NA_real_, 2), "% (", elapsed, "s)")
+      return(NULL)
+    }
     if (identical(loo_arg, "stable")) {
-      if (is.null(fit$loo) || !isTRUE(fit$loo$allowed))           return(NULL)
+      if (is.null(fit$loo) || !isTRUE(fit$loo$allowed)) {
+        .vmsg("  -> rejected: LOO unstable (", elapsed, "s)")
+        return(NULL)
+      }
     } else if (is.numeric(loo)) {
       loo_pv <- fit$loo$p_value %||% NA_real_
-      if (is.na(loo_pv) || loo_pv >= loo)                         return(NULL)
+      if (is.na(loo_pv) || loo_pv >= loo) {
+        .vmsg("  -> rejected: LOO p=", round(loo_pv, 4), " (", elapsed, "s)")
+        return(NULL)
+      }
     }
+    .vmsg("  -> accepted: ESS=", round(ess, 2), "% p=", round(p_mc, 4),
+          " (", elapsed, "s)")
     list(j = j, name = attr_names[j], fit = fit, ess = ess, p_mc = p_mc)
   }
 
   # Get ALL valid candidates at a node position (fast screen then ALL full MC+LOO).
   # pos_id: unique position for seed derivation (1=root,2=left,3=right).
   .all_cands <- function(idx, pos_id) {
-    fast <- .fast_screen(idx)
+    fast <- .fast_screen(idx, pos_label = pos_id)
     if (length(fast) == 0L) return(list())
     valid <- list()
     for (fp in fast) {
@@ -304,7 +331,7 @@ oda_cta_fit <- function(
       return(nid)
     }
 
-    fast <- .fast_screen(idx)
+    fast <- .fast_screen(idx, pos_label = nid)
     if (length(fast) == 0L) {
       env$nodes[[nid]] <- nd
       return(nid)
@@ -381,6 +408,7 @@ oda_cta_fit <- function(
 
   # No valid root → single-leaf tree
   if (length(root_cands) == 0L) {
+    .vmsg("[CTA] no valid root found, returning leaf node")
     nodes_out <- list(.leaf_nd(1L, 0L, 1L, seq_len(n)))
     return(structure(
       list(nodes = nodes_out, root_id = 1L, n_nodes = 1L, n = n, C = C,
@@ -400,7 +428,11 @@ oda_cta_fit <- function(
   best_nodes   <- NULL
   best_n_nodes <- 0L
 
-  for (A_cand in root_cands) {
+  .vmsg("[ENUMERATE] ", length(root_cands), " root candidates")
+  for (i in seq_along(root_cands)) {
+    A_cand <- root_cands[[i]]
+    .vmsg("[ENUMERATE ", i, "/", length(root_cands), "] root=", A_cand$name,
+          " ESS=", round(A_cand$ess, 2), "%")
     appl_A  <- .apply_cand(A_cand, seq_len(n))
     valid_A <- !is.na(appl_A$y_pred)
     sl_A    <- sort(unique(appl_A$y_pred[valid_A]))
@@ -449,17 +481,28 @@ oda_cta_fit <- function(
       .wess_classes(y, preds, w)
     }, error = function(e) -Inf)
 
+    .vmsg("  -> WESS=", round(wess_cand, 2), "%")
+
     if (wess_cand > best_wess) {
       best_wess    <- wess_cand
       best_nodes   <- cand_nodes
       best_n_nodes <- sum(!vapply(cand_nodes, is.null, logical(1L)))
     }
-  }  # end A_cand loop
+  }  # end ENUMERATE loop
 
   # Fallback: enumeration produced no valid tree
   if (is.null(best_nodes)) {
+    .vmsg("[CTA] no valid tree from enumeration, returning leaf node")
     best_nodes   <- list(.leaf_nd(1L, 0L, 1L, seq_len(n)))
     best_n_nodes <- 1L
+  } else {
+    root_attr  <- best_nodes[[1L]]$attribute %||% "?"
+    n_split    <- sum(!vapply(best_nodes,
+                              function(nd) is.null(nd) || isTRUE(nd$leaf),
+                              logical(1L)))
+    .vmsg("[CTA] selected: root=", root_attr,
+          " WESS=", round(best_wess, 2), "%",
+          " split_nodes=", n_split)
   }
 
   structure(

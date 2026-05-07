@@ -16,7 +16,8 @@ oda_fit(x, y, w = NULL,
         mc_stop = 99.9, mc_stopup = 20, mc_seed = NULL,
         loo = "off",
         boundary_mode = c("megaoda_halfopen","right_closed"),
-        eval_order = c("mc_then_loo","loo_then_mc"))
+        eval_order = c("mc_then_loo","loo_then_mc"),
+        mindenom = 1L)
 }
 \arguments{
   \item{x}{Attribute values (numeric, factor, character, or logical).}
@@ -57,6 +58,8 @@ oda_fit(x, y, w = NULL,
     standalone UniODA behaviour. CTA tree building uses \code{"loo_then_mc"}
     internally to reject LOO-unstable ordered-cut candidates before spending
     MC iterations.}
+  \item{mindenom}{Minimum raw observation count required in each child node
+    for a candidate cut to be evaluated. Default 1 (no enforcement).}
 }
 \value{
 A named list with components:
