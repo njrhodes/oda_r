@@ -198,6 +198,39 @@ test_that("myeloma gold: full-tree training confusion matches [[146,40],[36,33]]
   expect_equal(conf[2L, 2L],  33L, label = "TP (actual 1, pred 1)")
 })
 
+# =============================================================================
+# MINDENOM regression
+# =============================================================================
+
+test_that("myeloma CTA: MINDENOM=56 returns no tree", {
+  if (!.myeloma_fixtures_ok()) skip("myeloma fixture files missing")
+  d <- .load_myeloma()
+  X <- d[, .myeloma_attr_names]
+  y <- d$V1
+  w <- d$V2
+  fit <- oda_cta_fit(
+    X           = X,
+    y           = y,
+    w           = w,
+    priors_on   = TRUE,
+    miss_codes  = -9,
+    alpha_split = 0.05,
+    mindenom    = 56L,
+    prune_alpha = 0.05,
+    max_depth   = 20L,
+    ess_min     = 0,
+    mc_iter     = 5000L,
+    mc_target   = 0.05,
+    mc_stop     = 99.9,
+    mc_stopup   = 99.9,
+    mc_seed     = NULL,
+    loo         = "stable",
+    attr_names  = .myeloma_attr_names
+  )
+  tbl <- cta_node_table(fit)
+  expect_equal(sum(!tbl$leaf), 0L, label = "no split nodes when MINDENOM=56")
+})
+
 test_that("myeloma gold: weighted ESS within 0.5% of 27.69%", {
   if (!.myeloma_fixtures_ok()) skip("myeloma fixture files missing")
   d     <- .load_myeloma()

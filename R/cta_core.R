@@ -227,7 +227,7 @@ oda_cta_fit <- function(
       fit_f <- tryCatch(
         oda_fit(x = x_j, y = y_n, w = w_n, priors_on = priors_on,
                 miss_codes = miss_codes, K_segments = K_segments,
-                mcarlo = FALSE, loo = "off"),
+                mcarlo = FALSE, loo = "off", mindenom = mindenom),
         error = function(e) list(ok = FALSE))
       if (!isTRUE(fit_f$ok)) next
       ess_f <- .get_ess(fit_f)
@@ -253,7 +253,8 @@ oda_cta_fit <- function(
               mcarlo = TRUE, mc_iter = as.integer(mc_iter),
               mc_target = mc_target, mc_stop = mc_stop,
               mc_stopup = mc_stopup, mc_seed = seed_j,
-              loo = loo_arg, eval_order = "loo_then_mc"),
+              loo = loo_arg, eval_order = "loo_then_mc",
+              mindenom = mindenom),
       error = function(e) list(ok = FALSE))
     if (!isTRUE(fit$ok))                                            return(NULL)
     p_mc <- fit$p_mc

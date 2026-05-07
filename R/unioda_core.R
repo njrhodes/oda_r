@@ -141,14 +141,15 @@ oda_make_blocks_ordered <- function(x, y, w) {
   block_id <- cumsum(c(TRUE, diff(x_ord) != 0))
   m        <- max(block_id)
 
-  z <- numeric(m); o <- numeric(m); x_rep <- numeric(m)
+  z <- numeric(m); o <- numeric(m); x_rep <- numeric(m); n_v <- integer(m)
   for (j in seq_len(m)) {
     idx   <- which(block_id == j)
     z[j]  <- sum(w_ord[idx][y_ord[idx] == 0])
     o[j]  <- sum(w_ord[idx][y_ord[idx] == 1])
     x_rep[j] <- x_ord[idx[1L]]
+    n_v[j] <- length(idx)
   }
-  list(ord = ord, z = z, o = o, x_rep = x_rep)
+  list(ord = ord, z = z, o = o, x_rep = x_rep, n_v = n_v)
 }
 
 # ---- Primary / secondary tie-breaking ------------------------------------- #
@@ -633,11 +634,13 @@ oda_univariate_core <- function(
     mc_adjust  = FALSE,
     mc_seed    = NULL,
     chance_model = c("class","attribute"),
-    eval_order   = c("mc_then_loo", "loo_then_mc")
+    eval_order   = c("mc_then_loo", "loo_then_mc"),
+    mindenom     = 1L
 ) {
   chance_model <- match.arg(chance_model)
   loo          <- match.arg(loo)
   eval_order   <- match.arg(eval_order)
+  mindenom     <- max(1L, as.integer(mindenom))
 
   # Resolve missing_code alias → miss_codes
   if (!is.null(missing_code)) {
@@ -715,12 +718,16 @@ oda_univariate_core <- function(
     levs <- sort(unique(as.character(x)))
     if (length(levs) != 2L)
       return(list(ok = FALSE, reason = "not_binary", type = "leaf"))
-    k_attr <- 2L
-    rules  <- list(
-      list(type="binary_map", direction="0->1", left_levels=levs[1],right_levels=levs[2]),
-      list(type="binary_map", direction="1->0", left_levels=levs[1],right_levels=levs[2])
-    )
-    for (r in rules) add_candidate(r, j_index = NA_integer_)
+    k_attr  <- 2L
+    n_left  <- sum(x == levs[1L])
+    n_right <- sum(x == levs[2L])
+    if (n_left >= mindenom && n_right >= mindenom) {
+      rules  <- list(
+        list(type="binary_map", direction="0->1", left_levels=levs[1],right_levels=levs[2]),
+        list(type="binary_map", direction="1->0", left_levels=levs[1],right_levels=levs[2])
+      )
+      for (r in rules) add_candidate(r, j_index = NA_integer_)
+    }
   }
 
   # --- categorical attribute ---
@@ -738,6 +745,9 @@ oda_univariate_core <- function(
     levs_ord <- levs[order(p1, na.last = TRUE)]
 
     for (j in seq_len(k_attr - 1L)) {
+      n_left  <- sum(x_fac %in% levs_ord[seq_len(j)])
+      n_right <- sum(x_fac %in% levs_ord[(j + 1L):k_attr])
+      if (n_left < mindenom || n_right < mindenom) next
       left  <- levs_ord[seq_len(j)]
       right <- levs_ord[(j + 1L):k_attr]
       for (dir in c("0->1","1->0")) {
@@ -751,13 +761,14 @@ oda_univariate_core <- function(
   # --- ordered attribute ---
   if (attr_type == "ordered") {
     blocks <- oda_make_blocks_ordered(x, y, w)
-    z      <- blocks$z; o <- blocks$o; x_rep <- blocks$x_rep
+    z      <- blocks$z; o <- blocks$o; x_rep <- blocks$x_rep; n_v <- blocks$n_v
     m      <- length(z)
     if (m < 2L) return(list(ok = FALSE, reason = "no_blocks", type = "leaf"))
     k_attr <- m
 
     Z  <- cumsum(z); O  <- cumsum(o)
     Zm <- sum(z);    Om <- sum(o)
+    N_v <- cumsum(n_v); Nm <- sum(n_v)
 
     admissible <- function(j, dir) {
       if (dir == "0->1") return(Z[j] > 0 && (Om - O[j]) > 0)
@@ -766,6 +777,7 @@ oda_univariate_core <- function(
     }
 
     for (j in seq_len(m - 1L)) {
+      if (N_v[j] < mindenom || (Nm - N_v[j]) < mindenom) next
       for (dir in c("0->1","1->0")) {
         if (!admissible(j, dir)) next
         cut_v <- (x_rep[j] + x_rep[j + 1L]) / 2

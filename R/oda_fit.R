@@ -62,7 +62,8 @@ oda_fit <- function(
     mc_seed      = NULL,
     loo          = "off",
     boundary_mode = c("megaoda_halfopen","right_closed"),
-    eval_order   = c("mc_then_loo", "loo_then_mc")
+    eval_order   = c("mc_then_loo", "loo_then_mc"),
+    mindenom     = 1L
 ) {
   attr_type     <- match.arg(attr_type)
   boundary_mode <- match.arg(boundary_mode)
@@ -109,7 +110,8 @@ oda_fit <- function(
       mc_stop      = mc_stop,
       mc_stopup    = mc_stopup,
       mc_seed      = mc_seed,
-      eval_order   = eval_order
+      eval_order   = eval_order,
+      mindenom     = mindenom
     )
 
     # Remap rule and confusion back to original label space.
