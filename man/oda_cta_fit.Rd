@@ -13,7 +13,8 @@ oda_cta_fit(X, y, w = NULL, priors_on = TRUE, miss_codes = NULL,
   alpha_split = 0.05, mindenom = 5L, prune_alpha = 1.0,
   max_depth = 10L, ess_min = 0,
   mc_iter = 25000L, mc_target = 0.05, mc_stop = 99.9, mc_stopup = 20,
-  mc_seed = NULL, loo = "off", attr_names = NULL, K_segments = NULL)
+  mc_seed = NULL, loo = "off", attr_names = NULL, K_segments = NULL,
+  verbose = FALSE)
 }
 \arguments{
   \item{X}{Data frame or matrix of attribute columns.}
@@ -36,6 +37,8 @@ oda_cta_fit(X, y, w = NULL, priors_on = TRUE, miss_codes = NULL,
     (MegaODA LOO STABLE), or \code{"pvalue"}.}
   \item{attr_names}{Attribute names. Defaults to column names of X.}
   \item{K_segments}{Segments for multiclass ordered splits. Default = C.}
+  \item{verbose}{Logical; if \code{TRUE}, emit \code{[CTA]} progress messages
+    via \code{message()} at each major stage. Default \code{FALSE}.}
 }
 \value{
 An object of class \code{cta_tree} containing:

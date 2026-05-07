@@ -16,7 +16,8 @@ oda_univariate_core(x, y, w = NULL,
   mcarlo = TRUE, mc_iter = 25000L, mc_target = 0.05,
   mc_stop = 99.9, mc_stopup = NA_real_, mc_adjust = FALSE,
   mc_seed = NULL, chance_model = c("class","attribute"),
-  eval_order = c("mc_then_loo","loo_then_mc"))
+  eval_order = c("mc_then_loo","loo_then_mc"),
+  mindenom = 1L)
 }
 \arguments{
   \item{x}{Attribute values.}
@@ -46,6 +47,8 @@ oda_univariate_core(x, y, w = NULL,
     standalone UniODA behaviour. CTA tree building uses \code{"loo_then_mc"}
     internally to reject LOO-unstable ordered-cut candidates before spending
     MC iterations.}
+  \item{mindenom}{Minimum raw observation count required in each child node
+    for a candidate cut to be evaluated. Default 1 (no enforcement).}
 }
 \value{
 Named list. Key fields: \code{ok}, \code{rule}, \code{confusion} (list

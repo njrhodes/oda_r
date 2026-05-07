@@ -150,10 +150,10 @@ oda_fit <- function(
 
 # ---- cta_fit: public wrapper for CTA ----------------------------------------
 
-cta_fit <- function(X, y, ...) {
+cta_fit <- function(X, y, verbose = FALSE, ...) {
   cls <- sort(unique(y[!is.na(y)]))
   if (length(cls) != 2L) {
     stop("cta_fit currently supports binary class variables only", call. = FALSE)
   }
-  oda_cta_fit(X = X, y = y, ...)
+  oda_cta_fit(X = X, y = y, verbose = verbose, ...)
 }

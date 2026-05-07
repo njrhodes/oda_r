@@ -7,11 +7,14 @@ variables only. Validates the class variable and delegates to
 \code{\link{oda_cta_fit}}.
 }
 \usage{
-cta_fit(X, y, ...)
+cta_fit(X, y, verbose = FALSE, ...)
 }
 \arguments{
   \item{X}{Data frame or matrix of attribute columns.}
   \item{y}{Integer class variable vector. Must have exactly two distinct values.}
+  \item{verbose}{Logical; if \code{TRUE}, emit \code{[CTA]} progress messages
+    via \code{message()} at each major stage (fast screen, MC+LOO fit,
+    ENUMERATE scoring, final selection). Default \code{FALSE}.}
   \item{...}{Additional arguments passed to \code{\link{oda_cta_fit}}.}
 }
 \value{

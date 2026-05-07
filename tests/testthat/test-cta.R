@@ -112,6 +112,72 @@ test_that("case weights accepted without error", {
   expect_equal(root$n_weighted, sum(w))
 })
 
+# ---- verbose reporting tests ------------------------------------------------
+
+.loo_fit_args <- list(
+  priors_on   = TRUE,
+  alpha_split = 0.05,
+  mindenom    = 1L,
+  prune_alpha = 0.05,
+  max_depth   = 3L,
+  ess_min     = 0,
+  mc_iter     = 5000L,
+  mc_target   = 0.05,
+  mc_stop     = 99.9,
+  mc_stopup   = 99.9,
+  mc_seed     = NULL,
+  loo         = "stable"
+)
+
+test_that("verbose=FALSE produces no [CTA] messages", {
+  d    <- .make_loo_gate_data()
+  msgs <- character(0)
+  withCallingHandlers(
+    do.call(cta_fit, c(
+      list(X = d[, c("Trap", "Stable")], y = d$Class, verbose = FALSE),
+      .loo_fit_args
+    )),
+    message = function(m) {
+      msgs <<- c(msgs, conditionMessage(m))
+      invokeRestart("muffleMessage")
+    }
+  )
+  expect_false(any(grepl("\\[CTA", msgs)))
+})
+
+test_that("verbose=TRUE emits [CTA] messages with 'selected' or 'no valid root'", {
+  d    <- .make_loo_gate_data()
+  msgs <- character(0)
+  withCallingHandlers(
+    do.call(cta_fit, c(
+      list(X = d[, c("Trap", "Stable")], y = d$Class, verbose = TRUE),
+      .loo_fit_args
+    )),
+    message = function(m) {
+      msgs <<- c(msgs, conditionMessage(m))
+      invokeRestart("muffleMessage")
+    }
+  )
+  expect_true(any(grepl("\\[CTA", msgs)))
+  expect_true(any(grepl("selected|no valid root", msgs)))
+})
+
+test_that("verbose does not change model output", {
+  d      <- .make_loo_gate_data()
+  t_quiet <- do.call(cta_fit, c(
+    list(X = d[, c("Trap", "Stable")], y = d$Class, verbose = FALSE),
+    .loo_fit_args
+  ))
+  t_verb  <- suppressMessages(do.call(cta_fit, c(
+    list(X = d[, c("Trap", "Stable")], y = d$Class, verbose = TRUE),
+    .loo_fit_args
+  )))
+  r_q <- t_quiet$nodes[[t_quiet$root_id]]
+  r_v <- t_verb$nodes[[t_verb$root_id]]
+  expect_equal(r_q$attribute,       r_v$attribute)
+  expect_equal(r_q$rule$cut_value,  r_v$rule$cut_value)
+})
+
 test_that("multi-attribute: most informative attribute selected at root", {
   # x1 perfectly separates, x2 is noise
   set.seed(42)

@@ -71,6 +71,20 @@ harness_loo_refit_ordered_raw <- function(
   list(ok = TRUE, confusion = conf, y_pred = y_pred)
 }
 
+.make_loo_gate_data <- function() {
+  add <- function(cls, trap, stable, n)
+    data.frame(Class = rep(cls, n), Trap = rep(trap, n), Stable = rep(stable, n))
+  rbind(
+    add(1L,  6, 0, 1), add(2L, 1, 0, 4), add(2L, 2, 0, 4),
+    add(2L,  3, 0, 4), add(2L, 4, 0, 4), add(2L, 5, 0, 3),
+    add(2L,  6, 0, 3),
+    add(1L,  7, 0, 1), add(2L, 7, 0, 6),
+    add(1L,  8, 1, 1),
+    add(1L,  9, 1, 2), add(2L,  9, 0, 4),
+    add(1L, 10, 0, 2), add(2L, 10, 0, 4)
+  )
+}
+
 rule_is_nondegenerate <- function(rule, C) {
   if (is.null(rule) || is.null(rule$type)) return(FALSE)
   if (identical(rule$type, "multiclass_ordered"))
