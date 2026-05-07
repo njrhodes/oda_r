@@ -8,7 +8,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 - **UniODA** (`oda_univariate_core`): univariate binary-class ODA for ordered, categorical, and binary attributes.
 - **MultiODA** (`oda_multiclass_unioda_core`): univariate multiclass ODA for ordered and categorical attributes.
-- **`oda_fit`**: unified dispatcher — calls UniODA when C=2, MultiODA when C≥3. This is the entry point CTA (Classification Tree Analysis) nodes should use.
+- **`oda_fit`**: unified dispatcher — calls UniODA when C=2, MultiODA when C≥3. This is the entry point CTA nodes should use.
+- **`oda_cta_fit`** (`cta_core.R`): CTA engine — implemented and under fixture-parity refinement.
 
 All results are tested for exact parity against MegaODA.exe golden outputs.
 
@@ -33,7 +34,7 @@ R/
 ├── unioda_core.R    — Binary-class engine: oda_univariate_core() and helpers
 ├── multioda_core.R  — Multiclass engine: oda_multiclass_unioda_core() and helpers
 ├── oda_fit.R        — Unified dispatcher: oda_fit() routes on C
-└── harness_utils.R  — Diagnostic/parity harness (not production API; exported for tests)
+└── cta_core.R       — CTA engine: oda_cta_fit(), predict.cta_tree(), helpers
 ```
 
 ### Key internal concepts
@@ -65,9 +66,89 @@ In multiclass ordered rules: SAMPLEREP operates **within** a cut position (acros
 - `"right_closed"` — matches MegaODA.exe golden outputs used in tests.
 - `"megaoda_halfopen"` — alternative convention.
 
+**Path-local missingness (CTA):** `predict.cta_tree()` supports `missing_action = c("na", "majority")`.
+- `"na"` — canonical: observation is excluded (returns `NA_integer_`) when the split attribute is missing on its actual traversal path.
+- `"majority"` — legacy: route missing obs to the split node's majority class.
+
 ### NAMESPACE note
 
 `NAMESPACE` is hand-maintained. The harness utilities (`same_int_mat`, `pac_overall`, `loo_match_status`) are exported so test scripts can call them directly, but they are not part of the production inference API.
+
+## Terminology — must match CTA.exe labels exactly
+
+| WEIGHT command | Node-level | Full-tree | Best candidate |
+|----------------|-----------|-----------|----------------|
+| Not active     | ESS / ESSL | OVERALL ESS | Best ESS |
+| Active         | WESS / WESSL | WEIGHTED ESS | Best WESS |
+
+Never call unit-weight scores WESS. Never call weighted scores generic ESS when quoting CTA output.
+
+## Canon fixtures
+
+### CTA_DEMO (no WEIGHT command → ESS)
+
+```
+tests/testthat/fixtures/cta_demo/
+  CTA_DEMO.CSV
+  cta.pgm            — MINDENOM=1
+  MODEL1.TXT
+  CTA_DEMO_output.txt
+  cta_8.pgm          — MINDENOM=8, mc_iter=25000 required for parity
+  MODEL8.TXT
+  CTA_DEMO__8_output.txt
+```
+
+CTA_DEMO MINDENOM=8 canon anchor:
+- Exact mc_iter=25000 matches CTA.exe.
+- Selected root: V2.
+- Enumerated/pruned OVERALL ESS: 68.08%.
+
+### Myeloma (WEIGHT V2 active → WESS)
+
+```
+tests/testthat/fixtures/myeloma/
+  data.txt
+  data.csv
+  cta_1.pgm          — MINDENOM=1
+  MODEL1.TXT
+  myeloma_1_output.txt
+  cta_30.pgm         — MINDENOM=30
+  MODEL30.TXT
+  myeloma_30_output.txt
+  cta_56.pgm         — MINDENOM=56
+  MODEL56.TXT
+  myeloma_56_output.txt
+```
+
+Myeloma settings (all MINDENOM variants):
+- `EX V2=0` — exclude zero-weight rows.
+- `MISSING ALL (-9)` — miss code is -9.
+- `WEIGHT V2` — case weights.
+- Attributes: V4 V9 V11 V12 V14 V15 V16 V17 V18 V19.
+
+Myeloma canon anchors:
+
+**MINDENOM=1 — enumerated tree (MODEL1.TXT Enumerated section):**
+- Root: V14. Child on V14≤0.5 side: V15.
+- Classified n = 255 (no missing on V14 path).
+- Confusion: [[146, 40], [36, 33]] (actual × predicted, classes 0 and 1).
+- OVERALL ESS = 26.32%. WEIGHTED ESS = 27.69%.
+
+**MINDENOM=1 — pruned tree (MODEL1.TXT Pruned section):**
+- Root: V17. Child on V17≤0.5 side: V15.
+- Classified n = 186 (69 obs have V17=−9, excluded by path-local).
+- Confusion: [[92, 43], [21, 30]].
+- OVERALL ESS = 26.97%. WEIGHTED ESS = 25.43%.
+
+**MINDENOM=30 — stump (MODEL30.TXT all sections):**
+- Root: V17 only (V15 right child would be n=18 < 30; all children fail).
+- Classified n = 186.
+- Confusion: [[101, 34], [30, 21]].
+- OVERALL ESS = 15.99%. WEIGHTED ESS = 16.51%.
+
+**MINDENOM=56 — no tree (MODEL56.TXT all sections):**
+- V17 right child n=55 < 56; V14 right child n=44 < 56. All candidates fail.
+- Result: leaf node only.
 
 ## Tests
 
@@ -77,36 +158,40 @@ Test files in `tests/testthat/`:
 - `test-tie-breaking.R` — SAMPLEREP isolation tests
 - `test-synthetic-multiclass.R` — Synthetic multiclass scenarios
 - `test-oda-fit.R` — Unified dispatcher tests
-- `helper-odacore.R` — Loaded automatically before every test file; duplicates key harness functions so they work under both `devtools::test()` and `R CMD check`
+- `test-cta.R` — CTA path-local prediction deterministic tests
+- `helper-odacore.R` — Loaded automatically before every test file
 
 Gold values in tests come from MegaODA.exe output. When a test checks confusion matrices, it uses `confusion_raw()` (raw integer counts, C×C matrix) and `pac_overall()` (percentage of correct classifications).
 
 ## Canon references
 
 - `docs/ODA_CANON.md` — canonical `oda_fit()` / UniODA / MultiODA behavior spec.
-- `docs/CTA_CANON.md` — canonical `cta_fit()` / `oda_cta_fit()` behavior spec,
-  including ENUMERATE, pruning, LOO, and current gold fixture status.
+- `docs/CTA_CANON.md` — canonical `oda_cta_fit()` behavior spec, including ENUMERATE, pruning, LOO, and current gold fixture status.
 
-## Upcoming work
+## Current known-good state
 
-CTA is partially implemented. Completed:
-1. ~~`oda_fit()` is the required dispatcher~~ — done.
-2. ~~`miss_codes` alias needs to be consistent across both engines~~ — done.
-3. ~~LOO parameters on `oda_multiclass_unioda_core` should be consolidated into an `loo_opts` list~~ — done.
-4. ~~Several currently-exported internal functions should be moved off the export list~~ — done.
+- MINDENOM child-size enforcement: fixed and merged.
+- Verbose CTA reporting: merged.
+- Public CTA prediction: `predict.cta_tree(missing_action = c("na", "majority"))` implemented.
+  - `"na"` is canonical path-local missingness.
+  - `"majority"` is legacy compatibility.
+- The old full-tree path-local ENUMERATE patch was reverted. **Do not reapply blindly.**
+- **Active issue:** myeloma MINDENOM=30 — ENUMERATE scoring uses majority-fallback (`missing_action="majority"` equivalent), which routes 69 V17-missing obs to class 0 and deflates V17's WEIGHTED ESS below V14's, causing wrong root selection. CTA.exe excludes those obs entirely (path-local). Patch not yet applied; fixture arithmetic pre-validation required first.
 
-Open (do not resume without explicit instruction):
-- CTA_DEMO full-tree pruning — see `docs/CTA_CANON.md` for details.
+## Rules for Claude
 
-Implementation policy:
-First reproduce CTA.exe canonical behavior exactly.
-Extensions beyond CTA.exe are allowed only behind explicit new options.
+- Do not run CTA.exe unless explicitly instructed.
+- Do not infer from stale fixtures; read the fixture matching the exact MINDENOM setting.
+- Do not patch R code before reproducing exact fixture arithmetic with a temp script.
+- Do not call unit-weight scores WESS.
+- Do not call weighted WESS "ESS" when quoting CTA output.
+- Use temp scripts for probes; delete them after reporting.
+- Stop after reports when asked — do not proceed to patch without approval.
+- Do not touch MINDENOM child-size enforcement.
+- Do not touch verbose reporting.
 
-Canonical:
-- ENUMERATE = evaluate valid combinations in top three nodes.
-- Retain best tree by full-tree WESS.
-- Do not enumerate deeper in canonical mode.
+## Implementation policy
 
-Future extension:
-- deeper enumeration may be implemented as a separate non-canonical mode,
-  e.g. enumerate_depth > 3 or search = "beam"/"global".
+Reproduce CTA.exe canonical behavior exactly. Extensions beyond CTA.exe are allowed only behind explicit new options.
+
+Canonical ENUMERATE: evaluate each valid root candidate, grow full HO-CTA below it, compute full-tree score, retain best. WESS comparison uses path-local classified rows only (missing_action="na"). Do not enumerate deeper than root in canonical mode.
