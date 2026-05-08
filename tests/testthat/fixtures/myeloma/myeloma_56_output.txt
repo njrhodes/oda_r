@@ -1,0 +1,127 @@
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+Class V1
+                                                                                
+ V4             Node  1 Tree 1 Signif F WESS    6.93%
+                                                                                
+ V9             Node  1 Tree 1 Signif F WESS   -1.57%
+                                                                                
+ V11            Node  1 Tree 1 Signif F WESS   -2.29%
+                                                                                
+ V12            Node  1 Tree 1 Signif F WESS   -9.86%
+                                                                                
+ V14            Node  1 Tree 1 Signif T WESS   14.06%
+                                                                                
+ V15            Node  1 Tree 1 Signif T WESS   13.63%
+                                                                                
+ V16            Node  1 Tree 1 Signif F WESS   13.57%
+                                                                                
+ V17            Node  1 Tree 1 Signif T WESS   16.51%
+                                                                                
+ V18            Node  1 Tree 1 Signif F WESS   -2.95%
+                                                                                
+ V19            Node  1 Tree 1 Signif F WESS    0.27%
+ Selected None          
+ Pruning
+        
+Class V1
+                                                                                
+ V17            Node  1 Tree 2 Signif T WESS   16.51%
+ Selected None          
+ Pruning
+        
+Class V1
+                                                                                
+ V17            Node  1 Tree 3 Signif T WESS   16.51% Best WESS -100.00%
+ Selected None          
+ Pruning
+        
+ Time used:      0 sec.

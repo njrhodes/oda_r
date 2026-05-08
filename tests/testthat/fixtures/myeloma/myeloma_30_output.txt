@@ -1,0 +1,357 @@
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+Class V1
+                                                                                
+ V4             Node  1 Tree 1 Signif F WESS    6.93%
+                                                                                
+ V9             Node  1 Tree 1 Signif F WESS   -1.57%
+                                                                                
+ V11            Node  1 Tree 1 Signif F WESS   -2.29%
+                                                                                
+ V12            Node  1 Tree 1 Signif F WESS   -9.86%
+                                                                                
+ V14            Node  1 Tree 1 Signif T WESS   14.06%
+                                                                                
+ V15            Node  1 Tree 1 Signif T WESS   13.63%
+                                                                                
+ V16            Node  1 Tree 1 Signif F WESS   13.57%
+                                                                                
+ V17            Node  1 Tree 1 Signif T WESS   16.51%
+                                                                                
+ V18            Node  1 Tree 1 Signif F WESS   -2.95%
+                                                                                
+ V19            Node  1 Tree 1 Signif F WESS    0.27%
+ Selected V17                           
+                                                                          
+                                                                          
+                                                                          
+                                                                          
+                                                                          
+                                                                          
+ INCLUDE V17<=0.5000000000;
+Class V1
+                                                                                
+ V4             Node  2 Tree 1 Signif T WESS   34.89%
+                                                                                
+ V9             Node  2 Tree 1 Signif F WESS    5.26%
+                                                                                
+ V11            Node  2 Tree 1 Signif F WESS   -6.60%
+                                                                                
+ V12            Node  2 Tree 1 Signif F WESS   -8.47%
+                                                                                
+ V14            Node  2 Tree 1 Signif F WESS   11.86%
+                                                                                
+ V15            Node  2 Tree 1 Signif T WESS   17.57%
+                                                                                
+ V16            Node  2 Tree 1 Signif F WESS    2.02%
+                                                                                
+ V17            Node  2 Tree 1 Signif F WESS        %
+                                                                                
+ V18            Node  2 Tree 1 Signif F WESS    2.02%
+                                                                                
+ V19            Node  2 Tree 1 Signif F WESS        %
+ Selected None          
+                                                                          
+                                                                          
+                                                                          
+                                                                          
+                                                                          
+                                                                          
+ INCLUDE V17>0.5000000000;
+Class V1
+                                                                                
+ V4             Node  3 Tree 1 Signif F WESS    3.42%
+                                                                                
+ V9             Node  3 Tree 1 Signif F WESS   11.30%
+                                                                                
+ V11            Node  3 Tree 1 Signif F WESS    3.70%
+                                                                                
+ V12            Node  3 Tree 1 Signif F WESS   -7.56%
+                                                                                
+ V14            Node  3 Tree 1 Signif F WESS   25.97%
+                                                                                
+ V15            Node  3 Tree 1 Signif F WESS    4.08%
+                                                                                
+ V16            Node  3 Tree 1 Signif F WESS        %
+                                                                                
+ V17            Node  3 Tree 1 Signif F WESS        %
+                                                                                
+ V18            Node  3 Tree 1 Signif F WESS        %
+                                                                                
+ V19            Node  3 Tree 1 Signif F WESS        %
+ Selected None          
+ Pruning
+        
+Class V1
+                                                                                
+ V14            Node  1 Tree 2 Signif T WESS   14.06%
+ Selected V14                           
+                                                                          
+                                                                          
+                                                                          
+                                                                          
+                                                                          
+                                                                          
+ INCLUDE V14<=0.5000000000;
+Class V1
+                                                                                
+ V4             Node  2 Tree 2 Signif F WESS   11.40%
+                                                                                
+ V9             Node  2 Tree 2 Signif F WESS    0.10%
+                                                                                
+ V11            Node  2 Tree 2 Signif F WESS    3.30%
+                                                                                
+ V12            Node  2 Tree 2 Signif F WESS  -10.34%
+                                                                                
+ V14            Node  2 Tree 2 Signif F WESS        %
+                                                                                
+ V15            Node  2 Tree 2 Signif T WESS   20.71%
+                                                                                
+ V16            Node  2 Tree 2 Signif F WESS    7.46%
+                                                                                
+ V17            Node  2 Tree 2 Signif F WESS    9.26%
+                                                                                
+ V18            Node  2 Tree 2 Signif F WESS   -1.80%
+                                                                                
+ V19            Node  2 Tree 2 Signif F WESS    5.91%
+ Selected None          
+                                                                          
+                                                                          
+                                                                          
+                                                                          
+                                                                          
+                                                                          
+ INCLUDE V14>0.5000000000;
+Class V1
+                                                                                
+ V4             Node  3 Tree 2 Signif F WESS   20.22%
+                                                                                
+ V9             Node  3 Tree 2 Signif F WESS        %
+                                                                                
+ V11            Node  3 Tree 2 Signif F WESS        %
+                                                                                
+ V12            Node  3 Tree 2 Signif F WESS        %
+                                                                                
+ V14            Node  3 Tree 2 Signif F WESS        %
+                                                                                
+ V15            Node  3 Tree 2 Signif F WESS        %
+                                                                                
+ V16            Node  3 Tree 2 Signif F WESS   -5.51%
+                                                                                
+ V17            Node  3 Tree 2 Signif F WESS   19.11%
+                                                                                
+ V18            Node  3 Tree 2 Signif F WESS   13.60%
+                                                                                
+ V19            Node  3 Tree 2 Signif F WESS  -12.23%
+ Selected None          
+ Pruning
+        
+Class V1
+                                                                                
+ V15            Node  1 Tree 3 Signif T WESS   13.63% Best WESS   16.51%
+ Selected None          
+ Pruning
+        
+Class V1
+                                                                                
+ V17            Node  1 Tree 4 Signif T WESS   16.51% Best WESS   16.51%
+ Selected V17                           
+                                                                          
+                                                                          
+                                                                          
+                                                                          
+                                                                          
+                                                                          
+ INCLUDE V17<=0.5000000000;
+Class V1
+                                                                                
+ V4             Node  2 Tree 4 Signif T WESS   34.89% Best WESS   16.51%
+                                                                                
+ V9             Node  2 Tree 4 Signif F WESS    5.26% Best WESS   16.51%
+                                                                                
+ V11            Node  2 Tree 4 Signif F WESS   -6.60% Best WESS   16.51%
+                                                                                
+ V12            Node  2 Tree 4 Signif F WESS   -8.47% Best WESS   16.51%
+                                                                                
+ V14            Node  2 Tree 4 Signif F WESS   11.86% Best WESS   16.51%
+                                                                                
+ V15            Node  2 Tree 4 Signif T WESS   17.57% Best WESS   16.51%
+                                                                                
+ V16            Node  2 Tree 4 Signif F WESS    2.02% Best WESS   16.51%
+                                                                                
+ V17            Node  2 Tree 4 Signif F WESS        % Best WESS   16.51%
+                                                                                
+ V18            Node  2 Tree 4 Signif F WESS    2.02% Best WESS   16.51%
+                                                                                
+ V19            Node  2 Tree 4 Signif F WESS        % Best WESS   16.51%
+ Selected None          
+                                                                          
+                                                                          
+                                                                          
+                                                                          
+                                                                          
+                                                                          
+ INCLUDE V17>0.5000000000;
+Class V1
+                                                                                
+ V4             Node  3 Tree 4 Signif F WESS    3.42% Best WESS   16.51%
+                                                                                
+ V9             Node  3 Tree 4 Signif F WESS   11.30% Best WESS   16.51%
+                                                                                
+ V11            Node  3 Tree 4 Signif F WESS    3.70% Best WESS   16.51%
+                                                                                
+ V12            Node  3 Tree 4 Signif F WESS   -7.56% Best WESS   16.51%
+                                                                                
+ V14            Node  3 Tree 4 Signif F WESS   25.97% Best WESS   16.51%
+                                                                                
+ V15            Node  3 Tree 4 Signif F WESS    4.08% Best WESS   16.51%
+                                                                                
+ V16            Node  3 Tree 4 Signif F WESS        % Best WESS   16.51%
+                                                                                
+ V17            Node  3 Tree 4 Signif F WESS        % Best WESS   16.51%
+                                                                                
+ V18            Node  3 Tree 4 Signif F WESS        % Best WESS   16.51%
+                                                                                
+ V19            Node  3 Tree 4 Signif F WESS        % Best WESS   16.51%
+ Selected None          
+ Pruning
+        
+Class V1
+                                                                                
+ V14            Node  1 Tree 5 Signif T WESS   14.06% Best WESS   16.51%
+ Selected V14                           
+                                                                          
+                                                                          
+                                                                          
+                                                                          
+                                                                          
+                                                                          
+ INCLUDE V14<=0.5000000000;
+ Selected None          
+                                                                          
+                                                                          
+                                                                          
+                                                                          
+                                                                          
+                                                                          
+ INCLUDE V14>0.5000000000;
+ Selected None          
+ Pruning
+        
+Class V1
+                                                                                
+ V15            Node  1 Tree 6 Signif T WESS   13.63% Best WESS   16.51%
+ Selected None          
+ Pruning
+        
+Class V1
+                                                                                
+ V17            Node  1 Tree 7 Signif T WESS   16.51% Best WESS   16.51%
+ Selected V17                           
+                                                                          
+                                                                          
+                                                                          
+                                                                          
+                                                                          
+                                                                          
+ INCLUDE V17<=0.5000000000;
+ Selected None          
+                                                                          
+                                                                          
+                                                                          
+                                                                          
+                                                                          
+                                                                          
+ INCLUDE V17>0.5000000000;
+ Selected None          
+ Pruning
+        
+ Time used:      0 sec.
