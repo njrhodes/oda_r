@@ -194,4 +194,4 @@ Gold values in tests come from MegaODA.exe output. When a test checks confusion 
 
 Reproduce CTA.exe canonical behavior exactly. Extensions beyond CTA.exe are allowed only behind explicit new options.
 
-Canonical ENUMERATE: evaluate each valid root candidate, grow full HO-CTA below it, compute full-tree score, retain best. WESS comparison uses path-local classified rows only (missing_action="na"). Do not enumerate deeper than root in canonical mode.
+Canonical ENUMERATE: evaluate each valid root candidate, grow the CTA.exe-compatible HO-CTA candidate tree below it, compute the full-tree score using CTA.exe's classified/scored universe, and retain best. Path-local missingness is required for prediction/scoring, but do not patch ENUMERATE scoring until CTA node-level fitting matches CTA.exe, especially ordered-cut eligibility.
