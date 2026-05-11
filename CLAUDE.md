@@ -9,7 +9,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **UniODA** (`oda_univariate_core`): univariate binary-class ODA for ordered, categorical, and binary attributes.
 - **MultiODA** (`oda_multiclass_unioda_core`): univariate multiclass ODA for ordered and categorical attributes.
 - **`oda_fit`**: unified dispatcher — calls UniODA when C=2, MultiODA when C≥3. This is the entry point CTA nodes should use.
-- **`oda_cta_fit`** (`cta_core.R`): CTA engine — implemented and under fixture-parity refinement.
+- **`oda_cta_fit`** (`cta_core.R`): CTA engine — implemented; all canon fixtures passing.
 
 All results are tested for exact parity against MegaODA.exe golden outputs.
 
@@ -191,9 +191,16 @@ Gold values in tests come from MegaODA.exe output. When a test checks confusion 
     - cta_demo root remains V2, cut=4.5, ESS=52.63% (uniform weights → CTA path bypassed).
   - All CTA tests passed after integration: 100/100.
   - Full test suite passed after integration.
-- **Remaining open issue — ENUMERATE full-tree scoring (not yet patched):**
-  - V17 (binary, 69 missing obs) and V14 (binary, all present) are both evaluated via generic ODA at the myeloma root.
-  - ENUMERATE scoring currently does not use CTA.exe path-local scoring for candidate root comparison. For MINDENOM=30, R selects V14 stump (n=255, WESS=14.06%) over CTA.exe's V17 stump (n=186, WESS=16.51%). CTA.exe excludes the 69 V17-missing observations when scoring the V17 candidate.
+- **Root-only ENUMERATE stump phase (production, commit a2e2a9d):**
+  - After the expanded ENUMERATE loop, a second loop evaluates each root candidate as a stump (root split + two leaves), scored path-locally.
+  - Path-local scoring: `.apply_cand(A_cand, seq_len(n))$y_pred` already carries `NA_integer_` for obs whose root attribute is in `miss_codes`. WESS is computed over `ok = !is.na(stump_preds)` only — missing-root obs are excluded, not majority-routed.
+  - Root-only candidates compete against expanded candidates; the overall best WESS wins.
+  - Regression locks (all passing):
+    - MINDENOM=1: expanded V14→V15 WESS=27.69% > all root-only stumps → V14→V15 tree selected. Classified n=255, confusion [[146,40],[36,33]].
+    - MINDENOM=30: V17 stump (n_classified=186, WESS=16.51%) > V14 stump (n_classified=255, WESS=14.06%) → V17 stump selected. Confusion [[101,34],[30,21]], OVERALL ESS=15.99%.
+    - MINDENOM=56: no admissible root candidate (all child sizes < 56) → leaf node only.
+    - cta_demo: uniform weights → CTA path bypassed entirely → root=V2, cut=4.5, ESS=52.63%. Unaffected by stump phase.
+  - **Do not globally apply path-local scoring to expanded ENUMERATE candidates.** Doing so causes V17's deeper MC-grown tree to score > 27.69% for MINDENOM=1, incorrectly displacing V14→V15. This was attempted twice and reverted.
 
 ## Rules for Claude
 
@@ -206,6 +213,8 @@ Gold values in tests come from MegaODA.exe output. When a test checks confusion 
 - Stop after reports when asked — do not proceed to patch without approval.
 - Do not touch MINDENOM child-size enforcement.
 - Do not touch verbose reporting.
+- Do not globally apply path-local scoring to expanded ENUMERATE candidates. Only root-only stump candidates are scored path-locally. Expanded candidates use majority-fallback `.predict_all()`. This split is canon (MODEL1.TXT Trees 2–4 vs Trees 5–7).
+- Do not touch the weighted ordered scan / LOO STABLE gate (`cta_ordered_scan`, `.cta_mc_ordered`, `.cta_full_fit_ordered`, `.full_fit_one`) unless a regression in the node-selection tests proves it is involved.
 
 ## Implementation policy
 
@@ -213,4 +222,14 @@ Reproduce CTA.exe canonical behavior exactly. Extensions beyond CTA.exe are allo
 
 Canonical ENUMERATE: evaluate each valid root candidate, grow the CTA.exe-compatible HO-CTA candidate tree below it, compute the full-tree score using CTA.exe's classified/scored universe, and retain best. Path-local missingness is required for prediction/scoring.
 
-**ENUMERATE guardrail (updated):** Node-level weighted ordered fitting and LOO STABLE are now implemented and passing for the audited myeloma V4/V15 cases (commit 85459a4). MINDENOM=30 parity has been reassessed after the node-level patch; the remaining mismatch is ENUMERATE full-tree scoring / path-local missingness.
+**ENUMERATE architecture (production):** Two distinct phases, matching MODEL1.TXT:
+1. **Expanded phase** (Trees 2–4): grow full HO-CTA below each root candidate; score with majority-fallback `.predict_all()`. Do not apply path-local scoring here.
+2. **Root-only stump phase** (Trees 5–7): score each root candidate as a stump path-locally (missing-root obs excluded). Runs after the expanded phase; competes for overall best WESS.
+
+Node-level weighted ordered fitting and LOO STABLE gate are implemented and passing (commit 85459a4). Root-only ENUMERATE stump phase is implemented and passing (commit a2e2a9d). All canon fixtures pass: 224/224.
+
+**Remaining known risk — MC stochasticity at Node 4 (Tree 4):**
+- Node 4 = V17≤0.5 ∧ V15≤0.5, n=113. CTA.exe reports V14 Signif F (WESS=19.19%).
+- R's MC may accept V14 (p≈0.03) in some runs, causing R to grow V17→V15→V14 (3 splits) vs CTA.exe's V17→V15 (2 splits) for the ENUMERATE expanded candidate.
+- The root-only stump phase resolves the MINDENOM=30 fixture without depending on Node 4 behavior.
+- This risk only matters if a future fixture requires exact sub-tree parity for the MINDENOM=1 expanded candidate (Tree 4). No current test asserts Tree 4 internal structure.
