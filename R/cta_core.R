@@ -360,6 +360,121 @@ oda_cta_fit <- function(
     )
   }
 
+  # CTA-specific candidate evaluation for weighted ordered binary predictors.
+  #
+  # Canon (docs/CTA_ORDERED_CUT_AUDIT.md, MPE.pdf):
+  #   Full WESS: .cta_ordered_scan() — rightmost cut with class-1 right-branch
+  #              priors-adjusted PAC (sens_wa) > 0.5.
+  #   MC p-value: .cta_mc_ordered() — Fisher randomization on CTA scan.
+  #   LOO STABLE: generic ODA per-fold refit (oda_loo_for_rule()).
+  #               Canon: WESSL must equal WESS (|WESS - WESSL| <= 0.01 pp).
+  #               Signif T alone is insufficient; WESSL = WESS is required.
+  #
+  # Trigger: non-uniform case weights AND binary class AND >2 unique attr values.
+  # Binary attributes (<=2 unique values) use the generic ODA path unchanged.
+  # Returns a fit-like list or NULL if rejected (Signif F, no eligible cut, or
+  # LOO UNSTABLE). When this path is triggered, callers must not fall back to
+  # generic ODA — the candidate is either accepted here or rejected entirely.
+  .cta_full_fit_ordered <- function(j, x_j, y_n, w_n, pos_id) {
+    # Guard: uniform weights → generic ODA applies
+    if (all(w_n == w_n[1L])) return(NULL)
+    # Guard: binary class (C = 2) only
+    y_uniq <- sort(unique(as.integer(y_n[!is.na(y_n)])))
+    if (length(y_uniq) != 2L) return(NULL)
+    # Guard: attribute must have >2 distinct non-missing values
+    x_v <- x_j[!is.na(x_j)]
+    if (!is.null(miss_codes)) x_v <- x_v[!(x_v %in% miss_codes)]
+    if (length(unique(x_v)) <= 2L) return(NULL)
+
+    # Recode y to {0, 1} using sorted label order
+    y_01 <- ifelse(as.integer(y_n) == y_uniq[1L], 0L, 1L)
+
+    # Full-model WESS: CTA-specific ordered scan
+    cta_scan <- .cta_ordered_scan(x_j, y_01, w_n,
+                                  priors_on  = priors_on,
+                                  miss_codes = miss_codes,
+                                  mindenom   = mindenom)
+    if (is.null(cta_scan) || cta_scan$ess <= 0) return(NULL)
+    obs_ess <- cta_scan$ess
+
+    # MC significance: CTA-specific permutation test
+    seed_j <- if (is.null(mc_seed)) NULL else
+      (as.integer(mc_seed) + as.integer(pos_id) * 100L + j) %% .Machine$integer.max
+    mc_res <- .cta_mc_ordered(
+      x          = x_j,
+      y_coded    = y_01,
+      w          = w_n,
+      obs_ess    = obs_ess,
+      priors_on  = priors_on,
+      miss_codes = miss_codes,
+      mindenom   = mindenom,
+      mc_iter    = as.integer(mc_iter),
+      mc_target  = mc_target,
+      mc_stop    = mc_stop,
+      mc_stopup  = mc_stopup,
+      mc_seed    = seed_j
+    )
+    p_mc <- mc_res$p_mc
+    .vmsg("  [CTA-scan] ", attr_names[j],
+          " cut=", round(cta_scan$rule$cut_value, 4),
+          " WESS=", round(obs_ess, 4), "%  p=", round(p_mc, 4))
+    if (is.na(p_mc) || p_mc >= alpha_split || p_mc >= prune_alpha) {
+      .vmsg("  -> rejected (CTA path): Signif F  p=", round(p_mc %||% NA_real_, 4))
+      return(NULL)
+    }
+
+    # LOO STABLE gate (MPE.pdf canon): WESSL must equal WESS.
+    # LOO uses generic ODA per-fold refit — true refit-per-fold LOO.
+    loo_result <- NULL
+    if (!identical(loo_arg, "off")) {
+      loo_result <- tryCatch(
+        oda_loo_for_rule(
+          x          = x_j,
+          y          = y_01,
+          w          = w_n,
+          rule       = cta_scan$rule,
+          attr_type  = "ordered",
+          priors_on  = priors_on,
+          miss_codes = miss_codes
+        ),
+        error = function(e) NULL
+      )
+      if (identical(loo_arg, "stable")) {
+        wessl <- if (!is.null(loo_result)) loo_result$ess_loo %||% NA_real_
+                 else NA_real_
+        delta <- abs(obs_ess - (wessl %||% Inf))
+        .vmsg("  [CTA-scan] WESSL=", round(wessl %||% NA_real_, 4),
+              "%  |delta|=", round(delta, 4), " pp")
+        if (is.na(wessl) || delta > 0.01) {
+          .vmsg("  -> rejected (CTA path): LOO UNSTABLE",
+                "  WESS=", round(obs_ess, 4), "%",
+                "  WESSL=", round(wessl %||% NA_real_, 4), "%")
+          return(NULL)
+        }
+      }
+    }
+
+    # Candidate accepted
+    .vmsg("  -> accepted (CTA path): ", attr_names[j],
+          "  WESS=", round(obs_ess, 2), "%  p=", round(p_mc, 4))
+    list(
+      ok        = TRUE,
+      rule      = cta_scan$rule,
+      ess       = obs_ess,
+      ess_pac   = obs_ess,
+      p_mc      = p_mc,
+      attr_type = "ordered",
+      engine    = "binary",
+      confusion = NULL,
+      loo       = if (!is.null(loo_result))
+        list(allowed = TRUE,
+             ess_loo = loo_result$ess_loo %||% obs_ess,
+             p_value = loo_result$p_value %||% NA_real_)
+      else
+        NULL
+    )
+  }
+
   # Split node record
   .split_nd <- function(nid, parent_id, depth, idx, cand, appl) {
     sl  <- sort(unique(appl$y_pred[!is.na(appl$y_pred)]))
@@ -415,6 +530,21 @@ oda_cta_fit <- function(
   # Returns a validated candidate list(j,name,fit,ess,p_mc) or NULL if rejected.
   .full_fit_one <- function(j, idx, pos_id) {
     y_n <- y[idx]; w_n <- w[idx]; x_j <- X[[j]][idx]
+    # ---- CTA-specific ordered-cut path (weighted binary ordered predictors) ----
+    if (any(w_n != w_n[1L]) &&
+        length(unique(as.integer(y_n[!is.na(y_n)]))) == 2L) {
+      x_v <- x_j[!is.na(x_j)]
+      if (!is.null(miss_codes)) x_v <- x_v[!(x_v %in% miss_codes)]
+      if (length(unique(x_v)) > 2L) {
+        .vmsg("[CTA node ", pos_id, "] CTA-scan path: ", attr_names[j])
+        cta_fit <- .cta_full_fit_ordered(j, x_j, y_n, w_n, pos_id)
+        if (!is.null(cta_fit))
+          return(list(j = j, name = attr_names[j], fit = cta_fit,
+                      ess = cta_fit$ess, p_mc = cta_fit$p_mc))
+        return(NULL)  # triggered and rejected; do not fall back to generic ODA
+      }
+    }
+    # ---- end CTA path ---------------------------------------------------------
     seed_j <- if (is.null(mc_seed)) NULL else
       (as.integer(mc_seed) + as.integer(pos_id) * 100L + j) %% .Machine$integer.max
     t0 <- proc.time()[["elapsed"]]
