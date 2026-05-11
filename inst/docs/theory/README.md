@@ -1,1 +1,0 @@
-These documents generalize the Carmony-Yarnold-Naeymi-Rad (1997) null distribution proof to imbalanced binary classification and non-directional rules. They are theoretical groundwork for a future exact p-value engine and have not yet been validated against exe output. Relevant to Phase 5 only. Files: oda_generalized_proof.Rmd, ODA_Generalization_Proof_20250527_010951.Rmd.

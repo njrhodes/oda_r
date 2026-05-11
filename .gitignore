@@ -20,4 +20,22 @@ alert.sh
 inst/dev/timing_*.R
 inst/dev/diag_*.R
 *.log
-S
+# roxygen-generated Rd files for non-exported internal helpers (never commit)
+man/oda_apply_priors.Rd
+man/oda_apply_priors_multiclass.Rd
+man/oda_clean_xy.Rd
+man/oda_is_nondegenerate_labels.Rd
+man/oda_loo_for_rule.Rd
+man/oda_loo_multiclass.Rd
+man/oda_make_blocks_ordered.Rd
+man/oda_make_blocks_ordered_multiclass.Rd
+man/oda_make_global_blocks_ordered.Rd
+man/oda_resolve_attr_type.Rd
+man/oda_rule_side.Rd
+
+# dev-only materials not for package distribution
+inst/docs/
+dev/
+test_drive.R
+tests/testthat/myeloma/
+tests/testthat/CTA_DEMO.CSV
