@@ -167,6 +167,7 @@ Gold values in tests come from MegaODA.exe output. When a test checks confusion 
 
 - `docs/ODA_CANON.md` — canonical `oda_fit()` / UniODA / MultiODA behavior spec.
 - `docs/CTA_CANON.md` — canonical `oda_cta_fit()` behavior spec, including ENUMERATE, pruning, LOO, and current gold fixture status.
+- `docs/CTA_ORDERED_CUT_AUDIT.md` — audit evidence and canon for weighted ordered-cut selection and LOO STABLE law; MPE.pdf anchors and myeloma V4/V15 empirical evidence.
 
 ## Current known-good state
 
@@ -176,7 +177,23 @@ Gold values in tests come from MegaODA.exe output. When a test checks confusion 
   - `"na"` is canonical path-local missingness.
   - `"majority"` is legacy compatibility.
 - The old full-tree path-local ENUMERATE patch was reverted. **Do not reapply blindly.**
-- **Active issue:** myeloma MINDENOM=30 — ENUMERATE scoring uses majority-fallback (`missing_action="majority"` equivalent), which routes 69 V17-missing obs to class 0 and deflates V17's WEIGHTED ESS below V14's, causing wrong root selection. CTA.exe excludes those obs entirely (path-local). Patch not yet applied; fixture arithmetic pre-validation required first.
+- **Weighted ordered predictor node-level fitting (production, commit 85459a4):**
+  - `.cta_ordered_scan()`, `.cta_mc_ordered()`, `.cta_full_fit_ordered()` are implemented helpers in `R/cta_core.R`.
+  - `.full_fit_one()` dispatches to the CTA path for non-uniform weights + binary class + >2 unique non-missing attribute values.
+  - Binary attributes (≤2 unique values) and uniform-weight datasets always use generic ODA — CTA path bypassed.
+  - The CTA path is coupled with the LOO STABLE gate:
+    - Full-model WESS uses `.cta_ordered_scan()` (rightmost cut with class-1 right-branch priors-adjusted PAC > 0.5).
+    - LOO STABLE uses true generic ODA per-fold refit (`oda_loo_for_rule()`).
+    - Candidates are rejected if WESSL ≠ WESS (|delta| > 0.01 pp). Signif T alone is insufficient.
+  - Regression locks (all passing):
+    - myeloma Node 2 (V17≤0.5, n=131): V4 rejected as UNSTABLE (CTA WESS=34.89% vs generic LOO WESSL=38.52%, |Δ|=3.63 pp); V15 STABLE and selected.
+    - myeloma Node 4 (V17≤0.5 AND V15≤0.5, n=113): V4 scores at cut=359.80/WESS=34.90% but is not selected (Signif F or LOO UNSTABLE).
+    - cta_demo root remains V2, cut=4.5, ESS=52.63% (uniform weights → CTA path bypassed).
+  - All CTA tests passed after integration: 100/100.
+  - Full test suite passed after integration.
+- **Remaining open issue — ENUMERATE full-tree scoring (not yet patched):**
+  - V17 (binary, 69 missing obs) and V14 (binary, all present) are both evaluated via generic ODA at the myeloma root.
+  - ENUMERATE scoring currently does not use CTA.exe path-local scoring for candidate root comparison. For MINDENOM=30, R selects V14 stump (n=255, WESS=14.06%) over CTA.exe's V17 stump (n=186, WESS=16.51%). CTA.exe excludes the 69 V17-missing observations when scoring the V17 candidate.
 
 ## Rules for Claude
 
@@ -194,4 +211,6 @@ Gold values in tests come from MegaODA.exe output. When a test checks confusion 
 
 Reproduce CTA.exe canonical behavior exactly. Extensions beyond CTA.exe are allowed only behind explicit new options.
 
-Canonical ENUMERATE: evaluate each valid root candidate, grow the CTA.exe-compatible HO-CTA candidate tree below it, compute the full-tree score using CTA.exe's classified/scored universe, and retain best. Path-local missingness is required for prediction/scoring, but do not patch ENUMERATE scoring until CTA node-level fitting matches CTA.exe, especially ordered-cut eligibility.
+Canonical ENUMERATE: evaluate each valid root candidate, grow the CTA.exe-compatible HO-CTA candidate tree below it, compute the full-tree score using CTA.exe's classified/scored universe, and retain best. Path-local missingness is required for prediction/scoring.
+
+**ENUMERATE guardrail (updated):** Node-level weighted ordered fitting and LOO STABLE are now implemented and passing for the audited myeloma V4/V15 cases (commit 85459a4). MINDENOM=30 parity has been reassessed after the node-level patch; the remaining mismatch is ENUMERATE full-tree scoring / path-local missingness.
