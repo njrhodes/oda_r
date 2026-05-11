@@ -202,6 +202,118 @@ test_that("myeloma gold: full-tree training confusion matches [[146,40],[36,33]]
 # MINDENOM regression
 # =============================================================================
 
+# ---- MINDENOM=30 fixture fit (cached) ----------------------------------------
+.myeloma_fit30 <- local({
+  fit <- NULL
+  function() {
+    if (is.null(fit)) {
+      if (!.myeloma_fixtures_ok()) return(NULL)
+      d  <- .load_myeloma()
+      X  <- d[, .myeloma_attr_names]
+      y  <- d$V1
+      w  <- d$V2
+      fit <<- oda_cta_fit(
+        X           = X,
+        y           = y,
+        w           = w,
+        priors_on   = TRUE,
+        miss_codes  = -9,
+        alpha_split = 0.05,
+        mindenom    = 30L,
+        prune_alpha = 0.05,
+        max_depth   = 20L,
+        ess_min     = 0,
+        mc_iter     = 5000L,
+        mc_target   = 0.05,
+        mc_stop     = 99.9,
+        mc_stopup   = 99.9,
+        mc_seed     = NULL,
+        loo         = "stable",
+        attr_names  = .myeloma_attr_names
+      )
+    }
+    fit
+  }
+})
+
+# MINDENOM=30: CTA.exe selects V17 stump (MODEL30.TXT).
+# Path-local scoring: 69 V17-missing obs excluded → classified n = 186.
+# ENUMERATE must compare candidate trees using each root's path-local classified
+# universe: V17 stump scores 186 obs (WEIGHTED ESS=16.51%), V14 stump scores
+# 255 obs (WEIGHTED ESS=14.06%). V17 wins.
+
+test_that("myeloma MINDENOM=30: root is V17 stump (not V14)", {
+  if (!.myeloma_fixtures_ok()) skip("myeloma fixture files missing")
+  tree <- .myeloma_fit30()
+  root <- tree$nodes[[tree$root_id]]
+  tbl  <- cta_node_table(tree)
+  expect_false(isTRUE(root$leaf), label = "root is a split node")
+  expect_equal(root$attribute, "V17",
+    label = "MINDENOM=30 root must be V17 (path-local ENUMERATE wins over V14)")
+  expect_equal(sum(!tbl$leaf), 1L,
+    label = "stump: exactly one split node")
+})
+
+test_that("myeloma MINDENOM=30: classified n = 186 (path-local)", {
+  if (!.myeloma_fixtures_ok()) skip("myeloma fixture files missing")
+  d    <- .load_myeloma()
+  tree <- .myeloma_fit30()
+  X    <- d[, .myeloma_attr_names]
+  preds <- predict(tree, X, missing_action = "na")
+  expect_equal(sum(!is.na(preds)), 186L,
+    label = "69 V17-missing obs excluded by path-local missingness")
+})
+
+test_that("myeloma MINDENOM=30: confusion [[101,34],[30,21]]", {
+  if (!.myeloma_fixtures_ok()) skip("myeloma fixture files missing")
+  d    <- .load_myeloma()
+  tree <- .myeloma_fit30()
+  X    <- d[, .myeloma_attr_names]
+  y    <- as.integer(d$V1)
+  preds <- predict(tree, X, missing_action = "na")
+  ok   <- !is.na(preds)
+  conf <- matrix(0L, 2L, 2L)
+  for (i in which(ok)) {
+    a <- y[i] + 1L; p <- preds[i] + 1L
+    if (a %in% 1:2 && p %in% 1:2) conf[a, p] <- conf[a, p] + 1L
+  }
+  expect_equal(conf[1L, 1L], 101L, label = "TN")
+  expect_equal(conf[1L, 2L],  34L, label = "FP")
+  expect_equal(conf[2L, 1L],  30L, label = "FN")
+  expect_equal(conf[2L, 2L],  21L, label = "TP")
+})
+
+test_that("myeloma MINDENOM=30: OVERALL ESS ≈ 15.99%", {
+  if (!.myeloma_fixtures_ok()) skip("myeloma fixture files missing")
+  d    <- .load_myeloma()
+  tree <- .myeloma_fit30()
+  X    <- d[, .myeloma_attr_names]
+  y    <- as.integer(d$V1)
+  preds <- predict(tree, X, missing_action = "na")
+  ok   <- !is.na(preds)
+  n0   <- sum(y[ok] == 0L); n1 <- sum(y[ok] == 1L)
+  pac0 <- sum(y[ok] == 0L & preds[ok] == 0L) / n0
+  pac1 <- sum(y[ok] == 1L & preds[ok] == 1L) / n1
+  ess  <- (pac0 + pac1 - 1) * 100
+  expect_equal(ess, 15.99, tolerance = 0.1, label = "OVERALL ESS")
+})
+
+test_that("myeloma MINDENOM=30: WEIGHTED ESS ≈ 16.51%", {
+  if (!.myeloma_fixtures_ok()) skip("myeloma fixture files missing")
+  d    <- .load_myeloma()
+  tree <- .myeloma_fit30()
+  X    <- d[, .myeloma_attr_names]
+  y    <- as.integer(d$V1)
+  w    <- as.numeric(d$V2)
+  preds <- predict(tree, X, missing_action = "na")
+  ok   <- !is.na(preds)
+  m0   <- ok & y == 0L; m1 <- ok & y == 1L
+  wpac0 <- sum(w[m0 & preds == 0L]) / sum(w[m0])
+  wpac1 <- sum(w[m1 & preds == 1L]) / sum(w[m1])
+  wess  <- (wpac0 + wpac1 - 1) * 100
+  expect_equal(wess, 16.51, tolerance = 0.1, label = "WEIGHTED ESS")
+})
+
 test_that("myeloma CTA: MINDENOM=56 returns no tree", {
   if (!.myeloma_fixtures_ok()) skip("myeloma fixture files missing")
   d <- .load_myeloma()

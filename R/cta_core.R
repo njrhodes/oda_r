@@ -661,6 +661,7 @@ oda_cta_fit <- function(
   }
 
   # Predict all n observations through a nodes_list (root at root_id).
+  # Missing obs are routed to the node's majority class (majority fallback).
   .predict_all <- function(nodes_list, root_id) {
     pred_one <- function(i) {
       nid <- root_id
@@ -672,7 +673,9 @@ oda_cta_fit <- function(
         x_val <- X[[j]][i]
         miss_here <- is.na(x_val)
         if (!is.null(miss_codes) && !miss_here) miss_here <- x_val %in% miss_codes
-        if (miss_here) return(nd$majority_class)
+        if (miss_here) {
+          return(nd$majority_class)
+        }
         rule  <- nd$rule
         if (!is.null(rule$type) &&
             rule$type %in% c("multiclass_ordered","multiclass_nominal")) {
@@ -768,7 +771,6 @@ oda_cta_fit <- function(
       if (!is.null(nd_c)) cand_nodes[[cid_v]] <- nd_c
     }
 
-    # Evaluate full-tree WESS
     wess_cand <- tryCatch({
       preds <- .predict_all(cand_nodes, root_id = 1L)
       .wess_classes(y, preds, w)
@@ -782,6 +784,57 @@ oda_cta_fit <- function(
       best_n_nodes <- sum(!vapply(cand_nodes, is.null, logical(1L)))
     }
   }  # end ENUMERATE loop
+
+  # ---- ENUMERATE root-only (stump) candidate phase ----------------------------
+  # CTA.exe canonical: MODEL1.TXT Trees 5-7 show CTA.exe explicitly evaluating
+  # each root candidate as a stump (root split + two leaves), scored path-locally
+  # (observations whose root attribute is missing are excluded, not majority-routed).
+  # This phase runs after the expanded phase; root-only candidates compete against
+  # expanded candidates for the overall best WESS.
+  #
+  # For MINDENOM=30: V17 stump scores 186 obs → WESS=16.51%;
+  #                  V14 stump scores 255 obs → WESS=14.06%.
+  #                  V17 wins (16.51% > 14.06% and > any majority-fallback expanded score).
+  # For MINDENOM=1:  expanded V14→V15 WESS=27.69% > all stumps → expanded wins.
+  .vmsg("[ENUMERATE root-only] ", length(root_cands), " stump candidates (path-local)")
+  for (i in seq_along(root_cands)) {
+    A_cand  <- root_cands[[i]]
+    appl_A  <- .apply_cand(A_cand, seq_len(n))
+    valid_A <- !is.na(appl_A$y_pred)
+    sl_A    <- sort(unique(appl_A$y_pred[valid_A]))
+    if (length(sl_A) < 2L) next
+
+    # appl_A$y_pred already carries NA_integer_ for obs whose root attribute is
+    # missing (value in miss_codes).  Scoring over ok=!is.na(stump_preds) is
+    # therefore path-local: missing-root obs are excluded from WESS computation.
+    stump_preds <- appl_A$y_pred
+    ok          <- !is.na(stump_preds)
+    wess_stump  <- if (sum(ok) < 2L) -Inf else
+                     .wess_classes(y[ok], stump_preds[ok], w[ok])
+
+    .vmsg("  [root-only] ", A_cand$name,
+          " n_classified=", sum(ok),
+          " WESS=", round(wess_stump, 2), "%")
+
+    if (wess_stump > best_wess) {
+      left_idx  <- which(valid_A & appl_A$y_pred == sl_A[1L])
+      right_idx <- which(valid_A & appl_A$y_pred == sl_A[2L])
+
+      stump_nodes       <- vector("list", 3L)
+      nd1               <- .split_nd(1L, 0L, 1L, seq_len(n), A_cand, appl_A)
+      nd1$split_labels  <- as.integer(sl_A)
+      nd1$child_ids     <- c(2L, 3L)
+      stump_nodes[[1L]] <- nd1
+      stump_nodes[[2L]] <- .leaf_nd(2L, 1L, 2L, left_idx,
+                                    pred_class = as.integer(sl_A[1L]))
+      stump_nodes[[3L]] <- .leaf_nd(3L, 1L, 2L, right_idx,
+                                    pred_class = as.integer(sl_A[2L]))
+
+      best_wess    <- wess_stump
+      best_nodes   <- stump_nodes
+      best_n_nodes <- 3L
+    }
+  }  # end root-only phase
 
   # Fallback: enumeration produced no valid tree
   if (is.null(best_nodes)) {
@@ -833,8 +886,10 @@ oda_cta_fit <- function(
 #' @param ... Unused.
 #' @return Integer vector of predicted class labels, length \code{nrow(newdata)}.
 #' @export
-predict.cta_tree <- function(object, newdata, ...) {
+predict.cta_tree <- function(object, newdata,
+                             missing_action = c("majority", "na"), ...) {
   if (!is.data.frame(newdata)) newdata <- as.data.frame(newdata)
+  missing_action <- match.arg(missing_action)
   n_new      <- nrow(newdata)
   miss_codes <- object$miss_codes
 
@@ -850,7 +905,10 @@ predict.cta_tree <- function(object, newdata, ...) {
 
       miss_here <- is.na(x_val)
       if (!is.null(miss_codes) && !miss_here) miss_here <- x_val %in% miss_codes
-      if (miss_here) return(nd$majority_class)
+      if (miss_here) {
+        if (missing_action == "na") return(NA_integer_)
+        return(nd$majority_class)
+      }
 
       rule  <- nd$rule
       if (!is.null(rule$type) &&
