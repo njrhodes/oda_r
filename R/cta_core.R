@@ -21,6 +21,169 @@
 #   node IDs are offset past B's last used node ID to avoid collisions.
 ###############################################################################
 
+# ---- CTA-specific ordered-cut selection ------------------------------------ #
+
+# .cta_ordered_scan()
+#
+# CTA-faithful ordered-cut selection for binary class.
+#
+# The rule differs from generic oda_univariate_core():
+#   "0->1" direction: select the RIGHTMOST cut where the class-1
+#     priors-adjusted PAC on the right branch (sens_wa) exceeds 0.5.
+#     Since sens_wa_01 = 1 - C1a[j] is non-increasing, this is the last j
+#     before sens_wa drops to ≤ 0.5 — equivalently, maximise spec_wa subject
+#     to sens_wa > 0.5.
+#   "1->0" direction: select the LEFTMOST cut where the class-1
+#     priors-adjusted PAC on the LEFT branch (sens_wa_10 = C1a[j]) exceeds 0.5.
+#     Since C1a[j] is non-decreasing, this is the first j where sens_wa_10
+#     crosses above 0.5 — equivalently, maximise spec_wa_10 subject to
+#     sens_wa_10 > 0.5.
+#   The two rules are symmetric: each picks the "outermost" cut that maintains
+#   class-1 majority on the prediction side.
+#   The direction yielding the higher ESS is returned (ties → "0->1").
+#
+# Parameters
+#   x, y, w    raw data vectors (same length); y must be in {0, 1}.
+#   priors_on  if TRUE apply prior-odds weighting.
+#   miss_codes numeric miss-code vector (may be NULL).
+#   mindenom   minimum raw obs count per child node.
+#
+# Returns list(rule, ess, sens_wa, spec_wa) or NULL if no eligible cut exists.
+.cta_ordered_scan <- function(x, y, w, priors_on, miss_codes, mindenom) {
+  # 1. Clean missing
+  miss_mask <- is.na(x) | is.na(y)
+  if (!is.null(miss_codes)) miss_mask <- miss_mask | (x %in% miss_codes)
+  keep <- !miss_mask
+  x <- x[keep]; y <- as.integer(y[keep]); w <- as.numeric(w[keep])
+  n <- length(x)
+  if (n < 2L * as.integer(mindenom)) return(NULL)
+  n0 <- sum(y == 0L); n1 <- sum(y == 1L)
+  if (n0 == 0L || n1 == 0L) return(NULL)
+
+  # 2. Priors-adjusted weights
+  W0 <- sum(w[y == 0L]); W1 <- sum(w[y == 1L])
+  if (W0 <= 0 || W1 <= 0) return(NULL)
+  w_adj <- w
+  if (isTRUE(priors_on)) {
+    w_adj[y == 0L] <- w_adj[y == 0L] / W0
+    w_adj[y == 1L] <- w_adj[y == 1L] / W1
+  }
+
+  # 3. Unique-value blocks (sorted left to right)
+  uvals <- sort(unique(x))
+  m     <- length(uvals)
+  if (m < 2L) return(NULL)
+
+  z0a <- numeric(m); z1a <- numeric(m); nv <- integer(m)
+  for (b in seq_len(m)) {
+    idx    <- x == uvals[b]
+    z0a[b] <- sum(w_adj[idx][y[idx] == 0L])
+    z1a[b] <- sum(w_adj[idx][y[idx] == 1L])
+    nv[b]  <- sum(idx)
+  }
+  C0a <- cumsum(z0a); C1a <- cumsum(z1a); Nv <- cumsum(nv); Nm <- sum(nv)
+
+  # 4. Direction "0->1": sens_wa = 1 - C1a[j] (non-increasing).
+  #    Condition: sens_wa > 0.5 ↔ C1a[j] < 0.5.
+  #    Rule: RIGHTMOST eligible j → overwrite on every valid j.
+  bj01 <- NA_integer_; bes01 <- NA_real_; bse01 <- NA_real_; bsp01 <- NA_real_
+  for (j in seq_len(m - 1L)) {
+    nL <- Nv[j]; nR <- Nm - nL
+    if (nL < mindenom || nR < mindenom) next
+    sens <- 1 - C1a[j]
+    if (sens <= 0.5) next
+    spec <- C0a[j]                        # non-decreasing: rightmost = max
+    bj01 <- j; bes01 <- (spec + sens - 1) * 100; bse01 <- sens; bsp01 <- spec
+  }
+
+  # 5. Direction "1->0": sens_wa_10 = C1a[j] (non-decreasing).
+  #    Condition: sens_wa_10 > 0.5 ↔ C1a[j] > 0.5.
+  #    Rule: LEFTMOST eligible j → break on first valid j.
+  bj10 <- NA_integer_; bes10 <- NA_real_; bse10 <- NA_real_; bsp10 <- NA_real_
+  for (j in seq_len(m - 1L)) {
+    nL <- Nv[j]; nR <- Nm - nL
+    if (nL < mindenom || nR < mindenom) next
+    sens <- C1a[j]
+    if (sens <= 0.5) next
+    spec <- 1 - C0a[j]                   # non-increasing: leftmost = max
+    bj10 <- j; bes10 <- (spec + sens - 1) * 100; bse10 <- sens; bsp10 <- spec
+    break                                 # leftmost = first found
+  }
+
+  # 6. Build result for each direction, pick direction with higher ESS (ties → "0->1")
+  .make_r <- function(dir, bj, bes, bse, bsp)
+    list(rule = list(type = "ordered_cut", direction = dir,
+                     cut_value = (uvals[bj] + uvals[bj + 1L]) / 2),
+         ess = bes, sens_wa = bse, spec_wa = bsp)
+
+  r01 <- if (!is.na(bj01)) .make_r("0->1", bj01, bes01, bse01, bsp01) else NULL
+  r10 <- if (!is.na(bj10)) .make_r("1->0", bj10, bes10, bse10, bsp10) else NULL
+
+  if (is.null(r01) && is.null(r10)) return(NULL)
+  if (is.null(r01)) return(r10)
+  if (is.null(r10)) return(r01)
+  if (r01$ess >= r10$ess) r01 else r10
+}
+
+# .cta_mc_ordered()
+#
+# CTA-specific Monte Carlo Fisher-randomization p-value for ordered attributes.
+# Mirrors oda_mc_p_value() but applies .cta_ordered_scan() to each permutation
+# so permuted fits respect the same CTA cut-selection rule as the observed fit.
+#
+# Parameters
+#   x, y_coded   raw vectors (with miss_codes intact); y must be in {0,1}.
+#   w            case weights.
+#   obs_ess      observed ESS from .cta_ordered_scan() — required.
+#   priors_on, miss_codes, mindenom  forwarded to .cta_ordered_scan().
+#   mc_iter, mc_target, mc_stop, mc_stopup  Fisher randomization params.
+#   mc_seed      optional RNG seed.
+#
+# Returns list(p_mc, ge_count, iter_used).
+.cta_mc_ordered <- function(x, y_coded, w, obs_ess,
+                             priors_on, miss_codes, mindenom,
+                             mc_iter, mc_target, mc_stop, mc_stopup, mc_seed) {
+  if (!is.null(mc_seed)) set.seed(mc_seed)
+  y_coded   <- as.integer(y_coded)
+  n         <- length(y_coded)
+  mc_iter   <- as.integer(mc_iter)
+
+  conf_stop   <- if (!is.na(mc_stop)   && mc_stop   > 1) mc_stop   / 100 else mc_stop
+  conf_stopup <- if (!is.na(mc_stopup) && mc_stopup > 1) mc_stopup / 100 else mc_stopup
+
+  ge_count    <- 0L
+  iter_used   <- 0L
+  min_check   <- 50L
+  check_every <- 50L
+
+  for (b in seq_len(mc_iter)) {
+    iter_used <- b
+    y_star    <- sample(y_coded, size = n, replace = FALSE)
+    scan_b    <- .cta_ordered_scan(x, y_star, w, priors_on, miss_codes, mindenom)
+    ess_b     <- if (is.null(scan_b) || is.null(scan_b$ess)) 0 else scan_b$ess %||% 0
+    if (ess_b >= obs_ess - 1e-12) ge_count <- ge_count + 1L
+
+    if (b >= min_check && (b %% check_every == 0L)) {
+      if (ge_count == 0L) {
+        upper <- if (!is.na(conf_stop))   stats::qbeta(conf_stop,   1L,          b)          else NA_real_
+        lower <- 0
+      } else if (ge_count == b) {
+        upper <- 1
+        lower <- if (!is.na(conf_stopup)) stats::qbeta(1 - conf_stopup, b,       1L)         else NA_real_
+      } else {
+        upper <- if (!is.na(conf_stop))   stats::qbeta(conf_stop,   ge_count + 1L, b - ge_count)     else NA_real_
+        lower <- if (!is.na(conf_stopup)) stats::qbeta(1 - conf_stopup, ge_count, b - ge_count + 1L) else NA_real_
+      }
+      if (!is.na(mc_target) && !is.na(upper) && upper < mc_target) break
+      if (!is.na(mc_target) && !is.na(lower) && lower > mc_target) break
+    }
+  }
+
+  list(p_mc     = (ge_count + 1L) / (iter_used + 1L),
+       ge_count = ge_count,
+       iter_used = iter_used)
+}
+
 # Normalize a binary_map rule on a numeric {0,1} attribute to ordered_cut.
 .cta_norm_rule <- function(rule, x_j, miss_codes = NULL) {
   if (!identical(rule$type, "binary_map")) return(rule)
