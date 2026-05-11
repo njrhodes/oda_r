@@ -1,369 +1,299 @@
-# ODACORE_VISION.md — Synthesis and Ground Truth
+# ODACORE_VISION.md
 
 Maintainer: Nathaniel J. Rhodes, PharmD, MSc
-Repository: https://github.com/njrhodes/ODA
-Synthesized: 2026-04-15
-Authority: This document synthesizes RCORE_CLAUDE.md (operational brief,
-April 2026) with the current state of the package as built across this
-session. Where the two conflict, the current verified state takes
-precedence over the earlier brief.
+Repository: https://github.com/njrhodes/oda_rcore
+Updated: 2026-05-11
 
 ---
 
-## 1. What odacore is — the ground truth statement
+## 1. What odacore is
 
-odacore is a pure R reimplementation of the MegaODA.exe / CTA.exe
-statistical classification engine. Its sole correctness standard is
-the Windows executable. Any divergence from exe output is a bug in
-odacore, not an alternative interpretation.
+odacore is a pure-R reimplementation of the MegaODA.exe / CTA.exe statistical
+classification engine. Where gold executable coverage exists, the correctness
+standard is the Windows executable: any divergence from exe output on a covered
+fixture is a bug in odacore, not an alternative interpretation.
 
-The package removes the Windows x86 binary dependency so that ODA and
-CTA analyses can run cross-platform, be embedded in R workflows, be
-tested with standard CI tooling, and eventually support extension
-(Bayesian priors, Shiny interfaces, NOVO bootstrap) without touching
-the exe.
+The package removes the Windows x86 binary dependency so that ODA and CTA
+analyses can run cross-platform, be embedded in R workflows, tested with
+standard CI tooling, and extended (novometric MDSA, interpretability artifacts)
+without touching the exe.
 
-It does not replace the exe for production clinical or research use
-until it passes Phase 2 validation. Until then it is a calibrated
-reimplementation under active validation.
+Extensions beyond exe behavior are allowed only when clearly marked as
+extensions and must not alter parity behavior on covered fixtures.
 
 ---
 
-## 2. Current verified state (as of this session)
+## 2. Current production state
 
-### Package structure (actual, not spec)
+### Architecture (five-file structure)
+
 ```
-rcore/
-  DESCRIPTION            (RoxygenNote 7.3.3, no LazyData)
-  NAMESPACE              (14 exports, hand-maintained)
-  README.md
-  odacore.Rproj
-  .Rbuildignore
-  .github/workflows/R-CMD-check.yml
-  R/
-    utils.R              %||%, tick(), fmt2/6, p_bucket — defined once
-    unioda_core.R        Binary ODA engine (731 lines)
-    multioda_core.R      Multiclass ODA engine (1091 lines)
-    oda_fit.R            Unified dispatcher C=2→binary, C≥3→multiclass
-    cta_core.R           CTA recursive tree engine (558 lines)
-  man/                   14 hand-written .Rd files
-  tests/testthat/
-    helper-odacore.R     Test utilities (always sourced, never exported)
-    CTA_DEMO.CSV         Gold fixture data (200 obs, 6 columns)
-    test-unioda.R        (10 tests) Binary ODA structural
-    test-tie-breaking.R  (8 tests)  MAXSENS→SAMPLEREP→FIRST proven
-    test-synthetic-multiclass.R  (5 tests) Algebraically proven SREP
-    test-iris.R          (12 tests) MegaODA gold — all 4 iris attributes
-    test-oda-fit.R       (7 tests)  Dispatcher correctness
-    test-cta.R           (12 tests) CTA structural
-    test-cta-gold.R      (15 tests) MegaODA CTA gold — CTA_DEMO dataset
+utils.R          ← shared primitives (%||%, tick(), fmt helpers)
+    ↓
+unioda_core.R    ← binary ODA engine (oda_univariate_core)
+multioda_core.R  ← multiclass ODA engine (oda_multiclass_unioda_core)
+    ↓
+oda_fit.R        ← unified dispatcher: C=2 → binary, C≥3 → multiclass
+    ↓
+cta_core.R       ← CTA recursive tree (oda_cta_fit, predict.cta_tree, helpers)
 ```
 
-**Test count:** 69 tests total. All pass (114/114 on last full run
-before CTA gold was added; CTA gold adds 15 more).
+No circular dependencies. CTA calls `oda_fit()` and reads standardized result
+fields; it knows nothing about the internal structure of either ODA engine.
 
-**R CMD check:** 0 errors, 1 warning (documentation — resolved with
-hand-written .Rd files), 1 note (timestamp, unfixable).
+### Public API
 
-### What was fixed in this session vs the April 2026 brief
-The brief listed these as confirmed-but-verify items:
-- ✓ No source() calls in R/
-- ✓ %||% defined once in utils.R
-- ✓ loo="on" inside fold loop removed
-- ✓ setNames is base R — no importFrom needed (but kept for safety)
-- ✓ iris tests are 12 explicit test_that blocks, not a loop
+**Entry points:**
+- `oda_fit(x, y, w, ...)` — primary dispatcher
+- `oda_univariate_core(...)` — binary ODA engine directly
+- `oda_multiclass_unioda_core(...)` — multiclass ODA engine directly
+- `oda_cta_fit(X, y, w, ...)` — CTA tree
 
-The brief listed Risk 4 (CTA not implemented) as a known gap.
-That gap is now closed: cta_core.R is implemented and gold-tested
-against a real MegaODA CTA output file.
+**Prediction / inspection:**
+- `predict.cta_tree(object, newdata, missing_action = c("majority", "na"))`
+- `print.cta_tree(x)`
+- `cta_node_table(tree)`
+- `oda_rule_predict(x, rule)`
+- `oda_rule_predict_multiclass(x, rule, boundary)`
 
-### What the brief listed but is NOT yet in the package
-- test-fixture-myeloma.R — fixture not yet generated (Phase 1 gate)
-- tests/VALIDATION_STATUS.md — population requires myeloma fixture
-- harness_utils.R in R/ — intentionally removed (was test-only code
-  that leaked into production namespace; test utilities now live in
-  tests/testthat/helper-odacore.R where they belong)
-- oda_switch.R — replaced by oda_fit.R with cleaner dispatch logic
+**Metrics:**
+- `oda_confusion_binary`, `oda_confusion_multiclass`
+- `oda_mean_pac`, `oda_ess_from_meanpac`, `oda_ess_from_mean`
+
+### Return value contract
+
+- `$confusion` — always raw integer counts (rows = actual, cols = predicted)
+- `$confusion_wt` — priors-weighted matrix (diagnostics only)
+- `$pac`, `$mean_pac`, `$pac_by_class` — in [0, 100]
+- `$sensitivity`, `$specificity`, `$accuracy` — in [0, 1]
+- `$ess`, `$wess` — in [0, 100]; WESS only when WEIGHT command is active
+
+### Covered fixture validation status
+
+| Dataset    | MINDENOM | Type               | Status   | Key anchor                        |
+|------------|----------|--------------------|----------|-----------------------------------|
+| iris V1–V4 | —        | MultiODA           | ✓ green  | All 4 attributes, K=3 ordered     |
+| CTA_DEMO   | 1        | CTA (no weights)   | ✓ green  | Root V2, cut 4.5, ESS 52.63%      |
+| CTA_DEMO   | 8        | CTA (no weights)   | ✓ green  | mc_iter=25000, ESS 68.08%         |
+| myeloma    | 1        | CTA (WEIGHT V2)    | ✓ green  | V14→V15, WESS 27.69%, n=255       |
+| myeloma    | 30       | CTA (WEIGHT V2)    | ✓ green  | V17 stump, WESS 16.51%, n=186     |
+| myeloma    | 56       | CTA (WEIGHT V2)    | ✓ green  | No tree (all child sizes < 56)    |
+
+**Full test suite: 224/224 passing.**
+
+**devtools::check(): 0 errors / 0 warnings / 1 note** (network timestamp
+check — environment issue, not a package issue).
+
+### Key CTA implementation details
+
+**Weighted ordered scan + LOO STABLE gate** (commit 85459a4):
+- `.cta_ordered_scan()` selects the rightmost cut where the class-1
+  right-branch priors-adjusted PAC > 0.5.
+- LOO STABLE requires WESSL = WESS (|delta| ≤ 0.01 pp). Signif T alone is
+  insufficient.
+- Binary attributes (≤ 2 unique values) and uniform-weight datasets bypass the
+  CTA path and use generic ODA.
+
+**Root-only ENUMERATE stump phase** (commit a2e2a9d):
+- After the expanded ENUMERATE loop (candidate trees grown below each root),
+  a second loop evaluates each root candidate as a stump scored path-locally.
+- Observations missing the root attribute are excluded (NA), not majority-routed.
+- Root-only stump candidates compete against expanded candidates; best WESS wins.
+- This matches CTA.exe Trees 5–7 behavior in MODEL1.TXT.
+- **Do not globally apply path-local scoring to expanded ENUMERATE candidates.**
+  This was attempted twice and reverted; it incorrectly displaces correct
+  expanded trees for MINDENOM=1.
+
+**MINDENOM:**
+- Raw child-node row-count admissibility. Unweighted, no priors adjustment.
+
+**`missing_action` in `predict.cta_tree()`:**
+- `"majority"` (default) — majority-fallback; used in expanded ENUMERATE scoring.
+- `"na"` — canonical path-local missingness; returns NA_integer_ for missing obs.
 
 ---
 
 ## 3. Selection algorithm — proven invariants
 
-These are not guesses. They were proven by running MegaODA.exe on real
-data and reverse-engineering the selection behavior:
+Reverse-engineered from MegaODA.exe runs and locked by fixture tests.
 
 ```
-For each cut position r (combn enumeration order):
-  Level 2 (inner) — within this cut, best segment assignment:
-    PRIMARY   = MAXSENS (mean PAC in priors-weighted space)
-    SECONDARY = SAMPLEREP (L1 distance, RAW counts, always)
+For each cut position r (enumeration order):
+  Within-cut (inner) — best segment assignment:
+    PRIMARY   = MAXSENS  (mean PAC in priors-weighted space)
+    SECONDARY = SAMPLEREP  (L1 distance, RAW counts always)
     FALLBACK  = FIRST ASSIGNMENT ENUMERATED
 
-Level 1 (outer) — across cut positions:
+Across cut positions (outer):
     PRIMARY   = MAXSENS
-    FALLBACK  = FIRST CUT POSITION ENUMERATED (NOT SAMPLEREP)
+    FALLBACK  = FIRST CUT POSITION ENUMERATED  (not SAMPLEREP)
 ```
 
 Key proofs:
-- iris V1: cuts 6.15 vs 6.25 → both same PAC, raw SREP favors 6.25,
-  but MegaODA chose 6.15 → proves first-cut wins across cut positions.
-- DAT5: assignments (2,1,3) vs (1,2,3) at same cut → SREP picks (2,1,3)
-  → proves SREP operates within a cut position on assignment ties.
-- SAMPLEREP is always raw counts. Bug that used priors-weighted space
-  was identified and fixed.
+- iris V1: cuts 6.15 vs 6.25 — same PAC, raw SREP favors 6.25, MegaODA
+  chose 6.15 → first-cut wins across cut positions.
+- DAT5: assignments (2,1,3) vs (1,2,3) at same cut — SREP picks (2,1,3)
+  → SREP operates within a cut position on assignment ties.
+- SAMPLEREP is always raw counts. Using priors-weighted space is a bug.
 
 ---
 
-## 4. Architecture — the five-file structure
+## 4. Novometric axioms
+
+### Axiom 1 — Sample size / exact distribution
+
+For binary class × binary attribute, unit-weighted UniODA exact distributions
+converge to Fisher's exact test. More general ODA exact p-values are obtained
+through Fisher randomization / permutation or require further exact-distribution
+theory. Additional theory is needed for sample-size calculation for the ODA
+exact distribution.
+
+### Axiom 2 — Structural Decomposition Analysis (SDA)
+
+SDA is used in multiattribute applications to identify the attribute subset
+producing the GO-CTA model. It is analogous to PCA but maximizes predictive
+accuracy rather than explained variance. It selects attributes successively
+over monotonically diminishing sample partitions:
+
+In step 1, EO-CTA is applied and the attribute yielding the minimum D statistic
+with exact p < 0.05 is selected. Correctly classified observations are then
+removed and the selected attribute is omitted from later steps. The process
+repeats on the remaining misclassified observations until all observations in
+either class are correctly classified, p > 0.05, or too few observations remain
+to satisfy Axiom 1.
+
+D is the parsimony-normalized criterion:
 
 ```
-utils.R       ← shared primitives, no dependencies
-    ↓
-unioda_core.R ← binary ODA engine, depends on utils
-multioda_core.R ← multiclass engine, depends on utils
-    ↓
-oda_fit.R     ← dispatcher, calls both engines
-    ↓
-cta_core.R    ← recursive tree, calls oda_fit exclusively
+D = 100 / ((ESS_or_WESS) / strata_length) - strata_length
 ```
 
-No circular dependencies. No cross-engine calls. CTA knows nothing
-about the internal structure of either engine — it calls oda_fit()
-and reads the standardized result fields.
+Where `strata_length` counts terminal leaf endpoints only; internal and
+intersection nodes are not counted. MPE defines D as [100 / (ESS / strata)] − strata,
+where strata is the number of strata/endpoints. Use WESS in place of ESS only
+as odacore weighted-extension language when case weights are declared.
 
-### Public API (14 exports)
+### Axiom 3 — MDSA descendant family
 
-**Entry points:**
-- oda_fit(x, y, w, ...)              ← primary; auto-dispatches
-- oda_univariate_core(...)           ← binary engine directly
-- oda_multiclass_unioda_core(...)    ← multiclass engine directly
-- oda_cta_fit(X, y, w, ...)         ← CTA tree
+MDSA operates on EO-CTA models configured on the SDA-selected attribute subset.
+Starting from MINDENOM 1, the descendant family is traced by computing the
+minimum terminal endpoint denominator of the current model and stepping to:
 
-**Prediction:**
-- oda_rule_predict(x, rule)
-- oda_rule_predict_multiclass(x, rule, boundary)
-- predict.cta_tree(object, newdata)
-- print.cta_tree(x)
-- cta_node_table(tree)
+```
+Next MINDENOM = current model's minimum terminal endpoint denominator + 1
+```
 
-**Metrics:**
-- oda_confusion_binary(y, y_pred, w)
-- oda_confusion_multiclass(y, y_pred, w)
-- oda_mean_pac(sens, spec)
-- oda_ess_from_meanpac(mean_pac, chance)
-- oda_ess_from_mean(mean_metric, C)
+Myeloma example:
+- MINDENOM 1 model has minimum terminal endpoint denominator 29 → next MINDENOM 30.
+- MINDENOM 30 stump has minimum terminal endpoint denominator 55 → next MINDENOM 56.
+- MINDENOM 56 yields no feasible tree → terminate.
 
-### Return value contract (confusion counts)
-- Binary: $confusion = list(TP, TN, FP, FN as raw integer counts;
-  sensitivity, specificity as proportions [0,1])
-- Multiclass: $confusion = raw integer count matrix (rows=actual, cols=predicted)
-  $confusion_wt = priors-weighted matrix (for diagnostics)
-- Percentages: $pac, $mean_pac, $pac_by_class are in [0,100]
-- Proportions: $sensitivity, $specificity, $accuracy are in [0,1]
+No-tree states have no terminal endpoint denominators and terminate the
+descendant family. The resulting sequence {MINDENOM 1, 30, 56} is the descendant
+family; the minD model is selected from the feasible members.
+
+### Axiom 4 — Reliability
+
+MPE canon: hold-out, LOO/jackknife, bootstrap, or test-retest validity analyses
+estimate cross-generalizability of D, ESS, ESP, and related performance indices.
+
+odacore planning policy: reliability status should be represented explicitly;
+when a workflow declares reliability as an acceptance criterion, only reliable
+complete models should compete. If multiple reliable models exist, theoretical
+or empirical use considerations must be weighed.
 
 ---
 
-## 5. Validation status
+## 5. Phase map
 
-### Tier 1 — Proven against exe (regression-locked)
+### Phase 0 — Completed: parity stabilization ✓
 
-| Dataset | Attributes | What's proven |
-|---------|-----------|---------------|
-| iris    | V1 Sepal.Length | cuts, confusion, LOO confusion exact |
-| iris    | V2 Sepal.Width  | cuts, confusion, LOO confusion exact |
-| iris    | V3 Petal.Length | cuts, confusion, LOO confusion exact |
-| iris    | V4 Petal.Width  | cuts, confusion, LOO confusion exact |
-| CTA_DEMO | V2-V6 | 8 split nodes, all node obs counts, confusion exact |
-| dat2-dat7 | V1 ordered | SAMPLEREP selection behavior proven |
+- UniODA / MultiODA parity on covered fixtures (iris, synthetic tie-breaking).
+- Binary CTA fixture parity for CTA_DEMO (MINDENOM 1 and 8) and myeloma
+  (MINDENOM 1, 30, 56).
+- Weighted ordered scan + LOO STABLE gate.
+- Root-only ENUMERATE stump phase.
+- Package hygiene: 0 errors / 0 warnings on devtools::check().
+- Dev-only theory assets removed from package tracking and build.
+- Copilot review instructions established.
 
-### Tier 2 — Structurally tested but not exe-validated
+### Phase 1 — Completed: documentation and canon alignment ✓
 
-| Area | Tests | Status |
-|------|-------|--------|
-| Binary ODA, all attr types | test-unioda.R | Structural only |
-| Multiclass SREP isolation | test-synthetic-multiclass.R | Algebraic proof |
-| Dispatcher C=2/C≥3 routing | test-oda-fit.R | Structural |
-| CTA stopping rules, depths | test-cta.R | Structural |
+- CLAUDE.md, data-raw/README.md, ODACORE_VISION.md aligned to current state.
+- Copilot instructions cover all known parity invariants and scope limits.
+- No behavior changes.
 
-### Tier 3 — Not yet validated (known gaps)
+### Phase 2 — Next: novometric / MDSA functionalization
 
-| Risk | Description | Gate |
-|------|-------------|------|
-| RISK-1 | Categorical attribute level ordering | Myeloma fixture |
-| RISK-2 | MC p early stopping divergence | Myeloma fixture |
-| RISK-3 | Weighted LOO weight distinction | Myeloma fixture |
+Functionalize MDSA across a descendant family of CTA trees.
 
-The myeloma dataset is the canonical Phase 1 validation target.
-It has: multiple attributes, case weights (WEIGHT command),
-LOO, and categorical attributes — it exercises all three risks
-simultaneously. Phase 1 is not complete until myeloma passes.
+Initial example: myeloma MINDENOM 1 → 30 → 56.
+- Each model/stump/no-tree state records terminal endpoint denominators.
+- Next MINDENOM = current model's minimum terminal endpoint denominator + 1.
+- No-tree states terminate the descendant family.
+- Family supports minD model selection across feasible members.
 
----
+Requires safe no-tree state representation and a clean family container object.
 
-## 6. Phases
+### Phase 3 — Interpretability artifacts
 
-### Phase 0 — Complete ✓
-Engine implementation and iris gold regression.
-- Binary ODA engine proven faithful
-- Multiclass ODA engine proven faithful (two-level SAMPLEREP)
-- ODA LOO proven faithful (true refit-per-fold)
-- CTA engine implemented and gold-tested (CTA_DEMO.CSV)
+- Tree plots with meaningful node labels.
+- Confusion matrices (raw and priors-weighted).
+- ESS/WESS/PAC metrics with MC/LOO/reliability annotations.
+- Within-tree and across-family comparisons.
+- Safe no-tree reporting.
+- Clear distinction between UniODA/MultiODA single-rule outputs, CTA tree
+  outputs, and MDSA family outputs.
 
-### Phase 1 — Active: Validate UniODA against myeloma fixture
-Generate fixture on Windows, compare all attributes ESS/confusion/LOO.
-Fix any discrepancy. One branch per fix.
+### Phase 4 — Permutation / bootstrap / 95% CI performance
 
-Gate: All 14 myeloma attributes pass ESS within 0.01% tolerance.
+- Review current MC permutation and CI implementation.
+- Compare with ODA repository R implementation.
+- Define statistical target before optimizing.
+- Preserve seed/reproducibility policy.
+- Correctness tests before speed tests.
 
-**To begin Phase 1:**
-```r
-# On Windows with ODA package installed:
-library(ODA)
-ref_oda <- ODAparse(run=1, mod=1, assign_global=FALSE,
-                    base_path=here::here("vignettes/myeloma"))
-saveRDS(ref_oda, "rcore/tests/testthat/fixtures/myeloma_oda_parsed.rds")
-```
-Then add test-fixture-myeloma.R and run devtools::test().
+### Phase 5 — Multiclass CTA extension
 
-### Phase 2 — Fix UniODA discrepancies
-One branch per failing attribute. One commit per fix.
-Branch naming: rcore/fix-{issue-desc}
-
-Gate: All myeloma attributes pass + existing iris tests still pass.
-
-### Phase 3 — CTA validation (in progress)
-CTA engine is implemented. Gold test against CTA_DEMO exists.
-Need: myeloma CTA fixture, weighted CTA fixture.
-
-**To complete Phase 3:**
-```r
-# On Windows:
-ref_cta <- CTAparse(...)
-saveRDS(ref_cta, "rcore/tests/testthat/fixtures/myeloma_cta_parsed.rds")
-```
-
-### Phase 4 — Weighted CTA and LOO STABLE parity
-Case weights in CTA. Weighted ESS (WESS) vs ESS distinction.
-LOO STABLE at tree level (currently per-node only).
-
-Gate: Weighted myeloma CTA fixture passes.
-
-### Phase 5 — Extension layer (future)
-Not started. Does not touch the validated engine.
-
-**5a. NOVO bootstrap**
-Wrapped around oda_fit(). No engine changes.
-
-**5b. Bayesian prior plug-in**
-New priors function that replaces oda_apply_priors().
-Engine interface unchanged — w is still the weight vector.
-
-**5c. Shiny application**
-Takes validated package as dependency. Separate package.
-Architecture: odacore (engine) + odaapp (Shiny).
-
-**5d. Exact p-value engine**
-Generalization of CYN 1997 to imbalanced and non-directional cases — see inst/docs/theory/.
+- Most far-reaching extension; no gold executable benchmark exists.
+- Must be explicitly documented as extension behavior, not MegaODA/CTA parity.
+- Fixture strategy must be synthetic/property-based, not gold-exe parity.
+- Must not alter binary CTA parity behavior.
 
 ---
 
-## 7. Rules for future development
+## 6. Invariants that must not regress
 
-These were learned from failures in this session and should not be
-re-learned:
+These were learned from debugging and are locked by fixture tests.
 
-**R scoping:**
-- <<- from a for() loop body writes to the CALLER'S environment,
-  not the function's local environment. for() has no scope.
-  Use <- in for() body; use <<- only inside nested functions/closures.
-  (This bug caused all iris fits to return ok=FALSE for ~2 sessions.)
+**SAMPLEREP:** Always raw counts. Never priors-weighted. Using the objective
+space SREP for selection is a bug.
 
-**SAMPLEREP:**
-- Always raw counts. Never priors-weighted. The objective space
-  SREP is a diagnostic field only, never used for selection.
+**Confusion matrix:** `$confusion` is always raw integer counts. `$confusion_wt`
+holds the priors-weighted version. Never swap.
 
-**Confusion matrix:**
-- $confusion is always raw integer counts (unit weights).
-  $confusion_wt holds the priors-weighted version.
-  Never swap these.
+**LOO:** True refit-per-fold. Never reuse the global rule inside a LOO fold.
 
-**LOO:**
-- True refit-per-fold. loo="off" on per-fold calls.
-  Never reuse the global rule inside LOO.
+**MINDENOM:** Raw observation count (OBS column in CTA.exe output), not weighted
+sum. Do not use priors-adjusted or classified-only counts.
 
-**CTA mindenom:**
-- Raw observation count, not weighted sum.
-  MINDENOM in MegaODA is the OBS column, which is raw.
+**MC defaults:** CTA node growth mc_iter=5000; standalone ODA mc_iter=25000.
+STOP/STOPUP are tunable. These are parameters, not hardcoded constants.
 
-**MC defaults:**
-- CTA node growth mc_iter=5000, ODA standalone mc_iter=25000.
-  STOP=99.9 and STOPUP=20 apply to both.
-  All four are tunable parameters, not hardcoded constants.
-
-**Tests:**
-- Iris gold values are fixed. Any change requires exe confirmation.
-- CTA_DEMO gold values are fixed. Any change requires CTA.exe confirmation.
-- Never write a test that passes without calling the function.
+**R scoping in loops:** `<<-` from a `for()` body writes to the caller's
+environment. `for()` has no scope. Use `<-` in loop bodies; use `<<-` only
+inside nested closures.
 
 ---
 
-## 8. The single most important near-term test
+## 7. Reference index
 
-From the April 2026 brief — this is still the right framing:
-
-When the myeloma fixture exists:
-```r
-test_that("myeloma V7: ESS matches exe within 0.01%", {
-  ref    <- readRDS(test_path("fixtures", "myeloma_oda_parsed.rds"))
-  data   <- read.csv(here::here("vignettes/myeloma/ODA/1/inputs/data.csv"))
-  result <- oda_univariate_core(
-    x = data[["V7"]], y = data[[cls_col]], w = data[[wt_col]],
-    attr_type = "ordered", priors_on = TRUE,
-    mcarlo = FALSE, loo = "off"
-  )
-  ref_ess <- as.numeric(gsub("[^0-9.-]", "",
-    ref$model[ref$model$Attribute == "V7", "Overall.ESS."]))
-  expect_equal(result$ess, ref_ess, tolerance = 0.01)
-})
-```
-This test, passing for all 14 myeloma attributes, completes Phase 1.
-
----
-
-## 9. What does not change across phases
-
-The engine contract. Once Phase 2 passes:
-- oda_fit() signature is stable
-- Return field names are stable
-- Confusion orientation (rows=actual, cols=predicted) is stable
-- ESS is always [0,100], PAC is always [0,100], rates are [0,1]
-- cta_tree node fields are stable
-
-Extension phases (5a/5b/5c) add new functions. They do not
-modify existing function signatures or return values.
-
----
-
-## 10. Session discipline (from RCORE_CLAUDE.md, confirmed)
-
-Before any commit:
-```r
-devtools::load_all()      # no errors
-devtools::test()          # all non-skipped tests pass
-devtools::check_man()     # no documentation warnings
-```
-
-Each session targets ONE of:
-- A single correctness fix + its test
-- A single new fixture + its test file
-- VALIDATION_STATUS.md population
-- One extension function
-
-Commit format:
-```
-type(rcore/scope): description [PHASE-N or RISK-N]
-
-fix(rcore/unioda): correct categorical level ordering [RISK-1]
-test(rcore/fixtures): myeloma V7-V14 ESS comparison [PHASE-1]
-feat(rcore/cta): weighted ESS vs ESS distinction [PHASE-4]
-```
+| Document | Purpose |
+|----------|---------|
+| `CLAUDE.md` | Operational guardrails for Claude Code sessions |
+| `README.md` | Public package overview and quick-start |
+| `docs/ODA_CANON.md` | ODA engine canonical behavior spec |
+| `docs/CTA_CANON.md` | CTA engine canonical behavior spec |
+| `docs/CTA_ORDERED_CUT_AUDIT.md` | Weighted ordered scan / LOO STABLE audit evidence |
+| `.github/copilot-instructions.md` | AI code review policy (10 rules) |
+| `data-raw/README.md` | Fixture provenance (MegaODA.exe and CTA.exe run settings) |
