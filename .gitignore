@@ -34,6 +34,7 @@ man/oda_resolve_attr_type.Rd
 man/oda_rule_side.Rd
 
 # dev-only materials not for package distribution
+docs/theory/
 inst/docs/
 dev/
 test_drive.R
