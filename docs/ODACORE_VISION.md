@@ -2,7 +2,7 @@
 
 Maintainer: Nathaniel J. Rhodes, PharmD, MSc
 Repository: https://github.com/njrhodes/oda_rcore
-Updated: 2026-05-11
+Updated: 2026-05-12
 
 ---
 
@@ -223,29 +223,487 @@ or empirical use considerations must be weighed.
 - Copilot instructions cover all known parity invariants and scope limits.
 - No behavior changes.
 
-### Phase 2 — Next: novometric / MDSA functionalization
+### Phase 2 — Object contracts, reporting, MDSA, and interpretability
 
-Functionalize MDSA across a descendant family of CTA trees.
+Phase 2 turns the stabilized inference engine into a usable analytic system.
+The first priority is not new search logic; it is a reliable object contract
+for fitted ODA/CTA models. MDSA, D-statistic comparison, staging tables,
+visualization, and auto_SDA should build on that contract rather than
+duplicating fit-specific logic.
 
-Initial example: myeloma MINDENOM 1 → 30 → 56.
-- Each model/stump/no-tree state records terminal endpoint denominators.
-- Next MINDENOM = current model's minimum terminal endpoint denominator + 1.
-- No-tree states terminate the descendant family.
-- Family supports minD model selection across feasible members.
+odacore is now a parity-stabilized inference engine, but it is still bare-bones
+as a user-facing analytic package. `oda_fit()` has no `predict()` method, no
+S3 class, and no polished reporting layer. CTA has `predict.cta_tree()`,
+`print.cta_tree()`, and `cta_node_table()`, but reporting is still minimal.
+CTA no-tree fits now have explicit `no_tree` handling and must not silently
+predict majority class.
 
-Requires safe no-tree state representation and a clean family container object.
+**Object-system decision: S3 classed lists, not R6.**
 
-### Phase 3 — Interpretability artifacts
+Rationale:
+- S3 is idiomatic for R statistical model objects.
+- S3 preserves current list fields and backward compatibility.
+- S3 supports `print()`, `summary()`, `predict()`, and accessors naturally.
+- S3 keeps objects transparent for fixture parity debugging.
+- R6 is unnecessary unless a future interactive app needs mutable session state.
+- Do not introduce hidden mutable state or expensive recomputation inside object
+  methods.
 
-- Tree plots with meaningful node labels.
-- Confusion matrices (raw and priors-weighted).
-- ESS/WESS/PAC metrics with MC/LOO/reliability annotations.
-- Within-tree and across-family comparisons.
-- Safe no-tree reporting.
-- Clear distinction between UniODA/MultiODA single-rule outputs, CTA tree
-  outputs, and MDSA family outputs.
+**Canon constraints for this phase:**
+- ESS/WESS are computed from Mean PAC across all classes.
+- Use WESS when weights are declared; otherwise use ESS.
+- Raw confusion and weighted confusion must both remain accessible and must not
+  be mixed.
+- LOO is true refit-per-fold validity analysis, not the training objective.
+- LOO STABLE is a CTA gate requiring ESSL/WESSL = ESS/WESS; it is not itself
+  a p-value.
+- MC p-values come from Fisher randomization / permutation.
+- LOO p-values must be explicitly computed if reported. For binary node-level
+  ODA/CTA splits, planned LOO p-values should be Fisher exact tests on the
+  LOO/test confusion table, or document if Fisher randomization is used instead.
+  For multiclass LOO, do not invent a formula — it may require simulated
+  Fisher/randomization for K > 2 classes; mark as open design until canon is
+  confirmed. No fake LOO p-values: if LOO p is not explicitly computed, summary
+  must show `NA`, omit it, or mark it unavailable with a reason.
+- No multiclass CTA parity claim. Multiclass CTA remains future extension.
 
-### Phase 4 — Permutation / bootstrap / 95% CI performance
+**MPE reporting canon:**
+- CTA endpoints can be reported as staging tables.
+- A staging table reorganizes terminal endpoints in increasing target-class
+  propensity/severity.
+- Rows describe endpoint rule/path, endpoint N, class-1 or target-class
+  proportion, and odds/propensity information where applicable.
+- Staging tables are a reporting artifact for CTA endpoints, not a new model.
+
+#### Phase 2A — ODA S3 object contract, prediction, and summaries
+
+**Problem:** `oda_fit()` results are currently bare list-like outputs with no
+stable S3 reporting or prediction contract.
+
+**Plan:**
+
+1. Add classed return objects while preserving existing fields:
+   - `oda_fit_binary`
+   - `oda_fit_multiclass`
+   - shared parent class `oda_fit`
+
+2. Add `predict.oda_fit()`:
+   - Supports binary and multiclass ODA rule types.
+   - Does not create a public `predict(fit$rule, ...)` API unless separately
+     designed.
+   - Missing values / miss codes return `NA_integer_` unless a documented
+     policy says otherwise.
+   - Predictions return labels in the caller's original class-label space.
+   - Failed/degenerate ODA fits must have explicit prediction behavior before
+     implementation.
+
+3. Add `print.oda_fit()`:
+   - Compact display: model type; attribute type; priors/weights status; rule;
+     train ESS/WESS; train confusion summary; MC p-value only if present; LOO
+     status/performance only if present.
+   - Do not show LOO p-value unless explicitly computed.
+
+4. Add `summary.oda_fit()`:
+   - Structured object, not just console text.
+   - Includes train and LOO sections where available.
+   - Avoid expensive recomputation by default.
+   - Store or expose: train predictions when available or reconstructable; train
+     raw confusion; train weighted confusion when weights/priors apply; train PAC
+     by class; train Mean PAC across all classes; train ESS/WESS; train MC
+     metadata and p-value when run; LOO predictions/confusion/ESS/WESS when LOO
+     was run; LOO p-value only if explicitly computed.
+
+5. Add accessors (prefer names that avoid generic conflicts):
+   - `oda_predictions(fit, split = c("train", "loo"))`
+   - `oda_confusion(fit, split = c("train", "loo"), weighted = FALSE)`
+   - `oda_metrics(fit, split = c("train", "loo"))`
+
+**Tests:** Binary predict; multiclass predict; missing-value prediction behavior;
+failed/degenerate fit prediction policy; print smoke tests; summary structure
+tests; no fake LOO p-value.
+
+#### Phase 2B — CTA summary, endpoint reporting, and staging tables
+
+**Problem:** CTA reporting is minimal; no-tree behavior has been clarified but
+summaries do not yet safely expose train/LOO/MC metrics.
+
+**Plan:**
+
+1. Add `summary.cta_tree()`:
+   - status: `valid_tree`, `stump`, `no_tree`, possibly `degenerate`;
+   - tree type; root attribute; number of split nodes; number of terminal
+     endpoints; n_total and n_classified; train raw confusion; train weighted
+     confusion when weights exist; train ESS/WESS; MC metadata/p-values where
+     stored; LOO STABLE/WESSL/ESSL where stored; endpoint denominators.
+
+2. Improve `print.cta_tree()`:
+   - Preserve current node table.
+   - Add a short footer with tree-level metrics when available.
+   - For no-tree, print clear no-tree message and no misleading metrics.
+
+3. Keep `cta_node_table()` as the node/endpoint table. Confirm no-tree returns
+   a safe one-row leaf table.
+
+4. Add a single endpoint-summary object for downstream reporting (staging
+   tables, tree diagrams, family comparisons). Should include: endpoint id;
+   rule path; terminal prediction; n_total reaching endpoint; n_classified if
+   different; raw class counts; weighted class totals when applicable;
+   target-class proportion; odds/propensity fields where applicable; endpoint
+   denominator; missing/path-local classification counts where available.
+
+5. Add staging-table reporting:
+   - `cta_staging_table(tree, target_class = NULL, ...)`.
+   - Reorganize terminal endpoints by increasing target-class
+     propensity/severity.
+   - Include endpoint path/rule descriptor, endpoint N, class counts,
+     target-class proportion, and odds/propensity fields where applicable.
+   - Follow MPE staging-table concept; do not invent new model semantics.
+
+6. Store fit-time summary fields where already computed. Avoid storing full
+   training data unless absolutely necessary. If a metric is not stored,
+   summary should show `NA` / unavailable rather than recomputing silently.
+
+**Tests:** CTA_DEMO summary fields; myeloma MINDENOM=1/30/56 summary fields;
+no_tree summary and prediction all-NA; endpoint-summary structure; staging
+table endpoint ordering; print smoke tests.
+
+#### Phase 2C — LOO p-value design
+
+**Problem:** LOO p-value contract is not fully defined.
+
+**Plan:**
+
+1. Separate fields: `train$mc$p_value`, `loo$p_value`, `loo$mc$p_value` if a
+   randomization LOO p procedure is implemented.
+
+2. Binary case: design LOO p-value as Fisher exact testing on the LOO/test
+   confusion table, or document if Fisher randomization is used instead.
+   Confirm orientation, weighting, and scope before implementation.
+
+3. Multiclass case: open design. Do not implement until canon/statistical target
+   is written.
+
+4. Reporting: if LOO p is unavailable, summary must say unavailable/NA. Do not
+   infer LOO p from LOO ESS/WESS. LOO STABLE remains a separate gate.
+
+**Deliverable:** Design notes first, implementation later.
+
+#### Phase 2D — D statistic and terminal endpoint denominators
+
+**Problem:** MDSA needs a model comparison metric and endpoint denominators.
+These must be downstream/reporting functions — not changes to parity selection
+logic.
+
+**Plan:**
+
+1. `cta_strata(tree)` — number of terminal leaf endpoints; `NA_integer_` for
+   no_tree.
+
+2. `cta_endpoint_denominators(tree)` — terminal endpoint row counts;
+   `integer(0)` or `NA` for no_tree.
+
+3. `cta_min_terminal_denom(tree)` — minimum terminal endpoint denominator;
+   `NA_integer_` for no_tree.
+
+4. `oda_d_statistic(fit)` / `cta_d_statistic(tree)`:
+   - `D = 100 / (ESS_or_WESS / strata_length) - strata_length`
+   - Use WESS when weights are declared; otherwise ESS.
+   - strata_length counts terminal endpoints only.
+   - no_tree returns `D = NA_real_`.
+   - ESS/WESS ≤ 0 returns `D = NA_real_` with diagnostic flag.
+
+**Important:** This is comparison/reporting machinery. It must not change CTA
+selection behavior.
+
+**Tests:** Known D values for simple fixtures once fields are stable; no_tree D
+is NA; endpoint denominator extraction.
+
+#### Phase 2E — MDSA descendant family
+
+**Canon:** Next MINDENOM = current model's minimum terminal endpoint denominator
++ 1. No-tree terminates the descendant family.
+
+**API:**
+
+```r
+cta_descendant_family(X, y, w = NULL, ..., start_mindenom = 1L,
+                      max_steps = 20L)
+```
+
+Return class `cta_family`. Fields:
+- `members`: list of `cta_tree` objects, including terminal no_tree state.
+- `mindenoms`: integer vector of tried MINDENOM values.
+- `summary`: data frame with mindenom, status, strata, endpoint_denominators,
+  min_terminal_denom, ESS/WESS, D, reliability.
+- `min_d_idx`: index of minimum-D feasible member.
+- `terminated`: logical.
+- `termination_reason`.
+
+Algorithm:
+1. Fit CTA at current MINDENOM.
+2. Append result.
+3. If no_tree, terminate.
+4. Compute min_terminal_denom.
+5. Next MINDENOM = min_terminal_denom + 1.
+6. Stop at max_steps safety cap.
+7. Select min-D among feasible members only.
+
+**Tests:** Myeloma chain gives {1, 30, 56}; terminal no_tree handled safely;
+min-D selection works once D statistic is stable.
+
+#### Phase 2F — Degeneracy guards and status taxonomy
+
+**Goal:** Do not silently present degenerate output as valid modeling.
+
+**Status taxonomy:**
+- ODA: `valid`, `degenerate`, `failed`.
+- CTA: `valid_tree`, `stump`, `no_tree`, `degenerate`.
+- MDSA member status inherits CTA status.
+
+**Policies:**
+- CTA no_tree predicts all `NA_integer_`.
+- ODA failed/degenerate prediction policy must be explicit before
+  implementation.
+- Degenerate solutions may be allowed only behind explicit option.
+- Summary/print must flag degeneracy clearly.
+- D statistic for no_tree/degenerate/ESS≤0 is NA with reason.
+
+**Tests:** no_tree CTA; ODA degenerate/fail object; D statistic diagnostic
+flags.
+
+#### Phase 2G — Model comparison
+
+**API:** `oda_compare(..., labels = NULL)`
+
+Returns data frame: label; model_type; status; objective; n_total;
+n_classified; strata; ESS/WESS; train MC p if present; LOO ESS/WESS if
+present; LOO p if explicitly computed (else NA); reliability/stability status;
+D where defined.
+
+**Scope:** Pure reporting/selection aid. No fitting side effects. No parity
+selection changes.
+
+#### Phase 2H — auto_SDA
+
+Planning only after 2A–2G.
+
+**MPE canon:** SDA uses EO-CTA over candidate attributes. Select
+attribute/model with minimum D among statistically reliable candidates. Remove
+correctly classified observations. Omit selected attribute. Repeat on remaining
+observations. Stop when a class is fully correctly classified, p > alpha, too
+few observations remain, or max steps reached.
+
+**API:**
+
+```r
+oda_sda(X, y, w = NULL, attr_names = NULL, alpha = 0.05,
+        mindenom = 1L, max_steps = NULL, ...)
+```
+
+Return class `oda_sda`. Fields: step table; selected attributes; fits; D
+statistics; n_remaining; n_removed; removed observation indices; termination
+reason.
+
+**Important:** Must be built after MDSA and model comparison tools. Do not
+invent a greedy shortcut inconsistent with MPE.
+
+#### Phase 2I — Visualization and end-user reporting artifacts
+
+**Goal:** Plan a user-facing visualization/reporting layer for CTA, MDSA
+families, and special-use CTA workflows.
+
+**Primary internal representation:**
+
+`cta_plot_data(tree, ...)` returns nodes, edges, labels, endpoint metrics, and
+styles in data-frame/list form. This is the internal R representation used by
+future plotting/export functions.
+
+**Possible output layers:**
+
+1. Native R plotting: future `plot.cta_tree()` after selecting a plotting
+   backend; future `plot.cta_family()` for MDSA descendant family comparison.
+
+2. Optional text export: future `cta_mermaid(tree, ...)` may export Mermaid
+   flowchart text for Quarto/GitHub/Markdown. Mermaid is an export format,
+   not the internal R graphics engine.
+
+**Visual grammar:**
+- Internal split nodes use human-readable questions/rules.
+- Branches labeled with rule direction: Yes/No for binary clinical questions;
+  `<= cut` / `> cut` for ordered cuts; category lists for categorical rules.
+- Terminal endpoints show: target outcome label; endpoint event rate / class
+  proportion; numerator and denominator (e.g. `23.3%, n=27/116`); terminal
+  prediction; optional odds/propensity display.
+- Endpoint colors may communicate low/middle/high propensity tiers,
+  configurable by user.
+
+Example visual grammar from an applied analysis (Mermaid as export target):
+
+```mermaid
+---
+config:
+  theme: default
+  themeVariables:
+    fontSize: 16px
+  layout: dagre
+---
+flowchart TB
+    A(["Respiratory cultures with P. aeruginosa in last 12 months?"]) -- No --> B(["Chronic lung disease in prior year?"])
+    A -- Yes --> A1["P. aeruginosa 23.3%, n=27/116"]
+    B -- No --> D(["Mechanical ventilation in prior year?"])
+    B -- Yes --> C(["Immunocompromised?"])
+    C -- No --> C1["P. aeruginosa 1.08%, n=19/1763"]
+    C -- Yes --> B1["P. aeruginosa 2.82%, n=12/426"]
+    D -- No --> E1["P. aeruginosa 0.57%, n=38/6611"]
+    D -- Yes --> D1["P. aeruginosa 3.06%, n=3/98"]
+
+    style A  fill:#ffffff,stroke:#000000,stroke-width:1px
+    style B  fill:#ffffff,stroke:#000000,stroke-width:1px
+    style A1 fill:#e8f5e9,stroke:#000000,stroke-width:1px
+    style D  fill:#ffffff,stroke:#000000,stroke-width:1px
+    style C  fill:#ffffff,stroke:#000000,stroke-width:1px
+    style C1 fill:#fffde7,stroke:#000000,stroke-width:1px
+    style B1 fill:#e8f5e9,stroke:#000000,stroke-width:1px
+    style E1 fill:#ffebee,stroke:#000000,stroke-width:1px
+    style D1 fill:#e8f5e9,stroke:#000000,stroke-width:1px
+```
+
+This is a visual grammar target, not the required internal implementation.
+Internal R logic should produce `cta_plot_data` first; Mermaid is an optional
+export layer.
+
+**Visualization must handle:** valid expanded trees; stumps; no_tree safely;
+missing/path-local classification counts where available; weighted and
+unweighted outcomes.
+
+**Class imbalance / special-use workflows** (record, do not implement as
+default):
+- Some applied CTA workflows manually restrict the analytic sample down one
+  branch before continuing deeper, under extreme class imbalance.
+- Example: restrict first to one root branch; define deeper attributes within
+  each restricted stratum; remove upstream attributes from later consideration;
+  evaluate minD among available attributes; begin with unconstrained denominator
+  then increase downward.
+- This is a special-use CTA/MDSA workflow under review, not canonical default
+  `oda_cta_fit()` behavior.
+- Visualization/reporting must be flexible enough to show manually constrained
+  branch analyses.
+- Model/family objects should eventually record enough provenance to state
+  whether a tree was: standard CTA; MDSA descendant family member;
+  SDA-selected model; or manually branch-restricted/special-use workflow.
+
+**Tests:** Endpoint label tests; no_tree visualization returns clear "No tree
+found" representation; staging table endpoint ordering; Mermaid text snapshot
+tests only if Mermaid export is implemented; family plot-data tests for myeloma
+MINDENOM 1 → 30 → 56.
+
+#### Phase 2J — Vignettes and reproducible example backlog
+
+**Goal:** Build a curated set of user-facing examples after the reporting layer
+exists. Vignettes consume the new summary/staging/plot objects; they do not
+invent bespoke reporting. Do not write vignettes before Phase 2A/2B reporting
+APIs exist.
+
+**Sources:**
+
+1. MPE.pdf Chapter 5 examples. Chapter 5 covers UniODA with ordered attributes
+   and includes worked examples convertible into small reproducible vignettes.
+   Candidate topics: ROC analysis, t-test analogues, reliability/validity
+   examples, repeated-measures examples, and other ordered-attribute designs.
+   Each candidate should be reviewed for whether raw data are available,
+   reconstructable from tables, or only summary-level.
+
+2. Existing `njrhodes/ODA` repository vignettes. The upstream ODA repo contains
+   vignette material and, in several cases, control files/data/output artifacts.
+   The myeloma vignette material is especially relevant because prior ODA repo
+   commits include myeloma ODA/CTA data, command files, and output artifacts.
+   Old commits also included executable binaries that must not be copied into
+   odacore. The ODA repo is an interface to the MegaODA software suite; odacore
+   is a pure-R engine. Ports must be rewritten to use odacore APIs rather than
+   shelling to MegaODA.exe.
+
+**Vignette policy:**
+- Do not copy executables, PDFs, or dev-only theory assets into odacore.
+- Do not move large raw artifacts into package build unless intentionally
+  curated.
+- Prefer small, transparent datasets under `inst/extdata/` only when they are
+  appropriate for installed-package examples.
+- Larger provenance/control/output materials should stay in
+  `tests/testthat/fixtures/` or `data-raw/` as appropriate.
+- Every vignette must use public APIs only: `oda_fit()`, future
+  `predict.oda_fit()`, future `summary.oda_fit()`, `oda_cta_fit()`,
+  `predict.cta_tree()`, future `summary.cta_tree()`, future
+  staging/plot/model-comparison APIs.
+- Vignettes must not teach users to inspect fragile internal list fields unless
+  explicitly labeled as diagnostic.
+
+**Candidate vignette queue:**
+
+1. `vignettes/unioda-ordered-mpe-chapter5.Rmd` — small ordered-attribute
+   UniODA examples from MPE Chapter 5; demonstrates `oda_fit()`,
+   `predict.oda_fit()`, `summary.oda_fit()`, train/LOO metrics.
+
+2. `vignettes/cta-demo-walkthrough.Rmd` — CTA_DEMO fixture; demonstrates
+   binary CTA, node table, summary, confusion, staging table, prediction, and
+   no-tree behavior where relevant.
+
+3. `vignettes/myeloma-cta-family.Rmd` — myeloma MINDENOM 1 → 30 → 56;
+   demonstrates CTA fixture parity, no-tree termination, endpoint denominators,
+   MDSA descendant family, D statistic, and minD selection.
+
+4. `vignettes/model-comparison-and-d-statistic.Rmd` — compares ODA/CTA/MDSA
+   family members once `oda_compare()` and D statistic are implemented.
+
+5. `vignettes/visualizing-cta-trees.Rmd` — demonstrates staging tables, tree
+   plot-data, native plot output if implemented, and optional Mermaid text
+   export if implemented.
+
+6. `vignettes/sda-and-class-imbalance-workflows.Rmd` — future only;
+   demonstrates auto_SDA and special-use branch-restricted workflows once
+   canon/API is settled.
+
+**Example extraction backlog:** Create a planning table later with columns:
+source (MPE Chapter / ODA repo path / ODA Journal article); dataset name; data
+availability (raw / reconstructable table / summary only); model type (UniODA /
+MultiODA / CTA / MDSA / SDA); expected outputs available (confusion, ESS/WESS,
+p, LOO, staging table, tree); package location (test fixture / inst/extdata /
+vignette-only / data-raw); suitability (smoke example / full vignette /
+regression fixture / not suitable).
+
+**Implementation order within 2J:**
+1. First implement 2A/2B object contracts and summaries.
+2. Then port one small MPE Chapter 5 example.
+3. Then port CTA_DEMO walkthrough.
+4. Then port myeloma family after MDSA and D statistic exist (2E).
+
+#### Phase 2 implementation order
+
+```
+2A  ODA S3 class + predict + summary/accessors       ← unblocks all downstream
+2B  CTA summary + staging tables                     ← endpoint contract
+2C  LOO p-value design (design notes before code)
+2D  D statistic + endpoint denominators              ← needed for MDSA
+2E  MDSA descendant family                           ← needs 2B + 2D
+2F  Degeneracy status taxonomy                       ← woven across 2A–2E
+2G  Model comparison                                 ← needs 2A + 2E
+2H  auto_SDA                                         ← needs 2E + 2G
+2I  Visualization and reporting artifacts            ← needs 2B endpoint contract
+2J  Vignette/example backlog and ports               ← examples after APIs
+```
+
+Validation tiers:
+- 2A: ODA predict/summary tests plus core ODA targeted tests.
+- 2B: CTA summary/no-tree/staging tests plus fixture CTA tests.
+- 2C: statistical-design tests after LOO p canon is settled.
+- 2D: D-stat unit tests.
+- 2E: myeloma family test.
+- 2G/2H: property/synthetic tests plus myeloma smoke tests.
+- 2I: endpoint-label, staging-table, plot-data, and optional Mermaid snapshot
+  tests.
+- 2J: vignette rendering (`R CMD check --as-cran`) after each port.
+- Release gate: full `devtools::test()` and `devtools::check()`.
+
+### Phase 3 — Permutation / bootstrap / 95% CI performance
 
 - Review current MC permutation and CI implementation.
 - Compare with ODA repository R implementation.
@@ -253,7 +711,7 @@ Requires safe no-tree state representation and a clean family container object.
 - Preserve seed/reproducibility policy.
 - Correctness tests before speed tests.
 
-### Phase 5 — Multiclass CTA extension
+### Phase 4 — Multiclass CTA extension
 
 - Most far-reaching extension; no gold executable benchmark exists.
 - Must be explicitly documented as extension behavior, not MegaODA/CTA parity.
