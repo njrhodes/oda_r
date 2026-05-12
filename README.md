@@ -7,7 +7,7 @@ Pure-R reimplementation of the MegaODA / CTA classification engine.
 - **`oda_fit`** — unified dispatcher: calls UniODA when C = 2, MultiODA when C ≥ 3
 - **CTA** (`oda_cta_fit`) — Classification Tree Analysis with ENUMERATE, LOO STABLE, pruning, and fixture-driven CTA.exe parity tests
 
-Core UniODA/MultiODA behavior and covered CTA fixtures are validated against MegaODA.exe / CTA.exe golden outputs. CTA parity is under active fixture-driven refinement.
+Core UniODA/MultiODA behavior and covered CTA fixtures are validated against MegaODA.exe / CTA.exe golden outputs.
 
 ## Installation (development)
 
@@ -36,6 +36,7 @@ fit <- oda_fit(x, y, mcarlo = FALSE)
 fit$rule$cut_value   # 4.5
 fit$rule$direction   # "0->1"
 fit$ess              # 100
+fit$confusion        # list: TP, TN, FP, FN, sensitivity, specificity, mean_pac
 ```
 
 ### Multiclass (C ≥ 3)
@@ -50,22 +51,29 @@ fit <- oda_fit(
   y         = y,
   attr_type = "ordered",
   priors_on = TRUE,
-  mcarlo    = TRUE,
-  loo       = "on"
+  mcarlo    = FALSE,
+  loo       = "off"
 )
 
 fit$rule$cut_values   # c(2.45, 4.75)
 fit$rule$seg_classes  # c(1, 2, 3)
-fit$ess               # ~90.6
+fit$ess_pac           # ~93  (PAC-based ESS)
+fit$mean_pac          # ~95.3
 ```
 
 ### Classification Tree Analysis
 
+`oda_cta_fit()` supports binary-class CTA with ENUMERATE, LOO STABLE, PRUNE,
+and MINDENOM endpoint constraints. Predictions use `predict(tree, newdata)`.
+
 ```r
 library(odacore)
 
-X <- iris[, 1:4]
-y <- as.integer(iris$Species)
+# Binary synthetic example
+set.seed(1)
+n  <- 60
+X  <- data.frame(x1 = rnorm(n), x2 = rnorm(n))
+y  <- as.integer(X$x1 + X$x2 > 0)
 
 tree <- oda_cta_fit(
   X           = X,
@@ -74,10 +82,11 @@ tree <- oda_cta_fit(
   alpha_split = 0.05,
   prune_alpha = 0.05,
   loo         = "stable",
-  mc_iter     = 25000L
+  mc_iter     = 5000L
 )
 
-predict(tree, X)
+preds    <- predict(tree, X)                           # majority fallback for missing path attributes
+preds_na <- predict(tree, X, missing_action = "na")    # path-local NA for missing path attributes
 ```
 
 ## Architecture

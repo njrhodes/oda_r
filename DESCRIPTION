@@ -6,14 +6,13 @@ Authors@R: c(
            email = "nrhode@midwestern.edu"),
     person("Paul", "Yarnold", role = c("ctb","cph"))
   )
-Description: Provides a pure-R reimplementation of the MegaODA classification
-    engine. Supports univariate binary-class ODA (UniODA) and univariate
-    multiclass ODA (MultiODA) for ordered and categorical attributes, with
-    priors-on inverse-frequency weighting, MAXSENS primary / SAMPLEREP
-    secondary / first-identified tertiary tie-breaking, true leave-one-out
-    (LOO) refit-per-fold cross-validation, Monte Carlo Fisher-randomization
-    p-values with early stopping (STOP/STOPUP), and a full diagnostic harness
-    for parity testing against MegaODA.exe golden outputs.
+Description: Pure-R implementation of univariate binary-class ODA (UniODA),
+    univariate multiclass ODA (MultiODA), and binary Classification Tree
+    Analysis (CTA). Supports ordered and categorical attributes, priors-on
+    inverse-frequency weighting, MAXSENS / SAMPLEREP / first-identified
+    tie-breaking, true leave-one-out cross-validation, and Monte Carlo
+    Fisher-randomization p-values. Covered UniODA, MultiODA, and binary CTA
+    fixtures are tested for parity against MegaODA.exe and CTA.exe outputs.
 License: GPL-3
 Encoding: UTF-8
 Depends: R (>= 4.1.0)
@@ -24,5 +23,5 @@ Suggests:
     testthat (>= 3.0.0)
 Config/testthat/edition: 3
 RoxygenNote: 7.3.3
-URL: https://github.com/njrhodes/ODA
-BugReports: https://github.com/njrhodes/ODA/issues
+URL: https://github.com/njrhodes/oda_rcore
+BugReports: https://github.com/njrhodes/oda_rcore/issues

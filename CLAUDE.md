@@ -11,7 +11,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **`oda_fit`**: unified dispatcher — calls UniODA when C=2, MultiODA when C≥3. This is the entry point CTA nodes should use.
 - **`oda_cta_fit`** (`cta_core.R`): CTA engine — implemented; all canon fixtures passing.
 
-All results are tested for exact parity against MegaODA.exe golden outputs.
+Covered fixtures are tested against MegaODA.exe / CTA.exe outputs. Extension behavior must be explicitly marked and must not disturb covered parity. Roadmap details are in `docs/ODACORE_VISION.md`; engine canon is in `docs/ODA_CANON.md`, `docs/CTA_CANON.md`, and `docs/CTA_ORDERED_CUT_AUDIT.md`.
 
 ## Commands
 
