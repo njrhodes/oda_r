@@ -15,6 +15,15 @@ export(oda_mean_pac)
 export(oda_ess_from_meanpac)
 export(oda_ess_from_mean)
 
+# ----- ODA S3 methods and accessors -----
+S3method(predict, oda_fit)
+S3method(print,   oda_fit)
+S3method(summary, oda_fit)
+S3method(print,   oda_fit_summary)
+export(oda_predictions)
+export(oda_confusion)
+export(oda_metrics)
+
 # ----- CTA -----
 export(oda_cta_fit)
 export(cta_fit)
@@ -23,5 +32,5 @@ S3method(predict, cta_tree)
 S3method(print, cta_tree)
 
 # ----- Imports -----
-importFrom(stats, fisher.test, qbeta, runif, setNames)
+importFrom(stats, fisher.test, predict, qbeta, runif, setNames)
 importFrom(utils, combn, head, modifyList)

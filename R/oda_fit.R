@@ -76,12 +76,20 @@ oda_fit <- function(
   # Determine C from cleaned data
   clean <- oda_clean_xy(x, y, w, miss_codes)
   if (length(clean$y) == 0L)
-    return(list(ok = FALSE, reason = "all_missing", engine = NA_character_))
+    return(structure(
+      list(ok = FALSE, reason = "all_missing", engine = NA_character_,
+           priors_on = priors_on, miss_codes = miss_codes,
+           has_weights = !is.null(w)),
+      class = c("oda_fit_failed", "oda_fit")))
 
   C <- length(unique(as.integer(clean$y)))
 
   if (C < 2L)
-    return(list(ok = FALSE, reason = "pure_node", engine = NA_character_))
+    return(structure(
+      list(ok = FALSE, reason = "pure_node", engine = NA_character_,
+           priors_on = priors_on, miss_codes = miss_codes,
+           has_weights = !is.null(w)),
+      class = c("oda_fit_failed", "oda_fit")))
 
   if (C == 2L) {
     # Binary engine requires y in {0, 1}. Recode from arbitrary {a, b} → {0, 1}
@@ -122,7 +130,11 @@ oda_fit <- function(
       fit$rule$label_1 <- bin_labels[2L]   # what coded 1 means in original space
     }
 
-    fit$engine <- "binary"
+    fit$engine      <- "binary"
+    fit$priors_on   <- priors_on
+    fit$miss_codes  <- miss_codes
+    fit$has_weights <- !is.null(w)
+    class(fit) <- c("oda_fit_binary", "oda_fit")
     return(fit)
   }
 
@@ -144,7 +156,12 @@ oda_fit <- function(
     loo           = loo_multi,
     boundary_mode = boundary_mode
   )
-  fit$engine <- "multiclass"
+  fit$engine        <- "multiclass"
+  fit$priors_on     <- priors_on
+  fit$miss_codes    <- miss_codes
+  fit$has_weights   <- !is.null(w)
+  fit$boundary_mode <- boundary_mode
+  class(fit) <- c("oda_fit_multiclass", "oda_fit")
   return(fit)
 }
 
