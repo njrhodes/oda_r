@@ -40,3 +40,6 @@ dev/
 test_drive.R
 tests/testthat/myeloma/
 tests/testthat/CTA_DEMO.CSV
+
+# local Claude/prompt workbench
+prompts/

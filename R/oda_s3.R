@@ -566,3 +566,57 @@ oda_metrics <- function(fit, split = c("train", "loo")) {
     }
   }
 }
+
+# ---- oda_d_stat ------------------------------------------------------------- #
+
+#' Compute the D statistic for a fitted ODA model
+#'
+#' D measures the distance between a model's classification accuracy (ESS) and
+#' chance, expressed relative to the number of terminal prediction strata.
+#' Formula: \eqn{D = \frac{100}{ESS / strata} - strata}, where \emph{strata}
+#' counts terminal prediction endpoints only.
+#'
+#' Supported rule types and strata definitions:
+#' \itemize{
+#'   \item Binary (\code{oda_fit_binary}): strata = 2, ESS = \code{fit$ess}.
+#'   \item Multiclass ordered (\code{multiclass_ordered} rule): strata =
+#'     \code{length(fit$rule$seg_classes)}, ESS = \code{fit$ess_pac}.
+#'   \item Multiclass nominal/categorical: returns \code{NA_real_} (strata
+#'     count is ambiguous without additional canon specification).
+#'   \item Failed fit (\code{ok = FALSE}): returns \code{NA_real_}.
+#' }
+#'
+#' @param fit An \code{oda_fit} object from \code{\link{oda_fit}}.
+#' @return A scalar \code{numeric} D value, or \code{NA_real_} when the fit
+#'   failed or the rule type does not have an unambiguous strata count.
+#' @export
+oda_d_stat <- function(fit) {
+  # Failed / degenerate fits
+  if (!isTRUE(fit$ok)) return(NA_real_)
+
+  if (inherits(fit, "oda_fit_binary")) {
+    ess <- fit$ess
+    if (is.null(ess) || !is.finite(ess) || ess <= 0) return(NA_real_)
+    strata <- 2L
+    return(100 / (ess / strata) - strata)
+  }
+
+  if (inherits(fit, "oda_fit_multiclass")) {
+    rule <- fit$rule
+    if (is.null(rule)) return(NA_real_)
+
+    if (identical(rule$type, "multiclass_ordered")) {
+      strata <- length(rule$seg_classes)
+      if (strata < 2L) return(NA_real_)
+      ess <- fit$ess_pac
+      if (is.null(ess) || !is.finite(ess) || ess <= 0) return(NA_real_)
+      return(100 / (ess / strata) - strata)
+    }
+
+    # multiclass_nominal / multiclass_categorical: strata count is ambiguous
+    # without explicit canon — return NA rather than guess.
+    return(NA_real_)
+  }
+
+  NA_real_
+}

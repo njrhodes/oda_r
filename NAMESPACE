@@ -23,6 +23,7 @@ S3method(print,   oda_fit_summary)
 export(oda_predictions)
 export(oda_confusion)
 export(oda_metrics)
+export(oda_d_stat)
 
 # ----- CTA -----
 export(oda_cta_fit)

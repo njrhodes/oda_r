@@ -399,3 +399,37 @@ test_that("multiclass LOO metrics p_status is not_computed", {
     skip("LOO not allowed for this multiclass fit — skip p_status check")
   }
 })
+
+# =============================================================================
+# 13. oda_d_stat()
+# =============================================================================
+
+test_that("oda_d_stat binary ESS=100 returns 0", {
+  fit <- .bin_fit()   # perfectly separable x=1:8
+  expect_equal(oda_d_stat(fit), 0)
+})
+
+test_that("oda_d_stat binary returns scalar numeric", {
+  fit <- .bin_fit()
+  d   <- oda_d_stat(fit)
+  expect_true(is.numeric(d) && length(d) == 1L)
+})
+
+test_that("oda_d_stat multiclass ordered returns finite numeric", {
+  fit <- .multi_fit()
+  d   <- oda_d_stat(fit)
+  expect_true(is.numeric(d) && length(d) == 1L)
+  expect_true(is.finite(d))
+})
+
+test_that("oda_d_stat multiclass ordered uses seg_classes length as strata", {
+  fit    <- .multi_fit()
+  strata <- length(fit$rule$seg_classes)
+  ess    <- fit$ess_pac
+  expect_equal(oda_d_stat(fit), 100 / (ess / strata) - strata)
+})
+
+test_that("oda_d_stat failed fit returns NA_real_", {
+  fit <- .failed_fit()
+  expect_equal(oda_d_stat(fit), NA_real_)
+})
