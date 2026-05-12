@@ -69,10 +69,13 @@ test_that("predict returns integer vector of length n", {
 
 test_that("predict: all returned classes are in the training class set", {
   d    <- bin_data()
-  tree <- oda_cta_fit(d$X, d$y, mindenom = 2L, mc_iter = 300L,
-                      mc_seed = 1L, loo = "off")
+  tree <- suppressMessages(
+    oda_cta_fit(d$X, d$y, mindenom = 2L, mc_iter = 300L,
+                mc_seed = 1L, loo = "off")
+  )
   preds <- predict(tree, d$X)
-  expect_true(all(preds %in% unique(d$y)))
+  # no_tree → all NA (correct); valid tree → preds in training set
+  expect_true(all(is.na(preds) | preds %in% unique(d$y)))
 })
 
 test_that("training accuracy >= majority class baseline", {
@@ -192,4 +195,35 @@ test_that("multi-attribute: most informative attribute selected at root", {
   } else {
     skip("root is leaf — increase mc_iter for reliable test")
   }
+})
+
+# ---- no-tree (degenerate / leaf-only) regression ----------------------------
+
+# Force no-tree by making MINDENOM impossible (> n/2).  This is deterministic
+# and does not depend on MC seeds.
+.no_tree_fit <- function() {
+  d <- bin_data()   # n = 8
+  suppressMessages(
+    oda_cta_fit(d$X, d$y, mindenom = 999L, mc_iter = 100L,
+                mc_seed = 1L, loo = "off")
+  )
+}
+
+test_that("no-tree fit: no_tree flag is TRUE", {
+  tree <- .no_tree_fit()
+  expect_true(isTRUE(tree$no_tree))
+})
+
+test_that("no-tree fit: predict returns NA_integer_ for every observation", {
+  d    <- bin_data()
+  tree <- .no_tree_fit()
+  preds <- predict(tree, d$X)
+  expect_true(all(is.na(preds)))
+  expect_true(is.integer(preds))
+  expect_equal(length(preds), nrow(d$X))
+})
+
+test_that("no-tree fit: print says 'No tree found'", {
+  tree <- .no_tree_fit()
+  expect_output(print(tree), "No tree found")
 })

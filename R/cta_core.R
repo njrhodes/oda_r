@@ -702,16 +702,17 @@ oda_cta_fit <- function(
 
   root_cands <- .all_cands(seq_len(n), pos_id = 1L)
 
-  # No valid root → single-leaf tree
+  # No valid root → single-leaf tree (no_tree = TRUE)
   if (length(root_cands) == 0L) {
     .vmsg("[CTA] no valid root found, returning leaf node")
     nodes_out <- list(.leaf_nd(1L, 0L, 1L, seq_len(n)))
     return(structure(
-      list(nodes = nodes_out, root_id = 1L, n_nodes = 1L, n = n, C = C,
-           attr_names = attr_names, n_attrs = n_attrs, miss_codes = miss_codes,
-           priors_on = priors_on, alpha_split = alpha_split,
-           mindenom = mindenom, prune_alpha = prune_alpha,
-           max_depth = max_depth, ess_min = ess_min, loo = loo),
+      list(nodes = nodes_out, root_id = 1L, n_nodes = 1L, no_tree = TRUE,
+           n = n, C = C, attr_names = attr_names, n_attrs = n_attrs,
+           miss_codes = miss_codes, priors_on = priors_on,
+           alpha_split = alpha_split, mindenom = mindenom,
+           prune_alpha = prune_alpha, max_depth = max_depth,
+           ess_min = ess_min, loo = loo),
       class = "cta_tree"))
   }
 
@@ -807,6 +808,15 @@ oda_cta_fit <- function(
     # appl_A$y_pred already carries NA_integer_ for obs whose root attribute is
     # missing (value in miss_codes).  Scoring over ok=!is.na(stump_preds) is
     # therefore path-local: missing-root obs are excluded from WESS computation.
+    left_idx  <- which(valid_A & appl_A$y_pred == sl_A[1L])
+    right_idx <- which(valid_A & appl_A$y_pred == sl_A[2L])
+    if (length(left_idx) < mindenom || length(right_idx) < mindenom) {
+      .vmsg("  [root-only] ", A_cand$name,
+            " skipped: child sizes ", length(left_idx), "/", length(right_idx),
+            " < MINDENOM=", mindenom)
+      next
+    }
+
     stump_preds <- appl_A$y_pred
     ok          <- !is.na(stump_preds)
     wess_stump  <- if (sum(ok) < 2L) -Inf else
@@ -817,8 +827,6 @@ oda_cta_fit <- function(
           " WESS=", round(wess_stump, 2), "%")
 
     if (wess_stump > best_wess) {
-      left_idx  <- which(valid_A & appl_A$y_pred == sl_A[1L])
-      right_idx <- which(valid_A & appl_A$y_pred == sl_A[2L])
 
       stump_nodes       <- vector("list", 3L)
       nd1               <- .split_nd(1L, 0L, 1L, seq_len(n), A_cand, appl_A)
@@ -837,7 +845,8 @@ oda_cta_fit <- function(
   }  # end root-only phase
 
   # Fallback: enumeration produced no valid tree
-  if (is.null(best_nodes)) {
+  no_tree <- is.null(best_nodes)
+  if (no_tree) {
     .vmsg("[CTA] no valid tree from enumeration, returning leaf node")
     best_nodes   <- list(.leaf_nd(1L, 0L, 1L, seq_len(n)))
     best_n_nodes <- 1L
@@ -856,6 +865,7 @@ oda_cta_fit <- function(
       nodes       = best_nodes,
       root_id     = 1L,
       n_nodes     = best_n_nodes,
+      no_tree     = no_tree,
       n           = n,
       C           = C,
       attr_names  = attr_names,
@@ -889,6 +899,7 @@ oda_cta_fit <- function(
 predict.cta_tree <- function(object, newdata,
                              missing_action = c("majority", "na"), ...) {
   if (!is.data.frame(newdata)) newdata <- as.data.frame(newdata)
+  if (isTRUE(object$no_tree)) return(rep(NA_integer_, nrow(newdata)))
   missing_action <- match.arg(missing_action)
   n_new      <- nrow(newdata)
   miss_codes <- object$miss_codes
@@ -942,6 +953,13 @@ predict.cta_tree <- function(object, newdata,
 #' @return Invisibly returns \code{x}.
 #' @export
 print.cta_tree <- function(x, ...) {
+  if (isTRUE(x$no_tree)) {
+    cat(sprintf(
+      "\nCTA Tree  alpha_split=%.3f  mindenom=%d  prune=%.3f  max_depth=%d  loo=%s\n\n",
+      x$alpha_split, x$mindenom, x$prune_alpha, x$max_depth, x$loo))
+    cat("No tree found (leaf-only): no valid split passed significance, LOO STABLE, and MINDENOM constraints.\n")
+    return(invisible(x))
+  }
   cat(sprintf(
     "\nCTA Tree  alpha_split=%.3f  mindenom=%d  prune=%.3f  max_depth=%d  loo=%s\n\n",
     x$alpha_split, x$mindenom, x$prune_alpha, x$max_depth, x$loo))

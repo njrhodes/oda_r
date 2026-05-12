@@ -66,28 +66,9 @@ fit$mean_pac          # ~95.3
 `oda_cta_fit()` supports binary-class CTA with ENUMERATE, LOO STABLE, PRUNE,
 and MINDENOM endpoint constraints. Predictions use `predict(tree, newdata)`.
 
-```r
-library(odacore)
-
-# Binary synthetic example
-set.seed(1)
-n  <- 60
-X  <- data.frame(x1 = rnorm(n), x2 = rnorm(n))
-y  <- as.integer(X$x1 + X$x2 > 0)
-
-tree <- oda_cta_fit(
-  X           = X,
-  y           = y,
-  priors_on   = TRUE,
-  alpha_split = 0.05,
-  prune_alpha = 0.05,
-  loo         = "stable",
-  mc_iter     = 5000L
-)
-
-preds    <- predict(tree, X)                           # majority fallback for missing path attributes
-preds_na <- predict(tree, X, missing_action = "na")    # path-local NA for missing path attributes
-```
+CTA examples use repository fixtures validated against CTA.exe golden outputs.
+See `tests/testthat/fixtures/cta_demo/` and `tests/testthat/fixtures/myeloma/`.
+A full vignette is planned.
 
 ## Architecture
 
