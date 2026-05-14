@@ -146,6 +146,71 @@ test_that("UniODA: deterministic — identical calls give identical results", {
 })
 
 
+# ---- LOO contract -----------------------------------------------------------
+
+test_that("LOO contract: loo='off' is default — fit$loo is NULL without explicit loo=", {
+  # Canon: LOO is off unless the caller explicitly opts in.
+  # Omitting loo= must leave fit$loo as NULL.
+  x <- c(1, 2, 3, 4, 5, 6, 7, 8)
+  y <- c(0L, 0L, 0L, 0L, 1L, 1L, 1L, 1L)
+  fit <- oda_fit(x, y, mcarlo = FALSE)   # no loo= argument
+  expect_true(fit$ok)
+  expect_null(fit$loo)
+})
+
+test_that("LOO contract: explicit loo='pvalue' populates fit$loo with ess_loo present", {
+  # Use oda_univariate_core with loo_alpha=1.0 so the LOO always runs and
+  # populates fields — tests the contract (fields present), not significance
+  # gating. (oda_fit does not forward loo_alpha.)
+  x <- c(1, 2, 3, 4, 5, 6, 7, 8)
+  y <- c(0L, 0L, 0L, 0L, 1L, 1L, 1L, 1L)
+  fit <- oda_univariate_core(x, y, priors_on = TRUE, mcarlo = FALSE,
+                             loo = "pvalue", loo_alpha = 1.0)
+  expect_true(fit$ok)
+  expect_false(is.null(fit$loo))
+  expect_true(isTRUE(fit$loo$allowed))
+  expect_false(is.na(fit$loo$ess_loo))
+})
+
+test_that("LOO contract: weighted categorical LOO returns ok=TRUE with allowed=FALSE and canon reason", {
+  # Canon: weighted categorical LOO is explicitly forbidden
+  # (oda_loo_for_rule, allow_weighted_categorical_loo = FALSE by default).
+  # Non-uniform weights + categorical + loo != 'off' must produce:
+  #   fit$ok = TRUE     (training result valid; rejection is LOO-level only)
+  #   fit$loo$allowed = FALSE
+  #   fit$loo$reason  = "weighted_categorical_loo_not_supported"
+  # Probe-confirmed behavior (2026-05-14).
+  x <- c(1L, 1L, 2L, 2L, 3L, 3L)
+  y <- c(0L, 1L, 0L, 0L, 1L, 1L)
+  w <- c(1.0, 2.0, 1.0, 2.0, 1.0, 2.0)  # non-uniform
+  fit <- oda_fit(x, y, w = w, attr_type = "categorical",
+                 mcarlo = FALSE, loo = "on")
+  expect_true(fit$ok)
+  expect_false(is.null(fit$loo))
+  expect_false(isTRUE(fit$loo$allowed))
+  expect_equal(fit$loo$reason, "weighted_categorical_loo_not_supported")
+})
+
+test_that("LOO contract: absent category in ordinary prediction routes to right side (class 1)", {
+  # Canon: the absent-level override lives only inside oda_loo_for_rule().
+  # oda_rule_predict / oda_rule_side must send an unseen category to the right
+  # side (1L, coded) — NOT to the left side as the LOO override does.
+  # Mechanistic boundary established by commit 8197c4c; probe-confirmed.
+  x <- c(rep(1L, 10L), rep(2L, 10L))  # only categories 1 and 2 in training
+  y <- c(rep(0L, 10L), rep(1L, 10L))  # 1 -> class 0, 2 -> class 1 (perfect separation)
+  fit <- oda_fit(x, y, attr_type = "categorical", mcarlo = FALSE, loo = "off")
+  expect_true(fit$ok)
+  expect_equal(fit$rule$type, "nominal_cut")
+  # Known categories: confirm correct sides.
+  expect_equal(oda_rule_predict(1L, fit$rule), 0L)
+  expect_equal(oda_rule_predict(2L, fit$rule), 1L)
+  # Category 3 was never in training. Ordinary prediction: absent -> right (1L).
+  # This is the opposite of the LOO absent-level override (which returns 0L).
+  expect_equal(oda_rule_predict(3L, fit$rule), 1L)
+})
+
+# ---- SAMPLEREP tie-breaking -------------------------------------------------
+
 test_that("UniODA SAMPLEREP: balanced split chosen over unbalanced when PAC ties", {
   # Perfectly separable at x=3.5.
   # Both cut=3.5 and cut=4.5 give 100% PAC, but cut=3.5 gives balanced
