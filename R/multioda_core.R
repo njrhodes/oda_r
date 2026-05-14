@@ -935,7 +935,8 @@ oda_multiclass_unioda_core <- function(
       mean_pac       = conf_raw$mean_pac * 100,       # raw mean PAC, percent
       pv_by_class    = conf_raw$pv_by_class * 100,
       mean_pv        = conf_raw$mean_pv * 100,
-      ess_pac = oda_ess_from_mean(conf_raw$mean_pac, C),
+      ess     = oda_ess_from_mean(conf_raw$mean_pac, C),   # public ESS slot (Patch 1)
+      ess_pac = oda_ess_from_mean(conf_raw$mean_pac, C),   # compat alias; retire in Patch 5
       ess_pv  = oda_ess_from_mean(conf_raw$mean_pv,  C),
       p_mc = NA_real_, mc_info = NULL, loo = NULL
     )
@@ -1074,7 +1075,8 @@ oda_multiclass_unioda_core <- function(
       mean_pac       = conf_raw$mean_pac * 100,
       pv_by_class    = conf_raw$pv_by_class * 100,
       mean_pv        = conf_raw$mean_pv * 100,
-      ess_pac = oda_ess_from_mean(conf_raw$mean_pac, C),
+      ess     = oda_ess_from_mean(conf_raw$mean_pac, C),   # public ESS slot (Patch 1)
+      ess_pac = oda_ess_from_mean(conf_raw$mean_pac, C),   # compat alias; retire in Patch 5
       ess_pv  = oda_ess_from_mean(conf_raw$mean_pv,  C),
       p_mc = NA_real_, mc_info = NULL, loo = NULL
     )

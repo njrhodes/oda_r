@@ -77,3 +77,16 @@ test_that("oda_fit: binary and multiclass ESS are both finite positive for separ
   ess_field <- if (!is.null(f3$ess_pac)) f3$ess_pac else f3$ess
   expect_true(is.finite(ess_field) && ess_field > 0)
 })
+
+test_that("oda_fit multiclass: $ess and $ess_pac are both present and equal (Patch 1 transition)", {
+  # Patch 1: $ess is the normalized public name; $ess_pac is the compat alias.
+  # Both must exist on multiclass results and hold the same computed value
+  # until $ess_pac is retired in a future patch.
+  x <- c(1,2,3,4,5,6,7,8,9)
+  y <- c(1L,1L,1L,2L,2L,2L,3L,3L,3L)
+  fit <- oda_fit(x, y, mcarlo = FALSE)
+  expect_true(fit$ok)
+  expect_true(is.finite(fit$ess)     && fit$ess     > 0)
+  expect_true(is.finite(fit$ess_pac) && fit$ess_pac > 0)
+  expect_equal(fit$ess, fit$ess_pac)
+})
