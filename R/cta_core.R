@@ -712,7 +712,12 @@ oda_cta_fit <- function(
            miss_codes = miss_codes, priors_on = priors_on,
            alpha_split = alpha_split, mindenom = mindenom,
            prune_alpha = prune_alpha, max_depth = max_depth,
-           ess_min = ess_min, loo = loo),
+           ess_min = ess_min, loo = loo,
+           # Final tree objective on the ESS/WESS scale: WESS when weights are
+           # active, ESS otherwise.  NA for no-tree fits.  Retained for the
+           # cta_d_stat() contract; do not rename without updating accessors.
+           overall_ess  = NA_real_,
+           has_weights  = any(w != 1)),
       class = "cta_tree"))
   }
 
@@ -877,7 +882,12 @@ oda_cta_fit <- function(
       prune_alpha = prune_alpha,
       max_depth   = max_depth,
       ess_min     = ess_min,
-      loo         = loo
+      loo         = loo,
+      # Final tree objective on the ESS/WESS scale: WESS when weights are
+      # active, ESS otherwise.  NA for no-tree fits.  Retained for the
+      # cta_d_stat() contract; do not rename without updating accessors.
+      overall_ess = if (no_tree) NA_real_ else best_wess,
+      has_weights = any(w != 1)
     ),
     class = "cta_tree"
   )

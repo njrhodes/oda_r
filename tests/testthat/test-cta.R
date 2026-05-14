@@ -227,3 +227,210 @@ test_that("no-tree fit: print says 'No tree found'", {
   tree <- .no_tree_fit()
   expect_output(print(tree), "No tree found")
 })
+
+# ---- Phase 2C: read-only CTA endpoint accessor tests ------------------------
+
+# cta_strata -------------------------------------------------------------------
+
+test_that("cta_strata: valid tree returns integer >= 2", {
+  d    <- bin_data()
+  tree <- suppressMessages(
+    oda_cta_fit(d$X, d$y, mindenom = 2L, mc_iter = 300L,
+                mc_seed = 1L, loo = "off"))
+  skip_if(isTRUE(tree$no_tree), "mc sampling missed — myeloma tests are the anchor")
+  s <- cta_strata(tree)
+  expect_true(is.integer(s))
+  expect_false(is.na(s))
+  expect_gte(s, 2L)
+})
+
+test_that("cta_strata: no-tree returns NA_integer_", {
+  expect_identical(cta_strata(.no_tree_fit()), NA_integer_)
+})
+
+# cta_endpoint_denominators ----------------------------------------------------
+
+test_that("cta_endpoint_denominators: valid tree returns named integer vector", {
+  d    <- bin_data()
+  tree <- suppressMessages(
+    oda_cta_fit(d$X, d$y, mindenom = 2L, mc_iter = 300L,
+                mc_seed = 1L, loo = "off"))
+  skip_if(isTRUE(tree$no_tree), "mc sampling missed — myeloma tests are the anchor")
+  ep <- cta_endpoint_denominators(tree)
+  expect_true(is.integer(ep))
+  expect_true(length(ep) >= 2L)
+  expect_false(is.null(names(ep)))
+  expect_true(all(ep > 0L))
+  expect_equal(length(ep), cta_strata(tree))
+})
+
+test_that("cta_endpoint_denominators: no-tree returns integer(0)", {
+  expect_identical(cta_endpoint_denominators(.no_tree_fit()), integer(0))
+})
+
+# cta_min_terminal_denom -------------------------------------------------------
+
+test_that("cta_min_terminal_denom: valid tree equals min of endpoint denominators", {
+  d    <- bin_data()
+  tree <- suppressMessages(
+    oda_cta_fit(d$X, d$y, mindenom = 2L, mc_iter = 300L,
+                mc_seed = 1L, loo = "off"))
+  skip_if(isTRUE(tree$no_tree), "mc sampling missed — myeloma tests are the anchor")
+  expect_equal(cta_min_terminal_denom(tree), min(cta_endpoint_denominators(tree)))
+})
+
+test_that("cta_min_terminal_denom: no-tree returns NA_integer_", {
+  expect_identical(cta_min_terminal_denom(.no_tree_fit()), NA_integer_)
+})
+
+# new_cta_family_member --------------------------------------------------------
+
+test_that("new_cta_family_member: valid tree fields are consistent", {
+  d    <- bin_data()
+  tree <- suppressMessages(
+    oda_cta_fit(d$X, d$y, mindenom = 2L, mc_iter = 300L,
+                mc_seed = 1L, loo = "off"))
+  skip_if(isTRUE(tree$no_tree), "mc sampling missed — myeloma tests are the anchor")
+  m <- odacore:::new_cta_family_member(2L, tree)
+  expect_identical(m$mindenom, 2L)
+  expect_false(m$no_tree)
+  expect_identical(m$strata, cta_strata(tree))
+  expect_identical(m$min_terminal_denom, cta_min_terminal_denom(tree))
+  expect_identical(m$next_mindenom, cta_min_terminal_denom(tree) + 1L)
+  expect_identical(m$overall_ess, tree$overall_ess)
+  expect_identical(m$d, cta_d_stat(tree))
+})
+
+test_that("new_cta_family_member: no-tree fields are correct", {
+  tree <- .no_tree_fit()
+  m    <- odacore:::new_cta_family_member(999L, tree)
+  expect_identical(m$mindenom, 999L)
+  expect_true(m$no_tree)
+  expect_identical(m$strata, NA_integer_)
+  expect_identical(m$min_terminal_denom, NA_integer_)
+  expect_identical(m$next_mindenom, NA_integer_)
+  expect_identical(m$overall_ess, NA_real_)
+  expect_identical(m$d, NA_real_)
+})
+
+# new_cta_family ---------------------------------------------------------------
+
+test_that("new_cta_family: returns cta_family S3 class with members list", {
+  tree <- .no_tree_fit()
+  m    <- odacore:::new_cta_family_member(999L, tree)
+  fam  <- odacore:::new_cta_family(list(m))
+  expect_s3_class(fam, "cta_family")
+  expect_true(is.list(fam$members))
+  expect_equal(length(fam$members), 1L)
+})
+
+# ---- Myeloma MINDENOM chain: endpoint denominator canon anchors --------------
+# Fixture: tests/testthat/fixtures/myeloma/data.txt
+# EX V2=0 (exclude zero-weight rows), WEIGHT V2, MISSING ALL (-9), y = V1
+# Attrs: V4 V9 V11 V12 V14 V15 V16 V17 V18 V19
+# Chain: MINDENOM 1 → next 30 → next 56 → no_tree (terminate)
+
+.myeloma_tree <- function(mindenom) {
+  fpath <- testthat::test_path("fixtures/myeloma/data.txt")
+  skip_if_not(file.exists(fpath), "myeloma fixture not available")
+  d <- read.table(fpath)
+  colnames(d) <- paste0("V", seq_len(ncol(d)))
+  d  <- d[d$V2 > 0, ]
+  ac <- c("V4","V9","V11","V12","V14","V15","V16","V17","V18","V19")
+  suppressMessages(
+    oda_cta_fit(
+      X          = d[, ac, drop = FALSE],
+      y          = as.integer(d$V1),
+      w          = as.numeric(d$V2),
+      miss_codes = -9,
+      mindenom   = as.integer(mindenom),
+      loo        = "stable",
+      alpha_split = 0.05,
+      mc_iter    = 5000L,
+      mc_seed    = 12345L,
+      verbose    = FALSE
+    )
+  )
+}
+
+test_that("myeloma MINDENOM=1: min_terminal_denom == 29, next_mindenom == 30", {
+  tree <- .myeloma_tree(1L)
+  expect_false(tree$no_tree)
+  expect_equal(cta_strata(tree), 3L)
+  expect_equal(cta_min_terminal_denom(tree), 29L)
+  m <- odacore:::new_cta_family_member(1L, tree)
+  expect_equal(m$next_mindenom, 30L)
+})
+
+test_that("myeloma MINDENOM=30: min_terminal_denom == 55, next_mindenom == 56", {
+  tree <- .myeloma_tree(30L)
+  expect_false(tree$no_tree)
+  expect_equal(cta_strata(tree), 2L)
+  expect_equal(cta_min_terminal_denom(tree), 55L)
+  m <- odacore:::new_cta_family_member(30L, tree)
+  expect_equal(m$next_mindenom, 56L)
+})
+
+test_that("myeloma MINDENOM=56: no_tree, strata NA, denominators integer(0)", {
+  tree <- .myeloma_tree(56L)
+  expect_true(tree$no_tree)
+  expect_identical(cta_strata(tree), NA_integer_)
+  expect_identical(cta_endpoint_denominators(tree), integer(0))
+  expect_identical(cta_min_terminal_denom(tree), NA_integer_)
+  m <- odacore:::new_cta_family_member(56L, tree)
+  expect_true(m$no_tree)
+  expect_identical(m$next_mindenom, NA_integer_)
+})
+
+# ---- cta_d_stat: synthetic contract tests ------------------------------------
+# These tests exercise D-stat behavior independently of CTA topology so they
+# remain valid regardless of open ENUMERATE / PRUNE issues.
+#
+# Synthetic minimal cta_tree objects: no fitting required.  Leaf nodes only;
+# split nodes are not needed for the accessor contract under test.
+.fake_cta_tree <- function(overall_ess, n_leaves, no_tree = FALSE) {
+  nodes <- lapply(seq_len(n_leaves), function(i)
+    list(leaf = TRUE, node_id = i, n_obs = 10L))
+  structure(
+    list(nodes = nodes, no_tree = no_tree, overall_ess = overall_ess),
+    class = "cta_tree"
+  )
+}
+
+test_that("cta_d_stat: no_tree returns NA_real_", {
+  tree <- .fake_cta_tree(overall_ess = 50, n_leaves = 2L, no_tree = TRUE)
+  expect_identical(cta_d_stat(tree), NA_real_)
+})
+
+test_that("cta_d_stat: missing overall_ess returns NA_real_", {
+  tree <- .fake_cta_tree(overall_ess = 50, n_leaves = 2L)
+  tree$overall_ess <- NULL
+  expect_identical(cta_d_stat(tree), NA_real_)
+})
+
+test_that("cta_d_stat: non-finite overall_ess returns NA_real_", {
+  tree_inf <- .fake_cta_tree(overall_ess = Inf,  n_leaves = 2L)
+  tree_nan <- .fake_cta_tree(overall_ess = NaN,  n_leaves = 2L)
+  tree_na  <- .fake_cta_tree(overall_ess = NA_real_, n_leaves = 2L)
+  expect_identical(cta_d_stat(tree_inf), NA_real_)
+  expect_identical(cta_d_stat(tree_nan), NA_real_)
+  expect_identical(cta_d_stat(tree_na),  NA_real_)
+})
+
+test_that("cta_d_stat: non-positive overall_ess returns NA_real_", {
+  tree_zero <- .fake_cta_tree(overall_ess =  0,  n_leaves = 2L)
+  tree_neg  <- .fake_cta_tree(overall_ess = -5,  n_leaves = 2L)
+  expect_identical(cta_d_stat(tree_zero), NA_real_)
+  expect_identical(cta_d_stat(tree_neg),  NA_real_)
+})
+
+test_that("cta_d_stat: strata < 2 returns NA_real_", {
+  tree <- .fake_cta_tree(overall_ess = 50, n_leaves = 1L)
+  expect_identical(cta_d_stat(tree), NA_real_)
+})
+
+test_that("cta_d_stat: two leaves, overall_ess = 50 returns D = 2", {
+  # D = 100 / (50 / 2) - 2 = 4 - 2 = 2
+  tree <- .fake_cta_tree(overall_ess = 50, n_leaves = 2L)
+  expect_equal(cta_d_stat(tree), 2)
+})
