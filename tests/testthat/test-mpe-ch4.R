@@ -6,12 +6,16 @@
 # Source: Yarnold & Soltysik, Maximizing Predictive Accuracy (2016), Ch. 4.
 #
 # Coverage:
+#   - Bowker / Stability (Table 4.1): transcription check + ordered training.
+#   - Marginal dissymmetry (Table 4.1 off-diagonal): transcription + categorical.
 #   - Bray-Curtis Dissimilarity Index (Table 4.2): training ESS + LOO ESS.
 #   - Synthetic absent-level LOO override: unit tests for the MegaODA
 #     compatibility rule that assigns a held-out observation whose category
 #     was absent from the n-1 LOO training fold to the left-side class.
 #
 # Fixture status:
+#   - Bowker training ESS: hard anchor (probe-confirmed parity, ESS=93.7).
+#   - Marginal dissymmetry ESS: hard anchor (probe-confirmed parity, ESS=21.1).
 #   - Bray-Curtis training ESS: hard anchor (probe-confirmed parity).
 #   - Bray-Curtis LOO ESS: hard anchor, fixture-derived MegaODA compatibility
 #     (absent-level override required; see R/unioda_core.R oda_loo_for_rule).
@@ -31,6 +35,104 @@
       }
   list(x = x, y = y)
 }
+
+# ---- Bowker / Stability (MPE Table 4.1) -------------------------------------
+
+test_that("Bowker Table 4.1: transcription checks (N=55981, diagonal sum=53295)", {
+  # Table 4.1: rows = 1980 class (1-4), cols = 1985 class (1-4).
+  # Diagonal = stable observations; off-diagonal = changers.
+  bowker <- matrix(c(
+    11607,   100,   366,   124,
+       87, 13677,   515,   302,
+      172,   225, 17819,   270,
+       63,   176,   286, 10192
+  ), nrow = 4L, byrow = TRUE)
+
+  expect_equal(sum(bowker), 55981L)
+  expect_equal(rowSums(bowker), c(12197L, 14581L, 18486L, 10717L))
+  expect_equal(colSums(bowker), c(11929L, 14178L, 18986L, 10888L))
+  expect_equal(sum(diag(bowker)), 53295L)
+  expect_equal(round(sum(diag(bowker)) / sum(bowker) * 100, 1), 95.2)
+})
+
+test_that("Bowker Table 4.1: ordered training ESS approx 93.7", {
+  # Class = 1985 category (col index); Attribute = 1980 category (row index).
+  # bowker is rows=1980, cols=1985. Transpose so rows=class(1985), cols=attr(1980).
+  bowker <- matrix(c(
+    11607,   100,   366,   124,
+       87, 13677,   515,   302,
+      172,   225, 17819,   270,
+       63,   176,   286, 10192
+  ), nrow = 4L, byrow = TRUE)
+
+  d <- .expand_table(t(bowker), class_vals = 1:4, attr_vals = 1:4)
+
+  set.seed(42L)
+  fit <- oda_fit(d$x, d$y,
+                 attr_type = "ordered",
+                 priors_on = TRUE,
+                 loo       = "off",
+                 mc_iter   = 10000L)
+
+  expect_true(fit$ok)
+  expect_equal(fit$ess_pac, 93.7, tolerance = 0.1)
+  expect_equal(fit$rule$type, "multiclass_ordered")
+
+  # Cut values: {1|2}, {2|3}, {3|4} boundaries; each class predicted by its rank.
+  expect_equal(fit$rule$cut_values, c(1.5, 2.5, 3.5))
+  expect_equal(fit$rule$seg_classes, 1:4)
+
+  # Hard stability anchor: diagonal sum from confusion matrix must equal 53295.
+  expect_equal(sum(diag(fit$confusion)), 53295L)
+
+  # Note: p_mc is not asserted here — DIRECTIONAL not yet implemented (issue #6).
+  # When DIRECTIONAL is added, expect p_mc < 0.0001 with directional Fisher.
+})
+
+# ---- Marginal Dissymmetry (MPE Table 4.1 off-diagonal) ----------------------
+
+test_that("Marginal dissymmetry Table 4.1: transcription check (N=2686)", {
+  # Off-diagonal cells of Table 4.1 (changers only; diagonal zeroed).
+  marg <- matrix(c(
+      0, 100, 366, 124,
+     87,   0, 515, 302,
+    172, 225,   0, 270,
+     63, 176, 286,   0
+  ), nrow = 4L, byrow = TRUE)
+
+  expect_equal(sum(marg), 2686L)
+  expect_equal(rowSums(marg), c(590L, 904L, 667L, 525L))
+  expect_equal(colSums(marg), c(322L, 501L, 1167L, 696L))
+})
+
+test_that("Marginal dissymmetry Table 4.1: categorical training ESS approx 21.1", {
+  # SDA step 2: classify changers (off-diagonal) — categorical (unordered)
+  # because dissymmetry patterns need not respect ordinal rank.
+  # Class = 1985 category; Attribute = 1980 category.
+  marg <- matrix(c(
+      0, 100, 366, 124,
+     87,   0, 515, 302,
+    172, 225,   0, 270,
+     63, 176, 286,   0
+  ), nrow = 4L, byrow = TRUE)
+
+  d <- .expand_table(t(marg), class_vals = 1:4, attr_vals = 1:4)
+
+  set.seed(42L)
+  fit <- oda_fit(d$x, d$y,
+                 attr_type = "categorical",
+                 priors_on = TRUE,
+                 loo       = "off",
+                 mc_iter   = 25000L)
+
+  expect_true(fit$ok)
+  expect_equal(fit$ess_pac, 21.1, tolerance = 0.5)
+  expect_equal(fit$rule$type, "multiclass_nominal")
+
+  # Note: p_mc not asserted — DIRECTIONAL not yet implemented (issue #6).
+  # Note: This is SDA step 2 context from MPE Ch. 4; full SDA also requires
+  # step 1 (overall Bowker stability, above) and D-statistic comparison.
+})
 
 # ---- Bray-Curtis (MPE Table 4.2) --------------------------------------------
 
