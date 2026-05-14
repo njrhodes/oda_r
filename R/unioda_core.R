@@ -561,7 +561,24 @@ oda_loo_for_rule <- function(
                                      "_reason_", fit_i$reason),
                     confusion = NULL, ess_loo = NA_real_, p_value = NA_real_))
       }
-      y_pred_loo[i] <- oda_rule_predict(x[i], fit_i$rule)
+      # Fixture-derived MegaODA compatibility: when the held-out observation's category was
+      # absent from the n-1 LOO training fold (singleton or rare category
+      # dropped out), MegaODA assigns it to the left-side class rather than
+      # defaulting to the right side via !(x %in% left_levels).
+      # Fixture evidence: MPE Chapter 4 Bray-Curtis Table 4.2, category E
+      # (one S30 observation); absent-level override recovers LOO ESS = 43.5.
+      # Applies to nominal_cut rules only; oda_rule_side() is unchanged.
+      if (fit_i$rule$type == "nominal_cut" && !is.na(x[i])) {
+        known  <- c(fit_i$rule$left_levels, fit_i$rule$right_levels)
+        absent <- !(as.character(x[i]) %in% known)
+      } else {
+        absent <- FALSE
+      }
+      if (absent) {
+        y_pred_loo[i] <- if (fit_i$rule$direction == "0->1") 0L else 1L
+      } else {
+        y_pred_loo[i] <- oda_rule_predict(x[i], fit_i$rule)
+      }
     }
   }
 
