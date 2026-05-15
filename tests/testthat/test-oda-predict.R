@@ -58,6 +58,29 @@ test_that("binary fit stores priors_on and has_weights", {
   expect_false(isTRUE(fit$has_weights))   # no w= supplied
 })
 
+test_that("has_weights: NULL w gives FALSE", {
+  fit <- oda_fit(c(1,2,3,4,5,6), c(0L,0L,0L,1L,1L,1L), mcarlo = FALSE)
+  expect_false(isTRUE(fit$has_weights))
+})
+
+test_that("has_weights: all-ones w gives FALSE (not a meaningful weight)", {
+  fit <- oda_fit(c(1,2,3,4,5,6), c(0L,0L,0L,1L,1L,1L),
+                 w = rep(1, 6), mcarlo = FALSE)
+  expect_false(isTRUE(fit$has_weights))
+})
+
+test_that("has_weights: nontrivial w gives TRUE", {
+  fit <- oda_fit(c(1,2,3,4,5,6), c(0L,0L,0L,1L,1L,1L),
+                 w = c(1,2,1,2,1,2), mcarlo = FALSE)
+  expect_true(isTRUE(fit$has_weights))
+})
+
+test_that("has_weights: priors_on=TRUE with NULL w gives FALSE", {
+  fit <- oda_fit(c(1,2,3,4,5,6), c(0L,0L,0L,1L,1L,1L),
+                 priors_on = TRUE, mcarlo = FALSE)
+  expect_false(isTRUE(fit$has_weights))
+})
+
 test_that("multiclass fit stores boundary_mode", {
   fit <- .multi_fit()
   expect_true(!is.null(fit$boundary_mode))

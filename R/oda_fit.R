@@ -79,7 +79,7 @@ oda_fit <- function(
     return(structure(
       list(ok = FALSE, reason = "all_missing", engine = NA_character_,
            priors_on = priors_on, miss_codes = miss_codes,
-           has_weights = !is.null(w)),
+           has_weights = !is.null(w) && any(w != 1)),
       class = c("oda_fit_failed", "oda_fit")))
 
   C <- length(unique(as.integer(clean$y)))
@@ -88,7 +88,7 @@ oda_fit <- function(
     return(structure(
       list(ok = FALSE, reason = "pure_node", engine = NA_character_,
            priors_on = priors_on, miss_codes = miss_codes,
-           has_weights = !is.null(w)),
+           has_weights = !is.null(w) && any(w != 1)),
       class = c("oda_fit_failed", "oda_fit")))
 
   if (C == 2L) {
@@ -133,7 +133,7 @@ oda_fit <- function(
     fit$engine      <- "binary"
     fit$priors_on   <- priors_on
     fit$miss_codes  <- miss_codes
-    fit$has_weights <- !is.null(w)
+    fit$has_weights <- !is.null(w) && any(w != 1)
     class(fit) <- c("oda_fit_binary", "oda_fit")
     return(fit)
   }
@@ -159,7 +159,7 @@ oda_fit <- function(
   fit$engine        <- "multiclass"
   fit$priors_on     <- priors_on
   fit$miss_codes    <- miss_codes
-  fit$has_weights   <- !is.null(w)
+  fit$has_weights   <- !is.null(w) && any(w != 1)
   fit$boundary_mode <- boundary_mode
   class(fit) <- c("oda_fit_multiclass", "oda_fit")
   return(fit)
