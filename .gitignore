@@ -43,3 +43,6 @@ tests/testthat/CTA_DEMO.CSV
 
 # local Claude/prompt workbench
 prompts/
+
+# MegaODA/CTA engine binaries under vignette fixture folders — never commit
+tests/testthat/fixtures/vignettes/data/*/*.EXE
