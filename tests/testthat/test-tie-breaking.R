@@ -170,7 +170,7 @@ test_that("ESS is in (-100, 100] for finite-PAC results", {
   )
 
   expect_true(fit$ok)
-  expect_true(is.finite(fit$ess_pac), label = "ESS is finite")
-  expect_true(fit$ess_pac > -100 && fit$ess_pac <= 100,
+  expect_true(is.finite(fit$ess), label = "ESS is finite")
+  expect_true(fit$ess > -100 && fit$ess <= 100,
                label = "ESS in (-100,100]")
 })

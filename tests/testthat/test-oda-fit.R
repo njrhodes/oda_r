@@ -73,9 +73,8 @@ test_that("oda_fit: binary and multiclass ESS are both finite positive for separ
   x3 <- c(1,2,3,4,5,6,7,8,9); y3 <- c(1L,1L,1L,2L,2L,2L,3L,3L,3L)
   f3 <- oda_fit(x=x3, y=y3, mcarlo=FALSE)
   expect_true(f3$ok)
-  # multiclass uses ess_pac
-  ess_field <- if (!is.null(f3$ess_pac)) f3$ess_pac else f3$ess
-  expect_true(is.finite(ess_field) && ess_field > 0)
+  # multiclass exposes $ess (ess_pac retained as compat alias)
+  expect_true(is.finite(f3$ess) && f3$ess > 0)
 })
 
 test_that("oda_fit multiclass: $ess and $ess_pac are both present and equal (Patch 1 transition)", {

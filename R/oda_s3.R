@@ -255,7 +255,7 @@ print.oda_fit <- function(x, ...) {
                     x$pac_by_class[i] %||% NA_real_))
       cat("\n")
     }
-    ess_val <- .num(x$ess_pac)
+    ess_val <- .num(x$ess)
     mp_val  <- .num(x$mean_pac)
     ess_str <- if (!is.na(ess_val)) sprintf("ESS: %.2f%%", ess_val) else "ESS: NA"
     pac_str <- if (!is.na(mp_val))  sprintf("Mean PAC: %.2f%%", mp_val) else "Mean PAC: NA"
@@ -307,7 +307,7 @@ summary.oda_fit <- function(object, ...) {
       train <- list(
         confusion_raw      = object$confusion,
         confusion_weighted = object$confusion_wt,
-        ess_pac            = object$ess_pac,
+        ess                = object$ess,
         mean_pac           = object$mean_pac,
         pac_by_class       = object$pac_by_class,
         p_mc               = object$p_mc,
@@ -363,7 +363,7 @@ summary.oda_fit <- function(object, ...) {
     has_weights    = object$has_weights,
     rule           = object$rule,
     rule_string    = if (isTRUE(object$ok)) .oda_fmt_rule(object$rule) else NA_character_,
-    objective      = object$ess %||% object$ess_pac,
+    objective      = object$ess,
     train          = train,
     loo            = loo_section,
     fields_present = names(object)
@@ -404,7 +404,7 @@ print.oda_fit_summary <- function(x, ...) {
                   if (!is.na(sens)) sens else NA_real_,
                   if (!is.na(spec)) spec else NA_real_))
     } else {
-      ep <- .num(tr$ess_pac); mp <- .num(tr$mean_pac)
+      ep <- .num(tr$ess); mp <- .num(tr$mean_pac)
       cat(sprintf("    Mean PAC: %.2f%%   ESS: %.2f%%\n",
                   if (!is.na(mp)) mp else NA_real_,
                   if (!is.na(ep)) ep else NA_real_))
@@ -527,7 +527,7 @@ oda_metrics <- function(fit, split = c("train", "loo")) {
       )
     } else {
       list(
-        ess_pac      = fit$ess_pac %||% NA_real_,
+        ess          = fit$ess %||% NA_real_,
         mean_pac     = fit$mean_pac %||% NA_real_,
         pac_by_class = fit$pac_by_class,
         p_mc         = fit$p_mc %||% NA_real_
@@ -580,7 +580,7 @@ oda_metrics <- function(fit, split = c("train", "loo")) {
 #' \itemize{
 #'   \item Binary (\code{oda_fit_binary}): strata = 2, ESS = \code{fit$ess}.
 #'   \item Multiclass ordered (\code{multiclass_ordered} rule): strata =
-#'     \code{length(fit$rule$seg_classes)}, ESS = \code{fit$ess_pac}.
+#'     \code{length(fit$rule$seg_classes)}, ESS = \code{fit$ess}.
 #'   \item Multiclass nominal/categorical: returns \code{NA_real_} (strata
 #'     count is ambiguous without additional canon specification).
 #'   \item Failed fit (\code{ok = FALSE}): returns \code{NA_real_}.
@@ -608,7 +608,7 @@ oda_d_stat <- function(fit) {
     if (identical(rule$type, "multiclass_ordered")) {
       strata <- length(rule$seg_classes)
       if (strata < 2L) return(NA_real_)
-      ess <- fit$ess_pac
+      ess <- fit$ess
       if (is.null(ess) || !is.finite(ess) || ess <= 0) return(NA_real_)
       return(100 / (ess / strata) - strata)
     }

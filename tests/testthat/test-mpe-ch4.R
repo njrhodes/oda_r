@@ -75,7 +75,7 @@ test_that("Bowker Table 4.1: ordered training ESS approx 93.7", {
                  mc_iter   = 10000L)
 
   expect_true(fit$ok)
-  expect_equal(fit$ess_pac, 93.7, tolerance = 0.1)
+  expect_equal(fit$ess, 93.7, tolerance = 0.1)
   expect_equal(fit$rule$type, "multiclass_ordered")
 
   # Cut values: {1|2}, {2|3}, {3|4} boundaries; each class predicted by its rank.
@@ -126,7 +126,7 @@ test_that("Marginal dissymmetry Table 4.1: categorical training ESS approx 21.1"
                  mc_iter   = 25000L)
 
   expect_true(fit$ok)
-  expect_equal(fit$ess_pac, 21.1, tolerance = 0.5)
+  expect_equal(fit$ess, 21.1, tolerance = 0.5)
   expect_equal(fit$rule$type, "multiclass_nominal")
 
   # Note: p_mc not asserted — DIRECTIONAL not yet implemented (issue #6).

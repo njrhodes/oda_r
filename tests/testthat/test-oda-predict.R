@@ -235,10 +235,10 @@ test_that("summary.oda_fit multiclass returns oda_fit_summary", {
   expect_s3_class(s, "oda_fit_summary")
 })
 
-test_that("summary.oda_fit multiclass train has ess_pac and mean_pac", {
+test_that("summary.oda_fit multiclass train has ess and mean_pac", {
   fit <- .multi_fit()
   s   <- summary(fit)
-  expect_true("ess_pac"  %in% names(s$train))
+  expect_true("ess"      %in% names(s$train))
   expect_true("mean_pac" %in% names(s$train))
 })
 
@@ -293,10 +293,10 @@ test_that("oda_metrics train binary returns ess and pac", {
   expect_true(m$ess >= 0 && m$ess <= 100)
 })
 
-test_that("oda_metrics train multiclass returns ess_pac and mean_pac", {
+test_that("oda_metrics train multiclass returns ess and mean_pac", {
   fit <- .multi_fit()
   m   <- oda_metrics(fit, "train")
-  expect_true("ess_pac"  %in% names(m))
+  expect_true("ess"      %in% names(m))
   expect_true("mean_pac" %in% names(m))
 })
 
@@ -425,7 +425,7 @@ test_that("oda_d_stat multiclass ordered returns finite numeric", {
 test_that("oda_d_stat multiclass ordered uses seg_classes length as strata", {
   fit    <- .multi_fit()
   strata <- length(fit$rule$seg_classes)
-  ess    <- fit$ess_pac
+  ess    <- fit$ess
   expect_equal(oda_d_stat(fit), 100 / (ess / strata) - strata)
 })
 
