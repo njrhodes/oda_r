@@ -24,7 +24,7 @@ Supported rule types and strata definitions:
 \itemize{
   \item Binary (\code{oda_fit_binary}): strata = 2, ESS = \code{fit$ess}.
   \item Multiclass ordered (\code{multiclass_ordered} rule): strata =
-    \code{length(fit$rule$seg_classes)}, ESS = \code{fit$ess_pac}.
+    \code{length(fit$rule$seg_classes)}, ESS = \code{fit$ess}.
   \item Multiclass nominal/categorical: returns \code{NA_real_} (strata
     count is ambiguous without additional canon specification).
   \item Failed fit (\code{ok = FALSE}): returns \code{NA_real_}.
