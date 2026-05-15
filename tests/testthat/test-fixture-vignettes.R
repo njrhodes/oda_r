@@ -4,7 +4,7 @@
 # Training gold tests for the four legacy MegaODA vignette examples.
 #
 # Fixtures live under:
-#   tests/testthat/fixtures/vignettes/data/Example {1..4}/
+#   tests/testthat/fixtures/vignettes/data/example-{1..4}/
 # Each folder contains data*.csv (observation-level, no header) and
 # MODEL1.OUT (MegaODA gold output, re-run 2026-05-15).
 #
@@ -44,7 +44,7 @@
 
 .read_vignette_csv <- function(n, colnames) {
   read.csv(
-    test_path(sprintf("fixtures/vignettes/data/Example %d/data%d.csv", n, n)),
+    test_path(sprintf("fixtures/vignettes/data/example-%d/data%d.csv", n, n)),
     header = FALSE, col.names = colnames
   )
 }
