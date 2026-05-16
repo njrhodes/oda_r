@@ -1,0 +1,155 @@
+---
+title: "Binary ODA: Gully Erosion Adjustment and Motivation"
+author: "odacore"
+date: "`r Sys.Date()`"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Binary ODA: Gully Erosion Adjustment and Motivation}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>")
+```
+
+## Research question
+
+A study of gully erosion in rural southeast Nigeria documented the type of
+adjustment made by community members in response to erosion hazards, and asked
+whether adjustment type could distinguish individually-motivated from
+community-motivated responses.^[Okuh D, Osumgborogwu IE (2019). Adjustments to
+hazards of gully erosion in rural southeast Nigeria: A case of Amacha
+communities. *Applied Ecology and Environmental Sciences*, 7, 11–20.]
+
+Four adjustment types were recorded: (1) Use of Ridges, (2) Shifting
+Habitation, (3) Relocation, and (4) Intensified Cultivation. Because Ridges
+and Shifting Habitation are actions that can be taken individually or
+collectively, whereas Relocation and Intensified Cultivation require organised
+community effort, the hypothesis is that Ridges and Shifting predict Community
+motivation and Relocation and Intensification predict Individual motivation.
+Optimal Data Analysis (UniODA) tests whether adjustment type discriminates
+motivation and quantifies the strength of the association.
+
+## Data
+
+Motivation (0 = Individual, 1 = Community) is the class variable; adjustment
+type (1–4) is the attribute. Published cell frequencies are reconstructed
+directly into observation-level vectors — no external data file is required.
+
+```{r data}
+library(odacore)
+
+# Cross-classification: rows = adjustment type, cols = motivation.
+#                    Indiv (0)  Comm (1)   total
+#  Ridges       (1)      85       173       258
+#  Shifting     (2)      65       170       235
+#  Relocation   (3)     172        10       182
+#  Intensified  (4)      45         0        45
+#                       367       353       720
+
+motivation  <- c(rep(0L,  85), rep(1L, 173),   # adjustment = 1
+                 rep(0L,  65), rep(1L, 170),   # adjustment = 2
+                 rep(0L, 172), rep(1L,  10),   # adjustment = 3
+                 rep(0L,  45), rep(1L,   0))   # adjustment = 4
+adjustment  <- c(rep(1L, 258), rep(2L, 235),
+                 rep(3L, 182), rep(4L,  45))
+
+table(adjustment, motivation,
+      dnn = c("Adjustment (1=Ridges,2=Shifting,3=Relocation,4=Intensified)",
+              "Motivation (0=Individual, 1=Community)"))
+```
+
+## Fit the ODA model
+
+Adjustment type is a four-category nominal variable; ODA scans it with the
+categorical flag, consistent with the MegaODA reference analysis. Leave-one-out
+(LOO) jackknife validity analysis is included.
+
+```{r fit}
+fit <- oda_fit(
+  x         = adjustment,
+  y         = motivation,
+  attr_type = "categorical",
+  mc_iter   = 25000L,
+  loo       = "on"
+)
+```
+
+## Rule and confusion matrix
+
+```{r print-fit}
+print(fit)
+```
+
+ODA identified a binary partition of the four adjustment categories:
+
+- If adjustment ∈ {1, 2} (Ridges or Shifting) → predict motivation = Community (1)
+- If adjustment ∈ {3, 4} (Relocation or Intensified) → predict motivation = Individual (0)
+
+This rule is consistent with the directional hypothesis.
+
+```{r confusion}
+# Confusion matrix: actual motivation (rows) × predicted motivation (cols)
+conf_mat <- matrix(
+  c(fit$confusion$TN, fit$confusion$FP,
+    fit$confusion$FN, fit$confusion$TP),
+  nrow = 2L, byrow = TRUE,
+  dimnames = list(Actual    = c("Indiv(0)", "Comm(1)"),
+                  Predicted = c("Indiv(0)", "Comm(1)"))
+)
+print(conf_mat)
+```
+
+## ESS / PAC / PV interpretation
+
+```{r metrics}
+summary(fit)
+```
+
+```{r pv}
+# Predictive value: accuracy when the model makes a prediction into each class
+pv_indiv <- fit$confusion$TN / (fit$confusion$TN + fit$confusion$FN)
+pv_comm  <- fit$confusion$TP / (fit$confusion$TP + fit$confusion$FP)
+cat("PV Individual (0):", round(pv_indiv * 100, 1), "%\n")
+cat("PV Community  (1):", round(pv_comm  * 100, 1), "%\n")
+```
+
+- **PAC (sensitivity per class):** 59.1% for Individual members, 97.2% for
+  Community members. Because 50% correct per class is expected by chance, the
+  model classifies Community-motivated adjustments nearly twice as well as chance
+  while Individual classification exceeds chance by only 18%.
+- **ESS = 56.30%** indicates a relatively strong effect.^[Yarnold, P.R., &
+  Soltysik, R.C. (2005). *Optimal Data Analysis: A Guidebook with Software for
+  Windows.* Washington, D.C.: APA Books.] The pronounced asymmetry (59% vs. 97%)
+  reflects near-uniform community uptake of Ridges and Shifting adjustments.
+- **PV:** When the model predicts Individual motivation it is correct ~95.6% of
+  the time; when it predicts Community motivation ~69.6%.
+
+## Monte Carlo and LOO validity
+
+The nondirectional MC p-value and LOO result are shown in the `summary` output
+above.
+
+- **LOO stability:** The leave-one-out ESS equals the training ESS (56.30%),
+  indicating the rule is completely stable — no single observation materially
+  alters the model.
+- **LOO Fisher exact p < .001:** Statistical significance confirmed in holdout
+  analysis.
+- **MC p-value:** The printed `p(MC)` is a nondirectional Fisher-randomization
+  p-value. Interpret by decision threshold (e.g., p < 0.05).
+
+## Notes on reproducibility and current scope
+
+**Fixture parity.** The training rule, confusion matrix, and ESS are verified
+against MegaODA.exe output in the package test suite
+(`tests/testthat/test-fixture-vignettes.R`, Example 2).
+
+**MC p-value calibration.** The nondirectional MC p shown here may differ from
+MegaODA's reported p = 0.000000 (exact zero). This is a known discrepancy under
+investigation (issue \#5: MC STOP calibration audit). Training ESS and confusion
+matrix are unaffected.
+
+**Directional p-value.** The original analysis specified a *directional*
+hypothesis. Directional ODA is not yet implemented (issue \#6). When available,
+the directional p-value will be smaller.

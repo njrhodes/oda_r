@@ -1,0 +1,146 @@
+---
+title: "Binary ODA: Voting on the Refugee Act of 1980"
+author: "odacore"
+date: "`r Sys.Date()`"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Binary ODA: Voting on the Refugee Act of 1980}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>")
+```
+
+## Research question
+
+The Refugee Act of 1980 extended asylum protections in U.S. immigration law.
+Because the Act was sponsored by Democrats, a plausible hypothesis is that
+support was partisan: Democrats would tend to vote in favor (Pro) and
+Republicans against (Con).^[Yarnold, B.M. (1990). *Refugees without refuge:
+Formation and failed implementation of U.S. political asylum policy in the
+1980's.* Lanham, MD: University Press of America.]
+
+The data below record the vote of 407 U.S. House members alongside their
+party affiliation. Optimal Data Analysis (UniODA) is used to determine whether
+party affiliation discriminates vote direction, and to quantify the strength of
+the association.
+
+## Data
+
+Party affiliation (0 = Republican, 1 = Democrat) is the attribute; vote
+(0 = Con, 1 = Pro) is the class variable. Published cell frequencies are
+reconstructed directly into observation-level vectors — no external data file
+is required.
+
+```{r data}
+library(odacore)
+
+# Cross-classification: rows = vote (class), cols = party (attribute).
+#          Rep (0)   Dem (1)
+#  Con (0)   118       78     n(Con) = 196
+#  Pro (1)    34      177     n(Pro) = 211
+vote  <- c(rep(0L, 118), rep(0L,  78), rep(1L,  34), rep(1L, 177))
+party <- c(rep(0L, 118), rep(1L,  78), rep(0L,  34), rep(1L, 177))
+
+table(vote, party,
+      dnn = c("Vote (0=Con, 1=Pro)", "Party (0=Rep, 1=Dem)"))
+```
+
+## Fit the ODA model
+
+Party affiliation is binary (0/1); ODA scans it as an ordered attribute
+(no categorical flag), which is consistent with the MegaODA reference
+analysis. Leave-one-out (LOO) jackknife validity analysis is included.
+
+```{r fit}
+fit <- oda_fit(
+  x         = party,
+  y         = vote,
+  attr_type = "ordered",
+  mc_iter   = 25000L,
+  loo       = "on"
+)
+```
+
+## Rule and confusion matrix
+
+```{r print-fit}
+print(fit)
+```
+
+ODA identified a single cut at 0.5, separating the two party values:
+
+- If party ≤ 0.5 (Republican) → predict vote = Con (0)
+- If party > 0.5 (Democrat) → predict vote = Pro (1)
+
+This rule is consistent with the directional hypothesis: Democrats
+supported the Act and Republicans opposed it.
+
+```{r confusion}
+# Confusion matrix: actual vote (rows) × predicted vote (cols)
+conf_mat <- matrix(
+  c(fit$confusion$TN, fit$confusion$FP,
+    fit$confusion$FN, fit$confusion$TP),
+  nrow = 2L, byrow = TRUE,
+  dimnames = list(Actual    = c("Con(0)", "Pro(1)"),
+                  Predicted = c("Con(0)", "Pro(1)"))
+)
+print(conf_mat)
+```
+
+## ESS / PAC / PV interpretation
+
+```{r metrics}
+summary(fit)
+```
+
+```{r pv}
+# Predictive value: accuracy when the model makes a prediction into each class
+pv_con <- fit$confusion$TN / (fit$confusion$TN + fit$confusion$FN)
+pv_pro <- fit$confusion$TP / (fit$confusion$TP + fit$confusion$FP)
+cat("PV Con (0):", round(pv_con * 100, 1), "%\n")
+cat("PV Pro (1):", round(pv_pro * 100, 1), "%\n")
+```
+
+- **PAC (sensitivity per class):** 60.2% for Republican members (Con vote),
+  83.9% for Democratic members (Pro vote). Because 50% correct per class is
+  expected by chance, the model classifies Democratic members nearly twice as
+  well as chance.
+- **ESS = 44.09%** indicates a moderate effect.^[Yarnold, P.R., & Soltysik,
+  R.C. (2005). *Optimal Data Analysis: A Guidebook with Software for Windows.*
+  Washington, D.C.: APA Books.] The asymmetry (60% vs. 84%) reflects stronger
+  partisan signal on the Democratic side — Democrats who sponsored the Act
+  voted for it far more uniformly.
+- **PV:** When the model predicts a Con vote, it is correct ~77.6% of the time;
+  when it predicts a Pro vote, ~69.4%.
+
+## Monte Carlo and LOO validity
+
+The nondirectional MC p-value and LOO result are shown in the `summary` output
+above.
+
+- **LOO stability:** The leave-one-out ESS equals the training ESS exactly
+  (44.09%), indicating the rule is completely stable — no single observation
+  materially alters the model.
+- **LOO Fisher exact p < .001:** Statistical significance confirmed in
+  holdout analysis.
+- **MC p-value:** The printed `p(MC)` is a nondirectional Fisher-randomization
+  p-value. Interpret by decision threshold (e.g., p < 0.05), not as an exact
+  match to the MegaODA reference value (see Notes).
+
+## Notes on reproducibility and current scope
+
+**Fixture parity.** The training rule, confusion matrix, and ESS are verified
+against MegaODA.exe output in the package test suite
+(`tests/testthat/test-fixture-vignettes.R`, Example 1).
+
+**MC p-value calibration.** The nondirectional MC p shown here may differ from
+MegaODA's reported p = 0.000000 (exact zero). This is a known discrepancy under
+investigation (issue \#5: MC STOP calibration audit). Training ESS and
+confusion matrix are unaffected.
+
+**Directional p-value.** The original analysis specified a *directional*
+hypothesis (one-tailed, a priori). Directional ODA is not yet implemented
+(issue \#6). When available, the directional p-value will be smaller.

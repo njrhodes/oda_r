@@ -1,0 +1,155 @@
+---
+title: "Multiclass ODA: Convergent Validity of Protein Classification Methods"
+author: "odacore"
+date: "`r Sys.Date()`"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Multiclass ODA: Convergent Validity of Protein Classification Methods}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>")
+```
+
+## Research question
+
+Nishikawa, Kubota, and Ooi (1983) independently classified 325 proteins into
+one of four mutually exclusive types using two different methods: one based on
+biological characteristics and one based on amino acid composition.^[Nishikawa,
+K., Kubota, Y., & Ooi, T. (1983). Classification of proteins into groups based
+on amino acid composition and other characters, II: Grouping into four types.
+*Journal of Biochemistry*, 94, 997–1007.] Because the two methods should
+theoretically converge on the same type for each protein, the directional
+hypothesis is that protein type codes are identical across methods —
+demonstrating convergent validity.
+
+Optimal Data Analysis (MultiODA) tests whether amino acid composition type
+discriminates biological type, with the *a priori* prediction that type codes
+match across methods.
+
+## Data
+
+Biological type (1–4) is the class variable; amino acid composition type (1–4)
+is the attribute. Published cell frequencies are reconstructed directly into
+observation-level vectors — no external data file is required.
+
+```{r data}
+library(odacore)
+
+# Cross-classification: rows = biological type, cols = amino acid type.
+# (column-major reconstruction matches published Table 1)
+#                  AA=1  AA=2  AA=3  AA=4   total
+#  Biological=1     98    16     5     3      122
+#  Biological=2     13    50     2     8       73
+#  Biological=3      6     4    23    12       45
+#  Biological=4      7    19    14    45       85
+#  total           124    89    44    68      325
+
+biological_type <- c(
+  rep(1L, 98), rep(2L, 13), rep(3L,  6), rep(4L,  7),  # amino_acid = 1
+  rep(1L, 16), rep(2L, 50), rep(3L,  4), rep(4L, 19),  # amino_acid = 2
+  rep(1L,  5), rep(2L,  2), rep(3L, 23), rep(4L, 14),  # amino_acid = 3
+  rep(1L,  3), rep(2L,  8), rep(3L, 12), rep(4L, 45)   # amino_acid = 4
+)
+amino_acid_type <- c(rep(1L, 124), rep(2L, 89), rep(3L, 44), rep(4L, 68))
+
+table(amino_acid_type, biological_type,
+      dnn = c("Amino Acid Type (1-4)", "Biological Type (1-4)"))
+```
+
+## Fit the ODA model
+
+Amino acid type is a four-category nominal variable; ODA scans it with the
+categorical flag, consistent with the MegaODA reference analysis. Leave-one-out
+(LOO) jackknife is not conducted for multicategorical class variables.
+
+```{r fit}
+fit <- oda_fit(
+  x         = amino_acid_type,
+  y         = biological_type,
+  attr_type = "categorical",
+  mc_iter   = 25000L,
+  loo       = "off"
+)
+```
+
+## Rule and confusion matrix
+
+```{r print-fit}
+print(fit)
+```
+
+ODA identified the identity mapping across all four types — exactly as
+hypothesised *a priori*:
+
+- If amino acid type = 1 → predict biological type = 1
+- If amino acid type = 2 → predict biological type = 2
+- If amino acid type = 3 → predict biological type = 3
+- If amino acid type = 4 → predict biological type = 4
+
+```{r confusion}
+# Confusion matrix (actual × predicted); strip dimnames for clean display
+conf_mat <- unname(fit$confusion)
+rownames(conf_mat) <- paste0("Bio=", 1:4)
+colnames(conf_mat) <- paste0("Pred=", 1:4)
+print(conf_mat)
+```
+
+## ESS / PAC / PV interpretation
+
+```{r metrics}
+summary(fit)
+```
+
+```{r pac-pv}
+m <- oda_metrics(fit)
+
+# PAC (sensitivity) per class
+cat("PAC by biological type:\n")
+cat("  Type 1:", round(m$pac_by_class[1] * 100, 1), "%\n")
+cat("  Type 2:", round(m$pac_by_class[2] * 100, 1), "%\n")
+cat("  Type 3:", round(m$pac_by_class[3] * 100, 1), "%\n")
+cat("  Type 4:", round(m$pac_by_class[4] * 100, 1), "%\n")
+
+# Predictive value: diagonal / column sums
+pv <- diag(fit$confusion) / colSums(fit$confusion) * 100
+cat("\nPV by biological type:\n")
+cat("  Type 1:", round(pv[1], 1), "%\n")
+cat("  Type 2:", round(pv[2], 1), "%\n")
+cat("  Type 3:", round(pv[3], 1), "%\n")
+cat("  Type 4:", round(pv[4], 1), "%\n")
+```
+
+- **PAC (sensitivity per class):** 80.3%, 68.5%, 51.1%, and 52.9% for protein
+  types 1 through 4, respectively. Because 25% correct per class is expected by
+  chance for a four-class problem, classification of all four types substantially
+  exceeds chance.
+- **ESS = 50.96%** indicates a relatively strong effect.^[Yarnold, P.R., &
+  Soltysik, R.C. (2005). *Optimal Data Analysis: A Guidebook with Software for
+  Windows.* Washington, D.C.: APA Books.] All four PAC values exceed 50%,
+  confirming that no class is classified below the coin-flip threshold for a
+  four-class model (50%).
+- **PV:** When the model predicts type 1 it is correct ~79.0% of the time; type
+  2, ~56.2%; type 3, ~52.3%; type 4, ~66.2%. All predictive values exceed
+  chance.
+
+## Monte Carlo validity
+
+The nondirectional MC p-value is shown in the `summary` output above.
+
+- **MC p-value:** The printed `p(MC)` is a nondirectional Fisher-randomization
+  p-value. Interpret by decision threshold (e.g., p < 0.05).
+- **LOO:** Leave-one-out jackknife is not conducted for multicategorical class
+  variables.
+
+## Notes on reproducibility and current scope
+
+**Fixture parity.** The training rule, confusion matrix, and ESS are verified
+against MegaODA.exe output in the package test suite
+(`tests/testthat/test-fixture-vignettes.R`, Example 3).
+
+**Directional p-value.** The original analysis specified a *directional*
+hypothesis (convergent validity). Directional ODA is not yet implemented
+(issue \#6). When available, the directional p-value will be smaller.
