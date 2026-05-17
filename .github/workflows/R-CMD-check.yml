@@ -1,8 +1,7 @@
 on:
-  push:
-    branches: [main, rcore, "rcore/**"]
-  pull_request:
-    branches: [main, rcore]
+  workflow_dispatch:
+  schedule:
+    - cron: "0 10 * * 1"
 
 name: R-CMD-check
 
