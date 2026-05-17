@@ -227,3 +227,57 @@ test_that("UniODA SAMPLEREP: balanced split chosen over unbalanced when PAC ties
   expect_equal(round(fit$rule$cut_value, 1), 3.5,
                label = "SAMPLEREP: balanced cut chosen")
 })
+
+# ---- MC p-value formula: raw proportion (no LaPlace pseudocount) ------------
+
+test_that("oda_mc_p_value: p_mc is raw ge_count/iter_used (no LaPlace +1)", {
+  # Seeded regression anchors verify the formula directly.
+  #
+  # Anchor 1 — refugee-act data, ESS = 44.09% (strong effect).
+  # seed=1, mc_iter=200 is a seeded regression anchor with ge_count == 0.
+  # p_mc must be exactly 0.0 (raw proportion), not (0+1)/(200+1) = 1/201.
+  vote  <- c(rep(0L, 118), rep(0L,  78), rep(1L,  34), rep(1L, 177))
+  party <- c(rep(0L, 118), rep(1L,  78), rep(0L,  34), rep(1L, 177))
+
+  r1 <- odacore:::oda_mc_p_value(
+    x=party, y=vote, attr_type="ordered", priors_on=TRUE,
+    primary="maxsens", secondary="samplerep",
+    mc_iter=200L, mc_stop=NA_real_, mc_stopup=NA_real_,
+    seed=1L, ess_obs=44.09
+  )
+  expect_equal(r1$ge_count,  0L,   label = "anchor1: ge_count == 0")
+  expect_equal(r1$iter_used, 200L, label = "anchor1: iter_used == 200")
+  expect_equal(r1$p_mc,      0.0,  label = "anchor1: p_mc == 0.0 (not 1/201)")
+
+  # Anchor 2 — migraine data, ESS = 24.69% (weak; MC p ~ 0.086 per MegaODA).
+  # seed=1, mc_iter=500: probe gives ge_count=39, iter_used=500.
+  # Raw p_mc = 39/500 = 0.078.  LaPlace would give 40/501 ≈ 0.07984.
+  treatment <- c(
+    rep(0L, 13), rep(1L,  5),
+    rep(0L,  9), rep(1L, 13),
+    rep(0L,  4), rep(1L,  6),
+    rep(0L,  2), rep(1L,  1),
+    rep(0L,  1), rep(1L,  2),
+    rep(0L,  1), rep(1L,  3),
+    rep(0L,  3), rep(1L,  3),
+    rep(0L,  0), rep(1L,  1)
+  )
+  attacks <- c(
+    rep(0L, 18), rep(1L, 22), rep(2L, 10),
+    rep(3L,  3), rep(4L,  3), rep(5L,  4),
+    rep(6L,  6), rep(7L,  1)
+  )
+
+  r2 <- odacore:::oda_mc_p_value(
+    x=attacks, y=treatment, attr_type="ordered", priors_on=TRUE,
+    primary="maxsens", secondary="samplerep",
+    mc_iter=500L, mc_stop=NA_real_, mc_stopup=NA_real_,
+    seed=1L, ess_obs=24.69
+  )
+  expect_equal(r2$ge_count,  39L,   label = "anchor2: ge_count == 39")
+  expect_equal(r2$iter_used, 500L,  label = "anchor2: iter_used == 500")
+  expect_equal(r2$p_mc,      39 / 500,
+               label = "anchor2: p_mc == ge_count/iter_used")
+  expect_false(isTRUE(all.equal(r2$p_mc, 40 / 501)),
+               label = "anchor2: p_mc != LaPlace (40/501)")
+})

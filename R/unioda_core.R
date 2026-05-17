@@ -321,7 +321,9 @@ oda_mc_p_value <- function(
     }
   }
 
-  list(p_mc      = (ge_count + 1) / (iter_used + 1),
+  list(p_mc      = if (iter_used <= 0L) NA_real_
+                   else if (ge_count == 0L) 0.0
+                   else ge_count / iter_used,
        ge_count  = ge_count,
        iter_used = iter_used,
        ess_obs   = ess_obs)

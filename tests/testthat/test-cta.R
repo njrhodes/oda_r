@@ -42,12 +42,32 @@ test_that("mindenom too large → single leaf node", {
   expect_true(isTRUE(tree$nodes[[1]]$leaf))
 })
 
-test_that("max_depth = 1 → root is a leaf (no splits allowed)", {
+test_that("max_depth = 1 → root splits, children are leaves", {
+  # ENUMERATE semantics: the root is created directly by ENUMERATE at depth 1
+  # and is not filtered by the depth >= max_depth guard (which lives inside
+  # .ho_grow(), called only for depth-2+ children).  With max_depth = 1,
+  # children are grown at depth 2 and are immediately forced to leaves.
+  #
+  # The prior expectation ("root is a leaf") depended on the old LaPlace-
+  # smoothed MC p inflating the root's p_mc above alpha_split in this seeded
+  # example (iter_used=50, ge_count=2: LaPlace=3/51≈0.059 vs raw=2/50=0.04).
+  # With canonical raw MC p the root candidate passes alpha; this test is a
+  # synthetic unit test, not a gold fixture parity anchor.
   d    <- bin_data()
   tree <- oda_cta_fit(d$X, d$y, mindenom = 2L, max_depth = 1L,
                       mc_iter = 300L, mc_seed = 1L, loo = "off")
-  root <- tree$nodes[[tree$root_id]]
-  expect_true(isTRUE(root$leaf))
+  root     <- tree$nodes[[tree$root_id]]
+  children <- tree$nodes[root$child_ids]
+
+  # Root is a split node (significant ODA on perfectly separable data)
+  expect_false(isTRUE(root$leaf), label = "root is a split node")
+  # Children of root are leaves (depth 2 >= max_depth 1 forces them)
+  expect_true(all(vapply(children, function(nd) isTRUE(nd$leaf), logical(1))),
+              label = "all children of root are leaves")
+  # No node in the tree has depth > 2
+  depths <- vapply(tree$nodes, function(nd) nd$depth, integer(1))
+  expect_lte(max(depths, na.rm = TRUE), 2L,
+             label = "tree depth does not exceed 2")
 })
 
 test_that("max_depth = 2 → no node deeper than depth 2", {
