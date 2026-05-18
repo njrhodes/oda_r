@@ -89,6 +89,15 @@ test_that("Bowker Table 4.1: ordered training ESS approx 93.7", {
   # When DIRECTIONAL is added, expect p_mc < 0.0001 with directional Fisher.
 })
 
+test_that("Bowker Table 4.1: DIRECTIONAL ordered multiclass p_mc < 0.0001 [deferred]", {
+  # MPE Chapter 4: Bowker/stability, DIRECTIONAL < 1 2 3 4.
+  # Future anchors when multiclass DIRECTIONAL MC is implemented:
+  #   ESS ≈ 93.7, diagonal correctly classified count = 53295,
+  #   p_mc < 0.0001 with directional Fisher.
+  # LOO not part of this target unless MPE declares it.
+  skip("multiclass DIRECTIONAL not implemented: target Bowker DIRECTIONAL < 1 2 3 4, ESS \u2248 93.7, p_mc < 0.0001")
+})
+
 # ---- Marginal Dissymmetry (MPE Table 4.1 off-diagonal) ----------------------
 
 test_that("Marginal dissymmetry Table 4.1: transcription check (N=2686)", {
@@ -132,6 +141,20 @@ test_that("Marginal dissymmetry Table 4.1: categorical training ESS approx 21.1"
   # Note: p_mc not asserted — DIRECTIONAL not yet implemented (issue #6).
   # Note: This is SDA step 2 context from MPE Ch. 4; full SDA also requires
   # step 1 (overall Bowker stability, above) and D-statistic comparison.
+})
+
+# ---- Political affiliation (MPE Chapter 4) ----------------------------------
+
+test_that("Political affiliation: categorical multiclass DIRECTIONAL p < 0.0001 [deferred]", {
+  # MPE Chapter 4: political affiliation, categorical multiclass.
+  # MegaODA commands: CATEGORICAL ON; TABLE 7; CLASS ROW;
+  #   DIRECTIONAL < 1 2 3 4 5 6 7; MCARLO ITER 10000; GO;
+  # Directional hypothesis: student and parent have same political affiliation.
+  # Future anchors when categorical multiclass DIRECTIONAL is implemented:
+  #   ESS = 19.4, ESP = 17.9, p < 0.0001.
+  # LOO is superfluous when class categories equal attribute categories (k = C)
+  # and a directional hypothesis is specified; LOO off / not applicable.
+  skip("categorical multiclass DIRECTIONAL not implemented: target political affiliation DIRECTIONAL < 1..7, ESS 19.4, ESP 17.9, p < 0.0001, LOO superfluous")
 })
 
 # ---- Bray-Curtis (MPE Table 4.2) --------------------------------------------
