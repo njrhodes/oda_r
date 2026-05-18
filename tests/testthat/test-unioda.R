@@ -382,3 +382,50 @@ test_that("DIRECTION: categorical + direction != 'off' returns explicit failure"
   expect_equal(fit$reason, "direction_not_supported_for_categorical",
                label = "cat direction: correct reason")
 })
+
+# ---- Phase 6B: LOO Fisher alternative conditional on direction --------------
+
+test_that("Phase 6B: direction='off' stores and uses 'two.sided' Fisher alternative", {
+  # Non-directional analysis should use two-sided Fisher for the LOO p-value.
+  # loo_alpha=1.0 forces the LOO gate to always pass so fit$loo is populated
+  # regardless of the p-value magnitude (same pattern as Phase 6A LOO test).
+  x <- c(1, 2, 3, 4, 5, 6, 7, 8)
+  y <- c(0L, 0L, 0L, 0L, 1L, 1L, 1L, 1L)
+
+  fit <- oda_univariate_core(x, y, direction = "off", priors_on = TRUE,
+                             mcarlo = FALSE, loo = "pvalue", loo_alpha = 1.0)
+
+  expect_false(is.null(fit$loo),                      label = "6B off: loo not NULL")
+  expect_true(isTRUE(fit$loo$allowed),                label = "6B off: loo allowed")
+  expect_equal(fit$loo$alternative, "two.sided",      label = "6B off: alternative is two.sided")
+})
+
+test_that("Phase 6B: direction='greater' stores and uses 'greater' Fisher alternative", {
+  # Directional analysis (greater) should use one-sided greater Fisher test.
+  # loo_alpha=1.0 ensures the LOO result is always returned.
+  x <- c(1, 2, 3, 4, 5, 6, 7, 8)
+  y <- c(0L, 0L, 0L, 0L, 1L, 1L, 1L, 1L)
+
+  fit <- oda_univariate_core(x, y, direction = "greater", priors_on = TRUE,
+                             mcarlo = FALSE, loo = "pvalue", loo_alpha = 1.0)
+
+  expect_false(is.null(fit$loo),                      label = "6B greater: loo not NULL")
+  expect_true(isTRUE(fit$loo$allowed),                label = "6B greater: loo allowed")
+  expect_equal(fit$loo$alternative, "greater",        label = "6B greater: alternative is greater")
+})
+
+test_that("Phase 6B: direction='less' stores and uses 'greater' Fisher alternative", {
+  # Directional analysis (less) restricts candidates to 1->0 direction.
+  # The LOO Fisher test is still one-sided 'greater' (tests better-than-chance
+  # classification; directionality is already enforced by the candidate filter).
+  # loo_alpha=1.0 ensures the LOO result is always returned.
+  x <- c(1, 2, 3, 4, 5, 6, 7, 8)
+  y <- c(1L, 1L, 1L, 1L, 0L, 0L, 0L, 0L)
+
+  fit <- oda_univariate_core(x, y, direction = "less", priors_on = TRUE,
+                             mcarlo = FALSE, loo = "pvalue", loo_alpha = 1.0)
+
+  expect_false(is.null(fit$loo),                      label = "6B less: loo not NULL")
+  expect_true(isTRUE(fit$loo$allowed),                label = "6B less: loo allowed")
+  expect_equal(fit$loo$alternative, "greater",        label = "6B less: alternative is greater")
+})

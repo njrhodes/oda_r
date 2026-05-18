@@ -473,7 +473,10 @@ oda_loo_ordered_cut_counts <- function(x, y, w, priors_on, rule) {
 #' @param attr_type  Attribute type string.
 #' @param allow_weighted_categorical_loo  Logical (default FALSE per spec).
 #' @param ...  Additional args forwarded to oda_univariate_core for each fold.
-#' @return List with allowed, confusion, ess_loo, p_value.
+#' @return List with \code{allowed}, \code{confusion}, \code{ess_loo},
+#'   \code{p_value}, and \code{alternative} (the \code{fisher.test} alternative
+#'   used: \code{"two.sided"} when \code{direction = "off"}, \code{"greater"}
+#'   when a directional hypothesis is declared).
 oda_loo_for_rule <- function(
     x, y,
     rule,
@@ -611,15 +614,15 @@ oda_loo_for_rule <- function(
   tab <- matrix(c(conf_loo_r$TP, conf_loo_r$FP,
                   conf_loo_r$FN, conf_loo_r$TN),
                 nrow = 2, byrow = TRUE)
-  # Phase 6A: alternative is hardcoded "greater" for all direction values.
-  # Phase 6B: direction="off" -> "two.sided"; direction="greater"/"less" -> "greater".
+  fisher_alt <- if (direction == "off") "two.sided" else "greater"
   p_fisher <- tryCatch(
-    stats::fisher.test(tab, alternative = "greater")$p.value,
+    stats::fisher.test(tab, alternative = fisher_alt)$p.value,
     error = function(e) NA_real_
   )
 
   list(allowed = TRUE, reason = NULL,
-       confusion = conf_loo, ess_loo = ess_loo, p_value = p_fisher)
+       confusion = conf_loo, ess_loo = ess_loo,
+       p_value = p_fisher, alternative = fisher_alt)
 }
 
 # ---- Main UniODA entry point ---------------------------------------------- #
