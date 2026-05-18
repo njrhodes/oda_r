@@ -143,6 +143,100 @@ test_that("Marginal dissymmetry Table 4.1: categorical training ESS approx 21.1"
   # step 1 (overall Bowker stability, above) and D-statistic comparison.
 })
 
+# ---- Pinckney Gag Rule (MPE Table 4.3 / 4.4) --------------------------------
+
+test_that("Pinckney Table 4.3: transcription check (N=225)", {
+  # Table 4.3: Congressional Voting on the 1836 Pinckney Gag Rule.
+  # Rows = region attribute (1=North, 2=Border, 3=South).
+  # Cols = vote class (1=Yea, 2=Abstain, 3=Nay).
+  pinckney <- matrix(c(
+    61, 12, 60,
+    17,  6,  1,
+    39, 22,  7
+  ), nrow = 3L, byrow = TRUE)
+
+  expect_equal(sum(pinckney), 225L)
+  expect_equal(rowSums(pinckney), c(133L, 24L, 68L))   # North, Border, South
+  expect_equal(colSums(pinckney), c(117L, 40L, 68L))   # Yea, Abstain, Nay
+})
+
+test_that("Pinckney Table 4.3: categorical training ESS approx 28.8", {
+  # MPE p.76: nondirectional (no DIRECTIONAL command).
+  # MegaODA syntax: CATEGORICAL ON; TABLE 3; CLASS COL; MCARLO ITER 10000; GO;
+  # Class = vote (col); Attribute = region (row).
+  #
+  # This test anchors nondirectional multiclass categorical training ESS and
+  # rule mapping only.  ESP = 24.2 in MPE (Effect Strength for Predictive
+  # value, a separate metric not returned by oda_fit()).
+  #
+  # MPE reports p < 0.0001.  odacore p_mc consistently ~0.155 regardless of
+  # seed and does not match that MPE value.  p_mc is intentionally not asserted
+  # here.  Multiclass categorical MC parity with MegaODA.exe is a separate open
+  # issue / follow-up.
+  pinckney <- matrix(c(
+    61, 12, 60,
+    17,  6,  1,
+    39, 22,  7
+  ), nrow = 3L, byrow = TRUE)
+
+  d <- .expand_table(t(pinckney), class_vals = 1:3, attr_vals = 1:3)
+
+  set.seed(42L)
+  fit <- oda_fit(d$x, d$y,
+                 attr_type = "categorical",
+                 priors_on = TRUE,
+                 loo       = "off",
+                 mc_iter   = 10000L)
+
+  expect_true(fit$ok)
+  expect_equal(fit$ess, 28.8, tolerance = 0.5)
+  expect_equal(fit$rule$type, "multiclass_nominal")
+
+  # Mapping: level_class[i] = predicted class for attribute level i.
+  # level 1 (North) -> class 3 (Nay)
+  # level 2 (Border) -> class 1 (Yea)
+  # level 3 (South)  -> class 2 (Abstain)
+  expect_equal(as.integer(fit$rule$level_class), c(3L, 1L, 2L))
+})
+
+test_that("Pinckney Table 4.4: residual categorical training ESS approx 40.9", {
+  # MPE p.77: primary voters (correctly classified by Table 4.3 model) removed.
+  # Residual minority voting pattern; same nondirectional analysis.
+  #
+  # This test anchors nondirectional multiclass categorical training ESS and
+  # rule mapping only.  ESP = 42.2 in MPE (Effect Strength for Predictive
+  # value, a separate metric not returned by oda_fit()).
+  #
+  # MPE reports p < 0.0003.  odacore p_mc varies 0.000-0.014 across seeds and
+  # is not stably below that MPE threshold.  p_mc is intentionally not asserted
+  # here.  Multiclass categorical MC parity with MegaODA.exe is a separate open
+  # issue / follow-up.
+  pinckney_resid <- matrix(c(
+    61, 12,  0,
+     0,  6,  1,
+    39,  0,  7
+  ), nrow = 3L, byrow = TRUE)
+
+  d <- .expand_table(t(pinckney_resid), class_vals = 1:3, attr_vals = 1:3)
+
+  set.seed(42L)
+  fit <- oda_fit(d$x, d$y,
+                 attr_type = "categorical",
+                 priors_on = TRUE,
+                 loo       = "off",
+                 mc_iter   = 10000L)
+
+  expect_true(fit$ok)
+  expect_equal(fit$ess, 40.9, tolerance = 0.5)
+  expect_equal(fit$rule$type, "multiclass_nominal")
+
+  # Mapping: level_class[i] = predicted class for attribute level i.
+  # level 1 (North)  -> class 1 (Yea)
+  # level 2 (Border) -> class 2 (Abstain)
+  # level 3 (South)  -> class 3 (Nay)
+  expect_equal(as.integer(fit$rule$level_class), c(1L, 2L, 3L))
+})
+
 # ---- Political affiliation (MPE Chapter 4) ----------------------------------
 
 test_that("Political affiliation: categorical multiclass DIRECTIONAL p < 0.0001 [deferred]", {
