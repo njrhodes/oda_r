@@ -281,3 +281,104 @@ test_that("oda_mc_p_value: p_mc is raw ge_count/iter_used (no LaPlace +1)", {
   expect_false(isTRUE(all.equal(r2$p_mc, 40 / 501)),
                label = "anchor2: p_mc != LaPlace (40/501)")
 })
+
+# ---- Phase 6A: DIRECTION support (ordered binary only) ----------------------
+
+test_that("DIRECTION: direction='greater' selects '0->1' on clear ascending data", {
+  # Clear 0->1 geometry: class 1 on the right (high-attribute) side.
+  # direction="greater" (Chapter 2 greater-than direction; MegaODA DIRECTION < 0 1)
+  # must constrain the search to "0->1" candidates only and find the perfect cut.
+  x <- c(1L, 2L, 3L, 4L, 5L, 6L, 7L, 8L)
+  y <- c(0L, 0L, 0L, 0L, 1L, 1L, 1L, 1L)
+
+  fit <- oda_univariate_core(x, y, direction = "greater",
+                             priors_on = TRUE, mcarlo = FALSE, loo = "off")
+
+  expect_true(fit$ok,                              label = "direction greater: ok")
+  expect_equal(fit$rule$direction, "0->1",         label = "direction greater: rule is 0->1")
+  expect_equal(round(fit$pac, 1), 100.0,           label = "direction greater: PAC 100%")
+})
+
+test_that("DIRECTION: direction='less' selects '1->0' on clear descending data", {
+  # Clear 1->0 geometry: class 1 on the left (low-attribute) side.
+  # direction="less" (Chapter 2 less-than direction; MegaODA DIRECTION > 0 1)
+  # must constrain the search to "1->0" candidates only and find the perfect cut.
+  x <- c(1L, 2L, 3L, 4L, 5L, 6L, 7L, 8L)
+  y <- c(1L, 1L, 1L, 1L, 0L, 0L, 0L, 0L)
+
+  fit <- oda_univariate_core(x, y, direction = "less",
+                             priors_on = TRUE, mcarlo = FALSE, loo = "off")
+
+  expect_true(fit$ok,                              label = "direction less: ok")
+  expect_equal(fit$rule$direction, "1->0",         label = "direction less: rule is 1->0")
+  expect_equal(round(fit$pac, 1), 100.0,           label = "direction less: PAC 100%")
+})
+
+test_that("DIRECTION: direction='off' matches default (regression gate)", {
+  # direction="off" must produce identical results to omitting the argument.
+  # Uses the naval example (Yarnold & Soltysik 2005, p.62).
+  x <- c(35, 45, 55, 65, 75, 85, 95, 99)
+  y <- c(0L, 0L, 1L, 0L, 0L, 1L, 1L, 1L)
+
+  fit_off     <- oda_univariate_core(x, y, direction = "off",
+                                     priors_on = FALSE, mcarlo = FALSE, loo = "off")
+  fit_default <- oda_univariate_core(x, y,
+                                     priors_on = FALSE, mcarlo = FALSE, loo = "off")
+
+  expect_equal(fit_off$rule$cut_value, fit_default$rule$cut_value,
+               label = "direction off == default: cut_value")
+  expect_equal(fit_off$rule$direction, fit_default$rule$direction,
+               label = "direction off == default: rule direction")
+  expect_equal(round(fit_off$pac, 1), 87.5,
+               label = "direction off: PAC 87.5%")
+})
+
+test_that("DIRECTION: direction propagates into MC permutation refits", {
+  # Structural contract: direction is wired into oda_mc_p_value() and its
+  # internal oda_univariate_core() calls.  Assert rule direction obeyed and
+  # p_mc is a valid probability — not the specific value.
+  x <- c(1, 2, 3, 4, 5, 6, 7, 8, 9, 10)
+  y <- c(0L, 0L, 0L, 0L, 0L, 1L, 1L, 1L, 1L, 1L)
+
+  fit <- oda_univariate_core(x, y, direction = "greater", priors_on = TRUE,
+                             mcarlo = TRUE, mc_seed = 1L, mc_iter = 100L,
+                             loo = "off")
+
+  expect_true(fit$ok,                              label = "MC direction: ok")
+  expect_equal(fit$rule$direction, "0->1",         label = "MC direction: rule is 0->1")
+  expect_true(is.numeric(fit$p_mc) && !is.na(fit$p_mc),
+              label = "MC direction: p_mc is numeric non-NA")
+  expect_true(fit$p_mc >= 0 && fit$p_mc <= 1,     label = "MC direction: p_mc in [0,1]")
+})
+
+test_that("DIRECTION: direction propagates into LOO fold refits", {
+  # Structural contract: direction is wired into oda_loo_for_rule() and its
+  # internal oda_univariate_core() fold calls.  Uses loo_alpha=1.0 to force
+  # the LOO to run and populate fit$loo on clear separation data (Fisher p
+  # will be small, well below 1.0, so the gate does not reject).
+  x <- c(1L, 2L, 3L, 4L, 5L, 6L, 7L, 8L)
+  y <- c(0L, 0L, 0L, 0L, 1L, 1L, 1L, 1L)
+
+  fit <- oda_univariate_core(x, y, direction = "greater", priors_on = TRUE,
+                             mcarlo = FALSE, loo = "pvalue", loo_alpha = 1.0)
+
+  expect_true(fit$ok,                              label = "LOO direction: ok")
+  expect_equal(fit$rule$direction, "0->1",         label = "LOO direction: rule is 0->1")
+  expect_false(is.null(fit$loo),                   label = "LOO direction: loo not NULL")
+  expect_true(isTRUE(fit$loo$allowed),             label = "LOO direction: loo allowed")
+})
+
+test_that("DIRECTION: categorical + direction != 'off' returns explicit failure", {
+  # Phase 6A does not support directional analysis for categorical attributes.
+  # MPE Chapter 4 TABLE/DIRECTIONAL semantics are deferred to Phase 6C.
+  # Must return ok=FALSE, not a warning-and-ignore.
+  x <- c("A", "A", "B", "B", "B", "A")
+  y <- c(0L, 0L, 1L, 1L, 0L, 1L)
+
+  fit <- oda_univariate_core(x, y, attr_type = "categorical",
+                             direction = "greater", mcarlo = FALSE, loo = "off")
+
+  expect_false(fit$ok,                             label = "cat direction: ok is FALSE")
+  expect_equal(fit$reason, "direction_not_supported_for_categorical",
+               label = "cat direction: correct reason")
+})

@@ -17,7 +17,8 @@ oda_univariate_core(x, y, w = NULL,
   mc_stop = 99.9, mc_stopup = NA_real_, mc_adjust = FALSE,
   mc_seed = NULL, chance_model = c("class","attribute"),
   eval_order = c("mc_then_loo","loo_then_mc"),
-  mindenom = 1L)
+  mindenom = 1L,
+  direction = c("off","greater","less"))
 }
 \arguments{
   \item{x}{Attribute values.}
@@ -49,6 +50,16 @@ oda_univariate_core(x, y, w = NULL,
     MC iterations.}
   \item{mindenom}{Minimum raw observation count required in each child node
     for a candidate cut to be evaluated. Default 1 (no enforcement).}
+  \item{direction}{Directional hypothesis: \code{"off"} (default, non-directional;
+    both \code{"0->1"} and \code{"1->0"} candidates evaluated),
+    \code{"greater"} (Chapter 2 greater-than direction: x > cut predicts class 1;
+    MegaODA Appendix A \code{DIRECTION < 0 1}; restricts to internal \code{"0->1"}),
+    or \code{"less"} (Chapter 2 less-than direction: x <= cut predicts class 1;
+    MegaODA Appendix A \code{DIRECTION > 0 1}; restricts to internal \code{"1->0"}).
+    Ordered and binary attributes only. Categorical attributes with
+    \code{direction != "off"} return \code{ok = FALSE} with
+    \code{reason = "direction_not_supported_for_categorical"}.
+    The same constraint is applied in MC permutation refits and LOO fold refits.}
 }
 \value{
 Named list. Key fields: \code{ok}, \code{rule}, \code{confusion} (list

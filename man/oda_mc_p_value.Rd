@@ -20,7 +20,8 @@ oda_mc_p_value(
   mc_stopup = 20,
   mc_adjust = FALSE,
   seed = NULL,
-  ess_obs = NULL
+  ess_obs = NULL,
+  direction = c("off", "greater", "less")
 )
 }
 \arguments{
@@ -49,6 +50,9 @@ oda_mc_p_value(
 \item{seed}{Optional RNG seed.}
 
 \item{ess_obs}{Observed ESS (must be supplied).}
+
+\item{direction}{Directional constraint forwarded from oda_univariate_core():
+"off", "greater", or "less". Each permutation refit uses the same constraint.}
 }
 \value{
 List with p_mc, ge_count, iter_used, ess_obs.

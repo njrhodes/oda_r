@@ -17,7 +17,8 @@ oda_fit(x, y, w = NULL,
         loo = "off",
         boundary_mode = c("megaoda_halfopen","right_closed"),
         eval_order = c("mc_then_loo","loo_then_mc"),
-        mindenom = 1L)
+        mindenom = 1L,
+        direction = c("off","greater","less"))
 }
 \arguments{
   \item{x}{Attribute values (numeric, factor, character, or logical).}
@@ -60,6 +61,13 @@ oda_fit(x, y, w = NULL,
     MC iterations.}
   \item{mindenom}{Minimum raw observation count required in each child node
     for a candidate cut to be evaluated. Default 1 (no enforcement).}
+  \item{direction}{Directional hypothesis for binary class problems:
+    \code{"off"} (default, non-directional), \code{"greater"} (Chapter 2
+    greater-than direction; MegaODA Appendix A \code{DIRECTION < 0 1};
+    x > cut predicts class 1), or \code{"less"} (Chapter 2 less-than
+    direction; MegaODA Appendix A \code{DIRECTION > 0 1}; x <= cut predicts
+    class 1). Ordered and binary attributes only. Multiclass problems ignore
+    \code{direction} with a warning.}
 }
 \value{
 A named list with components:

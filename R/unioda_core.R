@@ -241,6 +241,8 @@ oda_apply_primary_secondary <- function(cand_df, primary, secondary, y, w,
 #' @param mc_adjust  Kept for API compatibility; not used.
 #' @param seed  Optional RNG seed.
 #' @param ess_obs  Observed ESS (must be supplied).
+#' @param direction  Directional constraint forwarded from oda_univariate_core():
+#'   "off", "greater", or "less". Each permutation refit uses the same constraint.
 #' @return List with p_mc, ge_count, iter_used, ess_obs.
 oda_mc_p_value <- function(
     x, y,
@@ -257,9 +259,11 @@ oda_mc_p_value <- function(
     mc_stopup    = 20,
     mc_adjust    = FALSE,
     seed         = NULL,
-    ess_obs      = NULL
+    ess_obs      = NULL,
+    direction    = c("off", "greater", "less")
 ) {
   chance_model <- match.arg(chance_model)
+  direction    <- match.arg(direction)
   y <- as.integer(y)
   n <- length(y)
   if (is.null(w)) w <- rep(1, n) else w <- as.numeric(w)
@@ -298,7 +302,8 @@ oda_mc_p_value <- function(
       mc_stopup    = mc_stopup,
       mc_adjust    = mc_adjust,
       mc_seed      = NULL,
-      chance_model = chance_model
+      chance_model = chance_model,
+      direction    = direction
     )
 
     ess_b <- if (!isTRUE(fit_b$ok)) 0 else fit_b$ess
@@ -486,10 +491,12 @@ oda_loo_for_rule <- function(
     mc_stop    = 99.9,
     mc_stopup  = NA_real_,
     mc_adjust  = FALSE,
-    mc_seed    = NULL
+    mc_seed    = NULL,
+    direction  = c("off", "greater", "less")
 ) {
   chance_model <- match.arg(chance_model)
   attr_type    <- match.arg(attr_type)
+  direction    <- match.arg(direction)
 
   y <- as.integer(y)
   n <- length(y)
@@ -554,7 +561,8 @@ oda_loo_for_rule <- function(
         mc_stopup    = mc_stopup,
         mc_adjust    = mc_adjust,
         mc_seed      = if (is.null(mc_seed)) NULL else mc_seed + i,
-        chance_model = chance_model
+        chance_model = chance_model,
+        direction    = direction
       )
 
       if (!isTRUE(fit_i$ok)) {
@@ -603,6 +611,8 @@ oda_loo_for_rule <- function(
   tab <- matrix(c(conf_loo_r$TP, conf_loo_r$FP,
                   conf_loo_r$FN, conf_loo_r$TN),
                 nrow = 2, byrow = TRUE)
+  # Phase 6A: alternative is hardcoded "greater" for all direction values.
+  # Phase 6B: direction="off" -> "two.sided"; direction="greater"/"less" -> "greater".
   p_fisher <- tryCatch(
     stats::fisher.test(tab, alternative = "greater")$p.value,
     error = function(e) NA_real_
@@ -632,6 +642,13 @@ oda_loo_for_rule <- function(
 #' @param mc_adjust  Legacy parameter (unused).
 #' @param mc_seed  RNG seed for MC.
 #' @param chance_model  "class" (1/C) or "attribute" (1/k_attr).
+#' @param direction Directional hypothesis: "off" (default, non-directional),
+#'   "greater" (Chapter 2 greater-than direction: x > cut predicts class 1;
+#'   MegaODA Appendix A \code{DIRECTION < 0 1}; internal "0->1"), or
+#'   "less" (Chapter 2 less-than direction: x <= cut predicts class 1;
+#'   MegaODA Appendix A \code{DIRECTION > 0 1}; internal "1->0").
+#'   Ordered and binary attributes only. Categorical returns ok=FALSE with
+#'   reason "direction_not_supported_for_categorical".
 #' @return Named list with ok, rule, confusion, ess, pac, p_mc, loo, tie_block.
 oda_univariate_core <- function(
     x,
@@ -654,12 +671,14 @@ oda_univariate_core <- function(
     mc_seed    = NULL,
     chance_model = c("class","attribute"),
     eval_order   = c("mc_then_loo", "loo_then_mc"),
-    mindenom     = 1L
+    mindenom     = 1L,
+    direction    = c("off", "greater", "less")
 ) {
   chance_model <- match.arg(chance_model)
   loo          <- match.arg(loo)
   eval_order   <- match.arg(eval_order)
   mindenom     <- max(1L, as.integer(mindenom))
+  direction    <- match.arg(direction)
 
   # Resolve missing_code alias → miss_codes
   if (!is.null(missing_code)) {
@@ -683,6 +702,13 @@ oda_univariate_core <- function(
   # 4. Both classes present?
   n0 <- sum(w[y == 0L]); n1 <- sum(w[y == 1L])
   if (n0 == 0 || n1 == 0) return(list(ok = FALSE, reason = "pure_node", type = "leaf"))
+
+  # 4a. Categorical DIRECTION not supported in Phase 6A.
+  # MPE Chapter 4 TABLE/DIRECTIONAL semantics are deferred to Phase 6C.
+  if (direction != "off" && attr_type == "categorical")
+    return(list(ok = FALSE,
+                reason = "direction_not_supported_for_categorical",
+                type   = "leaf"))
 
   # 5. Chance baselines
   C_class     <- 2L
@@ -825,6 +851,19 @@ oda_univariate_core <- function(
     stringsAsFactors = FALSE
   )
 
+  # 6b. Direction filter (ordered and binary attributes; categorical already
+  # returned early above). Restricts the candidate set to the declared
+  # direction before tie-breaking, so the same constraint applies to
+  # training, MC permutation refits, and LOO fold refits.
+  if (direction != "off") {
+    target_dir <- if (direction == "greater") "0->1" else "1->0"
+    cand_df    <- cand_df[cand_df$direction == target_dir, , drop = FALSE]
+    if (nrow(cand_df) == 0L)
+      return(list(ok = FALSE,
+                  reason = "no_admissible_cut_for_direction",
+                  type   = "leaf"))
+  }
+
   # 7. Tie-breaking defaults
   if (is.null(primary))   primary   <- if (priors_on) "maxsens" else "meansens"
   if (is.null(secondary)) secondary <- "samplerep"
@@ -912,7 +951,8 @@ oda_univariate_core <- function(
       mc_stopup    = mc_stopup,
       mc_adjust    = mc_adjust,
       seed         = mc_seed,
-      ess_obs      = ess_obj
+      ess_obs      = ess_obj,
+      direction    = direction
     )
     p_mc <- mc_res$p_mc
   }
@@ -934,7 +974,8 @@ oda_univariate_core <- function(
       mc_stop      = mc_stop,
       mc_stopup    = mc_stopup,
       mc_adjust    = mc_adjust,
-      mc_seed      = if (is.null(mc_seed)) NULL else mc_seed + 1L
+      mc_seed      = if (is.null(mc_seed)) NULL else mc_seed + 1L,
+      direction    = direction
     )
 
     if (isTRUE(loo_out$allowed)) {

@@ -41,6 +41,14 @@
 #' @param mc_stopup Confidence for upper-tail early stop (percent). Default 20.
 #' @param mc_seed Optional RNG seed for reproducibility.
 #' @param loo LOO mode: "off", "on" (multiclass), "stable", or "pvalue" (binary).
+#' @param direction Directional hypothesis: "off" (non-directional, default),
+#'   "greater" (Chapter 2 greater-than direction: x > cut predicts class 1;
+#'   corresponds to MegaODA Appendix A \code{DIRECTION < 0 1}; internal "0->1"),
+#'   or "less" (Chapter 2 less-than direction: x <= cut predicts class 1;
+#'   corresponds to MegaODA Appendix A \code{DIRECTION > 0 1}; internal "1->0").
+#'   Applies to binary class problems with ordered or binary attributes only.
+#'   Categorical attributes and multiclass problems do not support direction in
+#'   Phase 6A; multiclass direction is silently ignored with a warning.
 #' @param boundary_mode Boundary convention for multiclass ordered rules.
 #' @return Named list with ok, rule, ess, pac, p_mc, loo, n_eff, attr_type, engine.
 #' @export
@@ -63,11 +71,13 @@ oda_fit <- function(
     loo          = "off",
     boundary_mode = c("megaoda_halfopen","right_closed"),
     eval_order   = c("mc_then_loo", "loo_then_mc"),
-    mindenom     = 1L
+    mindenom     = 1L,
+    direction    = c("off", "greater", "less")
 ) {
   attr_type     <- match.arg(attr_type)
   boundary_mode <- match.arg(boundary_mode)
   eval_order    <- match.arg(eval_order)
+  direction     <- match.arg(direction)
 
   # Resolve alias
   if (!is.null(missing_code))
@@ -119,7 +129,8 @@ oda_fit <- function(
       mc_stopup    = mc_stopup,
       mc_seed      = mc_seed,
       eval_order   = eval_order,
-      mindenom     = mindenom
+      mindenom     = mindenom,
+      direction    = direction
     )
 
     # Remap rule and confusion back to original label space.
@@ -139,6 +150,8 @@ oda_fit <- function(
   }
 
   # Multiclass engine (C >= 3)
+  if (direction != "off")
+    warning("direction is not supported for multiclass problems and will be ignored")
   loo_multi <- if (loo == "off") "off" else "on"
   fit <- oda_multiclass_unioda_core(
     x = x, y = y, w = w,
