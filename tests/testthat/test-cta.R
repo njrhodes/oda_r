@@ -523,3 +523,52 @@ test_that("PRUNE active: Sidak-flagged V11 pruned, WESS improves", {
   expect_equal(root_attr, "V14",
                label = "pruned tree root is V14 (enumerated winner)")
 })
+
+# ---- A×B×C ENUMERATE: leaf sentinel tests ------------------------------------
+#
+# Canonical myeloma MINDENOM=1 result: V14→V15 tree.
+#   A = V14, cut=0.5  (root)
+#   B = V15 (left child of V14, i.e. V14<=0.5 branch)
+#   C = leaf          (right child of V14, i.e. V14>0.5 branch)
+#
+# The C=leaf outcome proves that the expanded A×B×C loop evaluated the leaf
+# sentinel for C and selected it over any split candidates on the right branch.
+# This is a structural correctness test: if C=leaf were not in C_options, the
+# loop would only emit (B=V15, C=split) combinations and would fail to reproduce
+# the canonical tree.
+#
+# Uses the same .myeloma_prune_tree(0.05) fixture (mc_seed=800, MINDENOM=1).
+
+test_that("ENUMERATE A×B×C: myeloma MINDENOM=1 right branch of V14 is a leaf", {
+  tree <- .myeloma_prune_tree(0.05)
+  skip_if(isTRUE(tree$no_tree), "no tree found — fixture issue")
+  root <- tree$nodes[[tree$root_id]]
+  skip_if(isTRUE(root$leaf), "root is leaf — ENUMERATE did not grow a tree")
+
+  # Root must be V14 (canonical enumerated winner)
+  expect_equal(root$attribute, "V14", label = "root attribute is V14")
+
+  # The right child of the root (V14 > 0.5 branch) must be a leaf.
+  # child_ids[2] = right child in the split labelling convention.
+  right_child_id <- root$child_ids[2L]
+  right_child    <- tree$nodes[[right_child_id]]
+  expect_true(isTRUE(right_child$leaf),
+    label = "right branch of V14 root is a leaf (C=leaf sentinel selected by ENUMERATE)")
+})
+
+test_that("ENUMERATE A×B×C: myeloma MINDENOM=1 left branch of V14 is V15 split", {
+  tree <- .myeloma_prune_tree(0.05)
+  skip_if(isTRUE(tree$no_tree), "no tree found — fixture issue")
+  root <- tree$nodes[[tree$root_id]]
+  skip_if(isTRUE(root$leaf), "root is leaf — ENUMERATE did not grow a tree")
+
+  expect_equal(root$attribute, "V14", label = "root attribute is V14")
+
+  # The left child of the root (V14 <= 0.5 branch) must be the V15 split.
+  left_child_id <- root$child_ids[1L]
+  left_child    <- tree$nodes[[left_child_id]]
+  expect_false(isTRUE(left_child$leaf),
+    label = "left branch of V14 root is a split node (not a leaf)")
+  expect_equal(left_child$attribute, "V15",
+    label = "left branch attribute is V15 (canonical depth-2 split)")
+})

@@ -810,20 +810,41 @@ oda_cta_fit <- function(
       class = "cta_tree"))
   }
 
-  # ---- ENUMERATE: for each valid root candidate, grow full HO-CTA, pick best ----
-  # Canonical algorithm: try each root attribute (sorted by root-level ESS desc),
-  # grow a complete HO-CTA tree below each, compute full-tree WESS, return best.
-  # Ties broken by enumeration order (highest root ESS first).
+  # ---- ENUMERATE: full A×B×C top-3-node enumeration ---------------------------
+  # Canonical algorithm: evaluate every valid combination of:
+  #   A = root split (all valid root candidates, sorted by root ESS desc)
+  #   B = left-child option  (all valid split candidates + explicit leaf sentinel)
+  #   C = right-child option (all valid split candidates + explicit leaf sentinel)
+  #
+  # Leaf sentinel is included even when split candidates exist: a locally
+  # significant child split may still reduce full-tree WESS after pruning,
+  # missingness, or interaction with the other branch.
+  #
+  # (B=leaf, C=leaf) is excluded from this expanded loop.  That configuration
+  # is handled by the root-only stump phase below under path-local scoring.
+  # Including it here under majority-fallback .predict_all() would duplicate
+  # it with different missingness behaviour and risk conflicting WESS values
+  # on datasets with missing root-attribute observations (Myeloma V17).
+  #
+  # B-subtree caching: B's sub-tree is grown once per (A, B) pair and reused
+  # across all C options for that (A, B).  C's sub-tree is re-grown per
+  # (A, B, C) triple; re-indexing optimisation deferred.
+  #
+  # Tie-breaking (FIRST IDENTIFIED): A sorted by root ESS desc; within each A,
+  # B split candidates sorted by left-branch ESS desc then leaf last; within
+  # each (A, B), C split candidates sorted by right-branch ESS desc then leaf last.
 
   best_wess    <- -Inf
   best_nodes   <- NULL
   best_n_nodes <- 0L
 
-  .vmsg("[ENUMERATE] ", length(root_cands), " root candidates")
+  .vmsg("[ENUMERATE] ", length(root_cands), " root candidates (A\u00d7B\u00d7C)")
+
   for (i in seq_along(root_cands)) {
     A_cand <- root_cands[[i]]
     .vmsg("[ENUMERATE ", i, "/", length(root_cands), "] root=", A_cand$name,
           " ESS=", round(A_cand$ess, 2), "%")
+
     appl_A  <- .apply_cand(A_cand, seq_len(n))
     valid_A <- !is.na(appl_A$y_pred)
     sl_A    <- sort(unique(appl_A$y_pred[valid_A]))
@@ -832,56 +853,134 @@ oda_cta_fit <- function(
     left_idx  <- which(valid_A & appl_A$y_pred == sl_A[1L])
     right_idx <- which(valid_A & appl_A$y_pred == sl_A[2L])
 
-    # Grow full HO-CTA on left branch; first id allocated = 2
-    B_env         <- new.env(parent = emptyenv())
-    B_env$nodes   <- vector("list", n + 4L)
-    B_env$counter <- 1L
-    cid2  <- .ho_grow(left_idx, 2L, 1L, B_env,
-                      pred_class = as.integer(sl_A[1L]))
-    B_max <- B_env$counter
+    # All valid split candidates for B (left) and C (right) positions.
+    B_cands <- .all_cands(left_idx,  pos_id = 2L)
+    C_cands <- .all_cands(right_idx, pos_id = 3L)
 
-    # Grow full HO-CTA on right branch; first id allocated = B_max + 1
-    C_env         <- new.env(parent = emptyenv())
-    C_env$nodes   <- vector("list", n + B_max + 4L)
-    C_env$counter <- B_max
-    cid3  <- .ho_grow(right_idx, 2L, 1L, C_env,
-                      pred_class = as.integer(sl_A[2L]))
-    C_max <- C_env$counter
+    # B/C options: split candidates (ESS desc) then leaf sentinel (NULL = leaf)
+    B_options <- c(B_cands, list(NULL))
+    C_options <- c(C_cands, list(NULL))
 
-    # Build candidate node list
-    total_size <- C_max
-    cand_nodes <- vector("list", total_size)
+    .vmsg("  B: ", length(B_cands), " split(s) + leaf")
+    .vmsg("  C: ", length(C_cands), " split(s) + leaf")
 
-    nd1 <- .split_nd(1L, 0L, 1L, seq_len(n), A_cand, appl_A)
-    nd1$split_labels <- as.integer(sl_A)
-    nd1$child_ids    <- c(cid2, cid3)
-    cand_nodes[[1L]] <- nd1
+    for (bi in seq_along(B_options)) {
+      B_opt     <- B_options[[bi]]
+      B_is_leaf <- is.null(B_opt)
 
-    for (bid in seq_len(B_max)[-1L]) {
-      nd_b <- B_env$nodes[[bid]]
-      if (!is.null(nd_b)) cand_nodes[[bid]] <- nd_b
-    }
-    for (cid_v in seq(cid3, C_max)) {
-      nd_c <- C_env$nodes[[cid_v]]
-      if (!is.null(nd_c)) cand_nodes[[cid_v]] <- nd_c
-    }
+      # ---- Build B sub-tree (cached for all C at this (A, B)) -----------------
+      if (B_is_leaf) {
+        nd2   <- .leaf_nd(2L, 1L, 2L, left_idx, pred_class = as.integer(sl_A[1L]))
+        B_max <- 2L
+      } else {
+        B_cand <- B_opt
+        appl_B <- .apply_cand(B_cand, left_idx)
+        sl_B   <- sort(unique(appl_B$y_pred[!is.na(appl_B$y_pred)]))
+        if (length(sl_B) < 2L) next   # degenerate B split — skip
 
-    # Prune candidate tree before scoring (Sidak-Bonferroni + maximum-accuracy).
-    pruned_nodes <- .prune_tree(cand_nodes)
+        nd2 <- .split_nd(2L, 1L, 2L, left_idx, B_cand, appl_B)
 
-    wess_cand <- tryCatch({
-      preds <- .predict_all(pruned_nodes, root_id = 1L)
-      .wess_classes(y, preds, w)
-    }, error = function(e) -Inf)
+        # Grow HO-CTA below B's children (depth 3+); node 2 is already placed.
+        B_sub_env         <- new.env(parent = emptyenv())
+        B_sub_env$nodes   <- vector("list", n + 4L)
+        B_sub_env$counter <- 2L   # children start at 3
 
-    .vmsg("  -> WESS=", round(wess_cand, 2), "%")
+        B_left_idx  <- left_idx[!is.na(appl_B$y_pred) & appl_B$y_pred == sl_B[1L]]
+        B_right_idx <- left_idx[!is.na(appl_B$y_pred) & appl_B$y_pred == sl_B[2L]]
 
-    if (wess_cand > best_wess) {
-      best_wess    <- wess_cand
-      best_nodes   <- pruned_nodes
-      best_n_nodes <- sum(!vapply(pruned_nodes, is.null, logical(1L)))
-    }
-  }  # end ENUMERATE loop
+        cid_BL <- .ho_grow(B_left_idx,  3L, 2L, B_sub_env,
+                           pred_class = as.integer(sl_B[1L]))
+        cid_BR <- .ho_grow(B_right_idx, 3L, 2L, B_sub_env,
+                           pred_class = as.integer(sl_B[2L]))
+        B_max  <- B_sub_env$counter
+        nd2$child_ids <- c(cid_BL, cid_BR)
+      }
+
+      # ---- Inner C loop -------------------------------------------------------
+      for (ci in seq_along(C_options)) {
+        C_opt     <- C_options[[ci]]
+        C_is_leaf <- is.null(C_opt)
+
+        # (B=leaf, C=leaf) handled by root-only stump phase — skip here
+        if (B_is_leaf && C_is_leaf) next
+
+        c_root_id <- B_max + 1L
+
+        if (C_is_leaf) {
+          nd_C  <- .leaf_nd(c_root_id, 1L, 2L, right_idx,
+                            pred_class = as.integer(sl_A[2L]))
+          C_max <- c_root_id
+        } else {
+          C_cand <- C_opt
+          appl_C <- .apply_cand(C_cand, right_idx)
+          sl_C   <- sort(unique(appl_C$y_pred[!is.na(appl_C$y_pred)]))
+          if (length(sl_C) < 2L) next   # degenerate C split — skip
+
+          nd_C <- .split_nd(c_root_id, 1L, 2L, right_idx, C_cand, appl_C)
+
+          # Grow HO-CTA below C's children (depth 3+); c_root_id is already placed.
+          C_sub_env         <- new.env(parent = emptyenv())
+          C_sub_env$nodes   <- vector("list", n + B_max + 4L)
+          C_sub_env$counter <- c_root_id   # children start at c_root_id + 1
+
+          C_left_idx  <- right_idx[!is.na(appl_C$y_pred) & appl_C$y_pred == sl_C[1L]]
+          C_right_idx <- right_idx[!is.na(appl_C$y_pred) & appl_C$y_pred == sl_C[2L]]
+
+          cid_CL <- .ho_grow(C_left_idx,  3L, c_root_id, C_sub_env,
+                             pred_class = as.integer(sl_C[1L]))
+          cid_CR <- .ho_grow(C_right_idx, 3L, c_root_id, C_sub_env,
+                             pred_class = as.integer(sl_C[2L]))
+          C_max <- C_sub_env$counter
+          nd_C$child_ids <- c(cid_CL, cid_CR)
+        }
+
+        B_label <- if (B_is_leaf) "leaf" else B_opt$name
+        C_label <- if (C_is_leaf) "leaf" else C_opt$name
+        .vmsg("  [B=", B_label, " C=", C_label, "]")
+
+        # ---- Assemble full candidate node list --------------------------------
+        cand_nodes <- vector("list", C_max)
+
+        nd1 <- .split_nd(1L, 0L, 1L, seq_len(n), A_cand, appl_A)
+        nd1$split_labels <- as.integer(sl_A)
+        nd1$child_ids    <- c(2L, c_root_id)
+        cand_nodes[[1L]] <- nd1
+        cand_nodes[[2L]] <- nd2
+
+        if (!B_is_leaf) {
+          for (bid in seq(3L, B_max)) {
+            nb <- B_sub_env$nodes[[bid]]
+            if (!is.null(nb)) cand_nodes[[bid]] <- nb
+          }
+        }
+
+        cand_nodes[[c_root_id]] <- nd_C
+
+        if (!C_is_leaf) {
+          for (cid_v in seq(c_root_id + 1L, C_max)) {
+            nc <- C_sub_env$nodes[[cid_v]]
+            if (!is.null(nc)) cand_nodes[[cid_v]] <- nc
+          }
+        }
+
+        # ---- Prune, score, compare -------------------------------------------
+        pruned_nodes <- .prune_tree(cand_nodes)
+
+        wess_cand <- tryCatch({
+          preds <- .predict_all(pruned_nodes, root_id = 1L)
+          .wess_classes(y, preds, w)
+        }, error = function(e) -Inf)
+
+        .vmsg("    -> WESS=", round(wess_cand, 2), "%")
+
+        if (wess_cand > best_wess) {
+          best_wess    <- wess_cand
+          best_nodes   <- pruned_nodes
+          best_n_nodes <- sum(!vapply(pruned_nodes, is.null, logical(1L)))
+        }
+      }  # end C loop
+    }  # end B loop
+  }  # end A loop
 
   # ---- ENUMERATE root-only (stump) candidate phase ----------------------------
   # CTA.exe canonical: MODEL1.TXT Trees 5-7 show CTA.exe explicitly evaluating
