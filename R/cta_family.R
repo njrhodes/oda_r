@@ -150,14 +150,167 @@ new_cta_family_member <- function(mindenom, tree) {
 
 #' Construct a CTA descendant family object (internal)
 #'
-#' Skeleton container for MDSA descendant family members built by
-#' \code{\link{new_cta_family_member}}.  The full search loop
-#' (\code{cta_descendant_family}) is deferred to Phase 2E.
+#' Container for MDSA descendant family members built by
+#' \code{\link{new_cta_family_member}}.  Used internally by
+#' \code{\link{cta_descendant_family}}.
 #'
 #' @param members A list of objects from \code{\link{new_cta_family_member}}.
+#' @param mindenoms Integer vector of MINDENOM values, same length as
+#'   \code{members}.
+#' @param summary Data frame summary with one row per member.
+#' @param min_d_idx Integer index of the feasible member with minimum D;
+#'   \code{NA_integer_} if none.
+#' @param terminated Logical; \code{TRUE} when the loop has exited.
+#' @param termination_reason Character: one of \code{"no_tree"},
+#'   \code{"max_steps"}, \code{"no_next_mindenom"}.
 #' @return A list of class \code{cta_family}.
 #' @keywords internal
-new_cta_family <- function(members = list()) {
+new_cta_family <- function(members       = list(),
+                           mindenoms     = integer(0L),
+                           summary       = data.frame(),
+                           min_d_idx     = NA_integer_,
+                           terminated    = FALSE,
+                           termination_reason = NA_character_) {
   stopifnot(is.list(members))
-  structure(list(members = members), class = "cta_family")
+  structure(
+    list(
+      members            = members,
+      mindenoms          = mindenoms,
+      summary            = summary,
+      min_d_idx          = as.integer(min_d_idx),
+      terminated         = terminated,
+      termination_reason = termination_reason
+    ),
+    class = "cta_family"
+  )
+}
+
+# ---- Public MDSA descendant family function ---------------------------------
+
+#' MDSA descendant family for CTA
+#'
+#' Traces the MDSA descendant family by fitting CTA models starting at
+#' \code{start_mindenom} and stepping according to the novometric MDSA rule:
+#' next MINDENOM = minimum terminal endpoint denominator + 1.  The family
+#' terminates when a no-tree fit is produced or \code{max_steps} is reached.
+#'
+#' @param X Data frame of predictor attributes; passed to
+#'   \code{\link{oda_cta_fit}}.
+#' @param y Integer class vector; passed to \code{\link{oda_cta_fit}}.
+#' @param w Optional numeric case-weight vector; passed to
+#'   \code{\link{oda_cta_fit}}.
+#' @param ... Additional arguments forwarded to \code{\link{oda_cta_fit}}
+#'   (e.g. \code{alpha_split}, \code{prune_alpha}, \code{mc_iter},
+#'   \code{mc_seed}, \code{loo}, \code{miss_codes}, \code{verbose}).
+#' @param start_mindenom Integer MINDENOM for the first family member.
+#'   Defaults to \code{1L}.
+#' @param max_steps Integer safety cap on the number of CTA fits; prevents
+#'   unbounded loops.  Defaults to \code{20L}.
+#'
+#' @return A list of class \code{cta_family} with fields:
+#' \describe{
+#'   \item{members}{List of \code{new_cta_family_member} objects in order,
+#'     including the terminal no-tree member.}
+#'   \item{mindenoms}{Integer vector of MINDENOM values tried.}
+#'   \item{summary}{Data frame with one row per member: \code{mindenom},
+#'     \code{status} (\code{"valid_tree"}, \code{"stump"}, or
+#'     \code{"no_tree"}), \code{strata}, \code{min_terminal_denom},
+#'     \code{overall_ess}, \code{d}, \code{no_tree}.}
+#'   \item{min_d_idx}{Integer index of the feasible (non-no-tree) member with
+#'     minimum D; \code{NA_integer_} if no feasible member exists.}
+#'   \item{terminated}{Logical; always \code{TRUE}.}
+#'   \item{termination_reason}{Character: one of \code{"no_tree"},
+#'     \code{"max_steps"}, \code{"no_next_mindenom"}.}
+#' }
+#' @seealso \code{\link{oda_cta_fit}}, \code{\link{cta_d_stat}},
+#'   \code{\link{cta_min_terminal_denom}}, \code{\link{cta_strata}}
+#' @export
+cta_descendant_family <- function(
+    X,
+    y,
+    w              = NULL,
+    ...,
+    start_mindenom = 1L,
+    max_steps      = 20L
+) {
+  start_mindenom <- as.integer(start_mindenom)
+  max_steps      <- as.integer(max_steps)
+  stopifnot(
+    is.data.frame(X),
+    length(y) == nrow(X),
+    !is.na(start_mindenom) && start_mindenom >= 1L,
+    !is.na(max_steps)      && max_steps      >= 1L
+  )
+
+  members     <- vector("list", 0L)
+  current_md  <- start_mindenom
+  term_reason <- NA_character_
+
+  for (step in seq_len(max_steps)) {
+    tree   <- oda_cta_fit(X, y, w = w, mindenom = current_md, ...)
+    member <- new_cta_family_member(current_md, tree)
+    members <- c(members, list(member))
+
+    if (isTRUE(tree$no_tree)) {
+      term_reason <- "no_tree"
+      break
+    }
+
+    next_md <- member$next_mindenom    # cta_min_terminal_denom(tree) + 1L
+    if (is.na(next_md) || next_md <= current_md) {
+      term_reason <- "no_next_mindenom"
+      break
+    }
+
+    current_md <- next_md
+  }
+
+  if (is.na(term_reason)) term_reason <- "max_steps"
+
+  # ---- Assemble return fields ------------------------------------------------
+  mindenoms <- vapply(members, `[[`, integer(1L),  "mindenom")
+  d_vals    <- vapply(members, `[[`, double(1L),   "d")
+  no_trees  <- vapply(members, `[[`, logical(1L),  "no_tree")
+  strata_v  <- vapply(members, function(m) {
+    s <- m[["strata"]]; if (is.null(s)) NA_integer_ else as.integer(s)
+  }, integer(1L))
+  mintd_v   <- vapply(members, function(m) {
+    v <- m[["min_terminal_denom"]]; if (is.null(v)) NA_integer_ else as.integer(v)
+  }, integer(1L))
+  ess_v     <- vapply(members, function(m) {
+    v <- m[["overall_ess"]]; if (is.null(v)) NA_real_ else as.double(v)
+  }, double(1L))
+
+  status_v <- ifelse(
+    no_trees,
+    "no_tree",
+    ifelse(!is.na(strata_v) & strata_v == 2L, "stump", "valid_tree")
+  )
+
+  summary_df <- data.frame(
+    mindenom           = mindenoms,
+    status             = status_v,
+    strata             = strata_v,
+    min_terminal_denom = mintd_v,
+    overall_ess        = ess_v,
+    d                  = d_vals,
+    no_tree            = no_trees,
+    stringsAsFactors   = FALSE
+  )
+
+  feasible  <- which(!no_trees)
+  min_d_idx <- if (length(feasible) == 0L) {
+    NA_integer_
+  } else {
+    as.integer(feasible[which.min(d_vals[feasible])])
+  }
+
+  new_cta_family(
+    members            = members,
+    mindenoms          = mindenoms,
+    summary            = summary_df,
+    min_d_idx          = min_d_idx,
+    terminated         = TRUE,
+    termination_reason = term_reason
+  )
 }

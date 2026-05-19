@@ -572,3 +572,97 @@ test_that("ENUMERATE A×B×C: myeloma MINDENOM=1 left branch of V14 is V15 split
   expect_equal(left_child$attribute, "V15",
     label = "left branch attribute is V15 (canonical depth-2 split)")
 })
+
+# ---- cta_descendant_family: myeloma MDSA chain tests ------------------------
+#
+# Canonical myeloma descendant family:
+#   MINDENOM 1  → min_terminal_denom = 29 → next = 30
+#   MINDENOM 30 → min_terminal_denom = 55 → next = 56
+#   MINDENOM 56 → no_tree → terminate
+#
+# Uses mc_seed = 12345L (same as existing .myeloma_tree() fixture tests).
+# family$min_d_idx = 1L because MINDENOM=1 (strata=3, WESS≈27.69%) has lower
+# D than MINDENOM=30 (strata=2, WESS≈16.51%):
+#   D(1)  = 100/(27.69/3) - 3  ≈  7.83
+#   D(30) = 100/(16.51/2) - 2  ≈ 10.11
+
+.myeloma_family <- local({
+  fam <- NULL
+  function() {
+    if (is.null(fam)) {
+      fpath <- testthat::test_path("fixtures/myeloma/data.txt")
+      skip_if_not(file.exists(fpath), "myeloma fixture not available")
+      d <- read.table(fpath)
+      colnames(d) <- paste0("V", seq_len(ncol(d)))
+      d  <- d[d[["V2"]] > 0, ]
+      ac <- c("V4","V9","V11","V12","V14","V15","V16","V17","V18","V19")
+      fam <<- suppressMessages(
+        cta_descendant_family(
+          X              = d[, ac, drop = FALSE],
+          y              = as.integer(d[["V1"]]),
+          w              = as.numeric(d[["V2"]]),
+          miss_codes     = -9,
+          loo            = "stable",
+          alpha_split    = 0.05,
+          prune_alpha    = 0.05,
+          mc_iter        = 5000L,
+          mc_seed        = 12345L,
+          verbose        = FALSE,
+          start_mindenom = 1L
+        )
+      )
+    }
+    fam
+  }
+})
+
+test_that("cta_descendant_family: myeloma chain length is 3", {
+  fam <- .myeloma_family()
+  expect_equal(length(fam$members), 3L)
+})
+
+test_that("cta_descendant_family: myeloma MINDENOM chain is {1, 30, 56}", {
+  fam <- .myeloma_family()
+  expect_equal(fam$mindenoms, c(1L, 30L, 56L))
+})
+
+test_that("cta_descendant_family: myeloma terminated = TRUE, reason = 'no_tree'", {
+  fam <- .myeloma_family()
+  expect_true(fam$terminated)
+  expect_equal(fam$termination_reason, "no_tree")
+})
+
+test_that("cta_descendant_family: myeloma final member is no-tree", {
+  fam <- .myeloma_family()
+  expect_true(fam$members[[3L]]$no_tree)
+})
+
+test_that("cta_descendant_family: myeloma feasible members have finite D", {
+  fam <- .myeloma_family()
+  expect_true(is.finite(fam$members[[1L]]$d),
+              label = "member 1 (MINDENOM=1) has finite D")
+  expect_true(is.finite(fam$members[[2L]]$d),
+              label = "member 2 (MINDENOM=30) has finite D")
+})
+
+test_that("cta_descendant_family: myeloma no-tree member has NA D", {
+  fam <- .myeloma_family()
+  expect_true(is.na(fam$members[[3L]]$d),
+              label = "member 3 (MINDENOM=56, no-tree) D is NA")
+})
+
+test_that("cta_descendant_family: myeloma min_d_idx = 1L (MINDENOM=1 wins)", {
+  fam <- .myeloma_family()
+  expect_equal(fam$min_d_idx, 1L,
+               label = "MINDENOM=1 has lower D than MINDENOM=30")
+})
+
+test_that("cta_descendant_family: myeloma summary has required columns and shape", {
+  fam <- .myeloma_family()
+  required <- c("mindenom","status","strata","min_terminal_denom",
+                "overall_ess","d","no_tree")
+  expect_true(all(required %in% names(fam$summary)),
+              info = paste("missing:", paste(setdiff(required, names(fam$summary)),
+                                             collapse = ", ")))
+  expect_equal(nrow(fam$summary), 3L)
+})
