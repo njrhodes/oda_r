@@ -454,3 +454,72 @@ test_that("cta_d_stat: two leaves, overall_ess = 50 returns D = 2", {
   tree <- .fake_cta_tree(overall_ess = 50, n_leaves = 2L)
   expect_equal(cta_d_stat(tree), 2)
 })
+
+# ---- PRUNE: Sidak-Bonferroni + maximum-accuracy pruning tests ----------------
+#
+# Fixture: myeloma data (tests/testthat/fixtures/myeloma/data.txt), mc_seed=800.
+#
+# With mc_seed=800 and prune_alpha=0.05, the HO-CTA candidate for the V14 root
+# grows V14 -> V15 -> V11 (3 split nodes). V11 has p_mc=0.04:
+#   K=3, alpha_3 = 1-(0.95)^(1/3) ~ 0.017 < 0.04 → V11 is Sidak-flagged.
+# Pruning V11 improves WESS from 25.40% to 27.69% → maximum-accuracy accepts.
+# Result: V14 -> V15 (2 split nodes), overall_ess ~ 27.69%.
+#
+# With prune_alpha=1.0 (no-op), V11 is never flagged: V14->V15->V11 survives,
+# scoring 25.40% over all n observations.
+#
+# External validation anchor (not tracked as fixture):
+#   tests/testthat/myeloma/MODEL1.TXT: Unpruned HO V17->V15->V14 WESS=23.61%,
+#   Pruned HO V17->V15 WESS=25.43%, Enumerated V14->V15 WESS=27.69%.
+
+.myeloma_prune_tree <- function(prune_alpha_val) {
+  fpath <- testthat::test_path("fixtures/myeloma/data.txt")
+  skip_if_not(file.exists(fpath), "myeloma fixture not available")
+  d <- read.table(fpath)
+  colnames(d) <- paste0("V", seq_len(ncol(d)))
+  d  <- d[d[["V2"]] > 0, ]
+  ac <- c("V4","V9","V11","V12","V14","V15","V16","V17","V18","V19")
+  suppressMessages(
+    oda_cta_fit(
+      X           = d[, ac, drop = FALSE],
+      y           = as.integer(d[["V1"]]),
+      w           = as.numeric(d[["V2"]]),
+      miss_codes  = -9,
+      mindenom    = 1L,
+      loo         = "stable",
+      alpha_split = 0.05,
+      prune_alpha = prune_alpha_val,
+      mc_iter     = 5000L,
+      mc_seed     = 800L,
+      verbose     = FALSE
+    )
+  )
+}
+
+.n_split_nodes <- function(tree) {
+  sum(vapply(tree[["nodes"]],
+             function(nd) !is.null(nd) && !isTRUE(nd[["leaf"]]) &&
+               length(nd[["child_ids"]]) > 0L,
+             logical(1L)))
+}
+
+test_that("PRUNE no-op: prune_alpha=1.0 retains all grown split nodes", {
+  tree <- .myeloma_prune_tree(1.0)
+  # With no pruning, HO candidate V14->V15->V11 survives (3 splits).
+  expect_equal(.n_split_nodes(tree), 3L,
+               label = "prune_alpha=1.0: 3 split nodes (V11 not pruned)")
+  expect_equal(round(tree[["overall_ess"]], 2), 25.40,
+               label = "prune_alpha=1.0: WESS=25.40% (unpruned)")
+})
+
+test_that("PRUNE active: Sidak-flagged V11 pruned, WESS improves", {
+  tree <- .myeloma_prune_tree(0.05)
+  # V11 (p=0.04 > alpha_3~0.017) is Sidak-flagged; pruning improves WESS.
+  expect_equal(.n_split_nodes(tree), 2L,
+               label = "prune_alpha=0.05: 2 split nodes (V11 pruned)")
+  expect_equal(round(tree[["overall_ess"]], 2), 27.69,
+               label = "prune_alpha=0.05: WESS=27.69% (pruned)")
+  root_attr <- tree[["nodes"]][[tree[["root_id"]]]][["attribute"]]
+  expect_equal(root_attr, "V14",
+               label = "pruned tree root is V14 (enumerated winner)")
+})

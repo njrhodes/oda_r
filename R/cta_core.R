@@ -418,7 +418,7 @@ oda_cta_fit <- function(
     .vmsg("  [CTA-scan] ", attr_names[j],
           " cut=", round(cta_scan$rule$cut_value, 4),
           " WESS=", round(obs_ess, 4), "%  p=", round(p_mc, 4))
-    if (is.na(p_mc) || p_mc >= alpha_split || p_mc >= prune_alpha) {
+    if (is.na(p_mc) || p_mc >= alpha_split) {
       .vmsg("  -> rejected (CTA path): Signif F  p=", round(p_mc %||% NA_real_, 4))
       return(NULL)
     }
@@ -564,7 +564,7 @@ oda_cta_fit <- function(
       return(NULL)
     }
     p_mc <- fit$p_mc
-    if (is.na(p_mc) || p_mc >= alpha_split || p_mc >= prune_alpha) {
+    if (is.na(p_mc) || p_mc >= alpha_split) {
       .vmsg("  -> rejected: p=", round(p_mc %||% NA_real_, 4), " (", elapsed, "s)")
       return(NULL)
     }
@@ -698,6 +698,95 @@ oda_cta_fit <- function(
     vapply(seq_len(n), pred_one, integer(1L))
   }
 
+  # Sidak-Bonferroni + maximum-accuracy post-growth pruning.
+  #
+  # Algorithm (MPE Chapters 10-11; MODEL1.TXT canon):
+  #   Repeat until stable:
+  #     1. Count reachable split nodes K in current tree.
+  #     2. Compute per-comparison Sidak threshold: alpha_k = 1-(1-prune_alpha)^(1/K).
+  #     3. Flag every split node whose p_mc >= alpha_k (Sidak-unreliable).
+  #     4. For each flagged node: tentatively collapse it to a leaf; score the
+  #        resulting tree with .predict_all() / .wess_classes().
+  #     5. Apply the collapse that yields the highest WESS >= current WESS
+  #        (equal-WESS tie: keep first-found in BFS order → shallowest/leftmost).
+  #     6. If no collapse improves or maintains WESS: stop.
+  #
+  # Captures: y, w, prune_alpha, .predict_all, .wess_classes from enclosing scope.
+  # Reusable: operates only on a node list; does not depend on enumeration structure.
+  # Returns: a (possibly modified) copy of nodes_list.
+  .prune_tree <- function(nodes_list, root_id = 1L) {
+    if (prune_alpha >= 1.0) return(nodes_list)
+
+    # BFS traversal — returns reachable node IDs in breadth-first (depth) order.
+    .bfs_ids <- function(nlist, rid) {
+      visited <- integer(0)
+      queue   <- rid
+      while (length(queue) > 0L) {
+        nid   <- queue[1L]; queue <- queue[-1L]
+        if (nid %in% visited) next
+        visited <- c(visited, nid)
+        nd <- nlist[[nid]]
+        if (!is.null(nd) && !isTRUE(nd$leaf) && length(nd$child_ids) > 0L)
+          queue <- c(queue, nd$child_ids[nd$child_ids > 0L])
+      }
+      visited
+    }
+
+    current <- nodes_list
+
+    repeat {
+      all_ids   <- .bfs_ids(current, root_id)
+      split_ids <- all_ids[vapply(all_ids, function(nid) {
+        nd <- current[[nid]]
+        !is.null(nd) && !isTRUE(nd$leaf) && length(nd$child_ids) > 0L
+      }, logical(1L))]
+
+      K <- length(split_ids)
+      if (K == 0L) break
+
+      alpha_k <- 1.0 - (1.0 - prune_alpha)^(1.0 / K)
+
+      # Sidak-flagged split nodes (BFS order = shallowest first for tie-breaking)
+      flagged <- split_ids[vapply(split_ids, function(nid) {
+        p <- current[[nid]]$p_mc
+        !is.na(p) && p >= alpha_k
+      }, logical(1L))]
+
+      if (length(flagged) == 0L) break
+
+      current_wess <- tryCatch({
+        .wess_classes(y, .predict_all(current, root_id), w)
+      }, error = function(e) -Inf)
+
+      # Find the best-WESS eligible collapse (must not decrease WESS).
+      # Initialise threshold just below current so equal-WESS pruning is accepted.
+      best_nid    <- NA_integer_
+      best_wess_p <- current_wess - 1e-8
+
+      for (nid in flagged) {
+        trial <- current
+        trial[[nid]]$leaf      <- TRUE
+        trial[[nid]]$child_ids <- integer(0)
+        tw <- tryCatch({
+          .wess_classes(y, .predict_all(trial, root_id), w)
+        }, error = function(e) -Inf)
+        if (tw > best_wess_p) {
+          best_wess_p <- tw
+          best_nid    <- nid
+        }
+      }
+
+      if (is.na(best_nid)) break   # no eligible collapse — stop
+
+      current[[best_nid]]$leaf      <- TRUE
+      current[[best_nid]]$child_ids <- integer(0)
+      .vmsg("[PRUNE] node ", best_nid, ": WESS ",
+            round(current_wess, 2), "% -> ", round(best_wess_p, 2), "%")
+    }
+
+    current
+  }
+
   # ---- ENUMERATE: top-3-node enumeration ------------------------------------
 
   root_cands <- .all_cands(seq_len(n), pos_id = 1L)
@@ -777,8 +866,11 @@ oda_cta_fit <- function(
       if (!is.null(nd_c)) cand_nodes[[cid_v]] <- nd_c
     }
 
+    # Prune candidate tree before scoring (Sidak-Bonferroni + maximum-accuracy).
+    pruned_nodes <- .prune_tree(cand_nodes)
+
     wess_cand <- tryCatch({
-      preds <- .predict_all(cand_nodes, root_id = 1L)
+      preds <- .predict_all(pruned_nodes, root_id = 1L)
       .wess_classes(y, preds, w)
     }, error = function(e) -Inf)
 
@@ -786,8 +878,8 @@ oda_cta_fit <- function(
 
     if (wess_cand > best_wess) {
       best_wess    <- wess_cand
-      best_nodes   <- cand_nodes
-      best_n_nodes <- sum(!vapply(cand_nodes, is.null, logical(1L)))
+      best_nodes   <- pruned_nodes
+      best_n_nodes <- sum(!vapply(pruned_nodes, is.null, logical(1L)))
     }
   }  # end ENUMERATE loop
 
