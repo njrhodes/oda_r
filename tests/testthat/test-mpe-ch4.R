@@ -165,14 +165,14 @@ test_that("Pinckney Table 4.3: categorical training ESS approx 28.8", {
   # MegaODA syntax: CATEGORICAL ON; TABLE 3; CLASS COL; MCARLO ITER 10000; GO;
   # Class = vote (col); Attribute = region (row).
   #
-  # This test anchors nondirectional multiclass categorical training ESS and
-  # rule mapping only.  ESP = 24.2 in MPE (Effect Strength for Predictive
-  # value, a separate metric not returned by oda_fit()).
+  # Anchors: nondirectional multiclass categorical training ESS, rule mapping,
+  # and MC p-value.  ESP = 24.2 in MPE (Effect Strength for Predictive value,
+  # a separate metric not returned by oda_fit(); not asserted here).
   #
-  # MPE reports p < 0.0001.  odacore p_mc consistently ~0.155 regardless of
-  # seed and does not match that MPE value.  p_mc is intentionally not asserted
-  # here.  Multiclass categorical MC parity with MegaODA.exe is a separate open
-  # issue / follow-up.
+  # MPE reports p < 0.0001.  Issue #7 fix: MC now compares mean PAC (the
+  # training objective) instead of raw correct count.  With seed 42 and
+  # 10,000 iterations, zero permutations achieve mean_pac >= observed (0 of
+  # 10000), so p_mc = 0.0.
   pinckney <- matrix(c(
     61, 12, 60,
     17,  6,  1,
@@ -197,20 +197,23 @@ test_that("Pinckney Table 4.3: categorical training ESS approx 28.8", {
   # level 2 (Border) -> class 1 (Yea)
   # level 3 (South)  -> class 2 (Abstain)
   expect_equal(as.integer(fit$rule$level_class), c(3L, 1L, 2L))
+
+  # p_mc: MPE p < 0.0001; probe (10k iter, seed 42) gave 0 exceedances.
+  expect_lt(fit$p_mc, 0.0001)
 })
 
 test_that("Pinckney Table 4.4: residual categorical training ESS approx 40.9", {
   # MPE p.77: primary voters (correctly classified by Table 4.3 model) removed.
   # Residual minority voting pattern; same nondirectional analysis.
   #
-  # This test anchors nondirectional multiclass categorical training ESS and
-  # rule mapping only.  ESP = 42.2 in MPE (Effect Strength for Predictive
-  # value, a separate metric not returned by oda_fit()).
+  # Anchors: nondirectional multiclass categorical training ESS, rule mapping,
+  # and MC p-value.  ESP = 42.2 in MPE (Effect Strength for Predictive value,
+  # a separate metric not returned by oda_fit(); not asserted here).
   #
-  # MPE reports p < 0.0003.  odacore p_mc varies 0.000-0.014 across seeds and
-  # is not stably below that MPE threshold.  p_mc is intentionally not asserted
-  # here.  Multiclass categorical MC parity with MegaODA.exe is a separate open
-  # issue / follow-up.
+  # MPE reports p < 0.0003.  Issue #7 fix: MC now compares mean PAC (the
+  # training objective) instead of raw correct count.  With seed 42 and
+  # 10,000 iterations, zero permutations achieve mean_pac >= observed (0 of
+  # 10000), so p_mc = 0.0.
   pinckney_resid <- matrix(c(
     61, 12,  0,
      0,  6,  1,
@@ -235,6 +238,9 @@ test_that("Pinckney Table 4.4: residual categorical training ESS approx 40.9", {
   # level 2 (Border) -> class 2 (Abstain)
   # level 3 (South)  -> class 3 (Nay)
   expect_equal(as.integer(fit$rule$level_class), c(1L, 2L, 3L))
+
+  # p_mc: MPE p < 0.0003; probe (10k iter, seed 42) gave 0 exceedances.
+  expect_lt(fit$p_mc, 0.0003)
 })
 
 # ---- Political affiliation (MPE Chapter 4) ----------------------------------

@@ -491,7 +491,7 @@ oda_mc_p_value_multiclass <- function(
     x, y, w, attr_type, priors_on, degen, K_segments,
     mc_iter   = 25000L, mc_target = 0.05,
     mc_stop   = 99.9,   mc_stopup = 20,
-    mc_adjust = FALSE,  seed = NULL, observed_correct
+    mc_adjust = FALSE,  seed = NULL, observed_mean_pac
 ) {
   if (!is.null(seed)) set.seed(seed)
   n           <- length(y)
@@ -513,8 +513,12 @@ oda_mc_p_value_multiclass <- function(
       mc_stopup = mc_stopup,   mc_adjust = mc_adjust, mc_seed = NULL
     )
 
-    corr_b <- if (isTRUE(fit_b$ok)) fit_b$correct else 0
-    if (corr_b >= observed_correct - 1e-12) ge <- ge + 1L
+    # Compare on the training-objective scale (mean PAC, percent units) so that
+    # priors-weighted and unbalanced designs are assessed consistently.
+    # Raw correct count is NOT used: it diverges from mean PAC when class sizes
+    # are unbalanced (issue #7).
+    mp_b <- if (isTRUE(fit_b$ok)) fit_b$mean_pac else 0
+    if (mp_b >= observed_mean_pac - 1e-7) ge <- ge + 1L
 
     if (!is.na(conf_level) && used >= min_check && (used %% check_every == 0L)) {
       if (ge == 0L) {
@@ -947,7 +951,7 @@ oda_multiclass_unioda_core <- function(
         priors_on = priors_on_eff, degen = degen, K_segments = K,
         mc_iter = mc_iter, mc_target = mc_target, mc_stop = mc_stop,
         mc_stopup = mc_stopup, mc_adjust = mc_adjust, seed = mc_seed,
-        observed_correct = out$correct)
+        observed_mean_pac = out$mean_pac)
       out$p_mc    <- mc$p_mc
       out$mc_info <- mc
     }
@@ -1087,7 +1091,7 @@ oda_multiclass_unioda_core <- function(
         priors_on = priors_on_eff, degen = degen, K_segments = 1L,
         mc_iter = mc_iter, mc_target = mc_target, mc_stop = mc_stop,
         mc_stopup = mc_stopup, mc_adjust = mc_adjust, seed = mc_seed,
-        observed_correct = out$correct)
+        observed_mean_pac = out$mean_pac)
       out$p_mc    <- mc$p_mc
       out$mc_info <- mc
     }
