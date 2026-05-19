@@ -514,6 +514,26 @@ oda_loo_for_rule <- function(
                 confusion = NULL, ess_loo = NA_real_, p_value = NA_real_))
   }
 
+  # Engineering guard: categorical LOO is not supported when every observed
+  # attribute level is unique.  In that case every LOO fold's held-out level
+  # is absent from training, so the absent-level fallback would drive all
+  # predictions — not a meaningful cross-validation.
+  # NOTE: this is NOT the MPE canon "superfluous LOO" case.  The MPE condition
+  # (political affiliation, rater agreement) requires a declared directional
+  # diagonal/agreement hypothesis (k_attr == C + DIRECTIONAL), which is a
+  # separate deferred feature in issue #6.
+  if (attr_type == "categorical") {
+    x_obs <- x[!is.na(x)]
+    if (!is.null(miss_codes)) x_obs <- x_obs[!(x_obs %in% miss_codes)]
+    if (length(x_obs) > 0L && length(unique(x_obs)) == length(x_obs)) {
+      return(list(allowed   = FALSE,
+                  reason    = "loo_not_supported_all_unique_categories",
+                  confusion = NULL,
+                  ess_loo   = NA_real_,
+                  p_value   = NA_real_))
+    }
+  }
+
   y_pred_loo <- integer(n)
 
   # For ordered_cut, try the algebraic count-table LOO first.  It reproduces

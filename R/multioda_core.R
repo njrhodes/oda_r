@@ -550,6 +550,16 @@ oda_loo_multiclass <- function(
     return(list(allowed = FALSE,
                 reason  = "categorical_weighted_loo_not_allowed"))
 
+  # Engineering guard: same rationale as oda_loo_for_rule().
+  # See comment there for distinction from MPE canon "superfluous LOO".
+  if (attr_type == "categorical") {
+    x_obs <- x[!is.na(x)]
+    if (!is.null(miss_codes)) x_obs <- x_obs[!(x_obs %in% miss_codes)]
+    if (length(x_obs) > 0L && length(unique(x_obs)) == length(x_obs))
+      return(list(allowed = FALSE,
+                  reason  = "loo_not_supported_all_unique_categories"))
+  }
+
   n      <- length(y); y <- as.integer(y)
   y_pred <- integer(n)
 

@@ -429,3 +429,61 @@ test_that("Phase 6B: direction='less' stores and uses 'greater' Fisher alternati
   expect_true(isTRUE(fit$loo$allowed),                label = "6B less: loo allowed")
   expect_equal(fit$loo$alternative, "greater",        label = "6B less: alternative is greater")
 })
+
+# ---- Engineering guard: all-unique categorical LOO --------------------------
+
+test_that("all-unique categorical x: LOO not supported (binary class)", {
+  # Engineering guard: when every observed categorical attribute level is unique,
+  # every LOO fold's held-out level would be absent from training, making the
+  # absent-level fallback drive all predictions -- not a meaningful LOO.
+  # NOTE: this is NOT the MPE canon 'superfluous LOO' (which requires declared
+  # DIRECTIONAL diagonal/agreement semantics, a separate deferred feature #6).
+  x <- c("A", "B", "C", "D", "E", "F")
+  y <- c(0L, 0L, 0L, 1L, 1L, 1L)
+
+  # loo_alpha=1.0 ensures the LOO gate always passes so fit$loo is populated.
+  fit <- oda_univariate_core(x, y, attr_type = "categorical",
+                             mcarlo = FALSE, loo = "pvalue", loo_alpha = 1.0)
+
+  expect_true(fit$ok,                                 label = "unique cat LOO: fit ok")
+  expect_false(is.null(fit$loo),                      label = "unique cat LOO: loo not NULL")
+  expect_false(isTRUE(fit$loo$allowed),               label = "unique cat LOO: loo not allowed")
+  expect_equal(fit$loo$reason,
+               "loo_not_supported_all_unique_categories",
+               label = "unique cat LOO: correct reason code")
+})
+
+test_that("repeated categorical x levels: all-unique guard does not fire (binary class)", {
+  # Regression guard: when levels repeat the new guard must not block LOO.
+  # Two levels, 4 observations each -- uniqueness condition is false.
+  x <- c("A", "A", "A", "A", "B", "B", "B", "B")
+  y <- c(0L, 0L, 0L, 0L, 1L, 1L, 1L, 1L)
+
+  # loo_alpha=1.0 ensures the LOO gate always passes so fit$loo is populated.
+  fit <- oda_univariate_core(x, y, attr_type = "categorical",
+                             mcarlo = FALSE, loo = "pvalue", loo_alpha = 1.0)
+
+  expect_true(fit$ok,                                 label = "repeated cat LOO: fit ok")
+  expect_false(is.null(fit$loo),                      label = "repeated cat LOO: loo not NULL")
+  expect_false(identical(fit$loo$reason,
+                         "loo_not_supported_all_unique_categories"),
+               label = "repeated cat LOO: all-unique guard did not fire")
+})
+
+test_that("all-unique categorical x: LOO not supported (multiclass)", {
+  # Engineering guard applies via oda_loo_multiclass().
+  # priors_on = FALSE bypasses the weighted-categorical LOO block so the
+  # all-unique guard is reachable.
+  x <- c("A", "B", "C", "D", "E", "F", "G", "H", "I")
+  y <- c(1L, 1L, 1L, 2L, 2L, 2L, 3L, 3L, 3L)
+
+  fit <- oda_fit(x, y, attr_type = "categorical",
+                 priors_on = FALSE, mcarlo = FALSE, loo = "on")
+
+  expect_true(fit$ok,                                 label = "unique cat LOO multi: fit ok")
+  expect_false(is.null(fit$loo),                      label = "unique cat LOO multi: loo not NULL")
+  expect_false(isTRUE(fit$loo$allowed),               label = "unique cat LOO multi: loo not allowed")
+  expect_equal(fit$loo$reason,
+               "loo_not_supported_all_unique_categories",
+               label = "unique cat LOO multi: correct reason code")
+})
