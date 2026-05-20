@@ -315,8 +315,9 @@ oda_cta_fit <- function(
 ) {
   # ---- Validate and prep ----------------------------------------------------
   if (!is.null(diag_env)) {
-    if (!exists("mc_log",  envir = diag_env, inherits = FALSE)) diag_env$mc_log  <- list()
-    if (!exists("loo_log", envir = diag_env, inherits = FALSE)) diag_env$loo_log <- list()
+    if (!exists("mc_log",   envir = diag_env, inherits = FALSE)) diag_env$mc_log   <- list()
+    if (!exists("loo_log",  envir = diag_env, inherits = FALSE)) diag_env$loo_log  <- list()
+    if (!exists("fast_log", envir = diag_env, inherits = FALSE)) diag_env$fast_log <- list()
     diag_env$fit_start <- proc.time()[["elapsed"]]
   }
   if (!is.data.frame(X)) X <- as.data.frame(X)
@@ -586,17 +587,33 @@ oda_cta_fit <- function(
     if (length(idx) < mindenom) return(list())
     y_n <- y[idx]; w_n <- w[idx]
     if (length(unique(y_n)) < 2L) return(list())
+    rh_fs <- if (!is.null(diag_env)) .row_hash(idx) else NULL
     result <- list()
     for (j in seq_len(n_attrs)) {
       x_j <- X[[j]][idx]
       x_v <- x_j[!is.na(x_j)]
       if (!is.null(miss_codes)) x_v <- x_v[!(x_v %in% miss_codes)]
       if (length(x_v) < 2L || length(unique(x_v)) < 2L) next
+      t0_fs <- if (!is.null(diag_env)) proc.time()[["elapsed"]] else NULL
       fit_f <- tryCatch(
         oda_fit(x = x_j, y = y_n, w = w_n, priors_on = priors_on,
                 miss_codes = miss_codes, K_segments = K_segments,
                 mcarlo = FALSE, loo = "off", mindenom = mindenom),
         error = function(e) list(ok = FALSE))
+      if (!is.null(diag_env)) {
+        elapsed_fs <- proc.time()[["elapsed"]] - t0_fs
+        ess_fs     <- if (isTRUE(fit_f$ok)) .get_ess(fit_f) else NA_real_
+        passed_fs  <- isTRUE(fit_f$ok) && !is.na(ess_fs) && ess_fs >= ess_min
+        diag_env$fast_log[[length(diag_env$fast_log) + 1L]] <- list(
+          pos_id      = pos_label,
+          attr_name   = attr_names[j],
+          row_hash    = rh_fs,
+          n_obs       = length(idx),
+          ess_screen  = ess_fs,
+          passed      = passed_fs,
+          elapsed_sec = elapsed_fs
+        )
+      }
       if (!isTRUE(fit_f$ok)) next
       ess_f <- .get_ess(fit_f)
       if (is.na(ess_f) || ess_f < ess_min) next
@@ -643,55 +660,66 @@ oda_cta_fit <- function(
               loo = loo_arg, eval_order = "loo_then_mc",
               mindenom = mindenom),
       error = function(e) list(ok = FALSE))
-    elapsed <- round(proc.time()[["elapsed"]] - t0, 1)
+    elapsed <- round(proc.time()[["elapsed"]] - t0, 2)
+    rh_gen  <- if (!is.null(diag_env)) .row_hash(idx) else NULL
+    # Diagnostic helper: log this generic-ODA call regardless of outcome.
+    .log_gen <- function(p_mc_val, ess_val, accepted, reject_reason) {
+      if (is.null(diag_env)) return(invisible(NULL))
+      diag_env$mc_log[[length(diag_env$mc_log) + 1L]] <- list(
+        path             = "generic_oda",
+        attr_name        = attr_names[j],
+        pos_id           = pos_id,
+        row_hash         = rh_gen,
+        n_obs            = length(idx),
+        obs_ess          = ess_val,
+        mc_target        = mc_target,
+        ge_count         = NA_integer_,
+        iter_used        = NA_integer_,
+        stop_reason      = NA_character_,
+        p_mc_current     = p_mc_val,
+        p_mc_raw         = p_mc_val,
+        p_mc_pseudocount = NA_real_,
+        signif_current   = !is.na(p_mc_val) && p_mc_val < alpha_split,
+        signif_raw       = NA,
+        elapsed_sec      = elapsed,
+        accepted         = accepted,
+        reject_reason    = reject_reason
+      )
+    }
     if (!isTRUE(fit$ok)) {
       .vmsg("  -> rejected: ", fit$reason %||% "unknown", " (", elapsed, "s)")
+      .log_gen(NA_real_, NA_real_, FALSE, "fit_failed")
       return(NULL)
     }
     p_mc <- fit$p_mc
     if (is.na(p_mc) || p_mc >= alpha_split) {
       .vmsg("  -> rejected: p=", round(p_mc %||% NA_real_, 4), " (", elapsed, "s)")
+      .log_gen(p_mc, NA_real_, FALSE, "signif_fail")
       return(NULL)
     }
     ess <- .get_ess(fit)
     if (is.na(ess) || ess < ess_min) {
       .vmsg("  -> rejected: ESS=", round(ess %||% NA_real_, 2), "% (", elapsed, "s)")
+      .log_gen(p_mc, ess, FALSE, "ess_low")
       return(NULL)
     }
     if (identical(loo_arg, "stable")) {
       if (is.null(fit$loo) || !isTRUE(fit$loo$allowed)) {
         .vmsg("  -> rejected: LOO unstable (", elapsed, "s)")
+        .log_gen(p_mc, ess, FALSE, "loo_unstable")
         return(NULL)
       }
     } else if (is.numeric(loo)) {
       loo_pv <- fit$loo$p_value %||% NA_real_
       if (is.na(loo_pv) || loo_pv >= loo) {
         .vmsg("  -> rejected: LOO p=", round(loo_pv, 4), " (", elapsed, "s)")
+        .log_gen(p_mc, ess, FALSE, "loo_p_fail")
         return(NULL)
       }
     }
     .vmsg("  -> accepted: ESS=", round(ess, 2), "% p=", round(p_mc, 4),
           " (", elapsed, "s)")
-    if (!is.null(diag_env)) {
-      diag_env$mc_log[[length(diag_env$mc_log) + 1L]] <- list(
-        path             = "generic_oda",
-        attr_name        = attr_names[j],
-        pos_id           = pos_id,
-        row_hash         = .row_hash(idx),
-        n_obs            = length(idx),
-        obs_ess          = ess,
-        mc_target        = mc_target,
-        ge_count         = NA_integer_,
-        iter_used        = NA_integer_,
-        stop_reason      = NA_character_,
-        p_mc_current     = p_mc,
-        p_mc_raw         = p_mc,
-        p_mc_pseudocount = NA_real_,
-        signif_current   = !is.na(p_mc) && p_mc < alpha_split,
-        signif_raw       = NA,
-        elapsed_sec      = elapsed
-      )
-    }
+    .log_gen(p_mc, ess, TRUE, NA_character_)
     list(j = j, name = attr_names[j], fit = fit, ess = ess, p_mc = p_mc)
   }
 
