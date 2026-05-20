@@ -1327,6 +1327,21 @@ print.cta_tree <- function(x, ...) {
   n_leaf  <- x$n_nodes - n_split
   cat(sprintf("Nodes: %d total  (%d split  %d leaf)\n",
               x$n_nodes, n_split, n_leaf))
+
+  # Compact footer: ESS/WESS, D, strata, min endpoint denominator.
+  ess_val <- x$overall_ess
+  ess_str <- if (!is.null(ess_val) && is.finite(ess_val))
+    sprintf("%.2f%%", ess_val) else "NA"
+  d_val   <- cta_d_stat(x)
+  d_str   <- if (!is.na(d_val)) sprintf("%.4f", d_val) else "NA"
+  s_val   <- cta_strata(x)
+  s_str   <- if (!is.na(s_val)) as.character(s_val) else "NA"
+  mtd_val <- cta_min_terminal_denom(x)
+  mtd_str <- if (!is.na(mtd_val)) as.character(mtd_val) else "NA"
+  ess_label <- if (isTRUE(x$has_weights)) "WESS" else "ESS"
+  cat(sprintf("%s: %s  D: %s  strata: %s  min_denom: %s\n",
+              ess_label, ess_str, d_str, s_str, mtd_str))
+
   invisible(x)
 }
 

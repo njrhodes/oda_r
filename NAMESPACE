@@ -35,7 +35,9 @@ export(cta_min_terminal_denom)
 export(cta_d_stat)
 export(cta_descendant_family)
 S3method(predict, cta_tree)
-S3method(print, cta_tree)
+S3method(print,   cta_tree)
+S3method(summary, cta_tree)
+S3method(print,   cta_tree_summary)
 
 # ----- Imports -----
 importFrom(stats, fisher.test, predict, qbeta, runif, setNames)
