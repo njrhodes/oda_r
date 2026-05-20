@@ -14,7 +14,7 @@ oda_cta_fit(X, y, w = NULL, priors_on = TRUE, miss_codes = NULL,
   max_depth = 10L, ess_min = 0,
   mc_iter = 25000L, mc_target = 0.05, mc_stop = 99.9, mc_stopup = 20,
   mc_seed = NULL, loo = "off", attr_names = NULL, K_segments = NULL,
-  verbose = FALSE)
+  verbose = FALSE, diag_env = NULL)
 }
 \arguments{
   \item{X}{Data frame or matrix of attribute columns.}
@@ -39,6 +39,9 @@ oda_cta_fit(X, y, w = NULL, priors_on = TRUE, miss_codes = NULL,
   \item{K_segments}{Segments for multiclass ordered splits. Default = C.}
   \item{verbose}{Logical; if \code{TRUE}, emit \code{[CTA]} progress messages
     via \code{message()} at each major stage. Default \code{FALSE}.}
+  \item{diag_env}{Internal diagnostic environment used to collect CTA timing
+    and Monte Carlo instrumentation. Intended for development diagnostics only;
+    leave as \code{NULL} for normal use.}
 }
 \value{
 An object of class \code{cta_tree} containing:
