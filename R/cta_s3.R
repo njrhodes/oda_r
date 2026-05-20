@@ -1,5 +1,5 @@
 ###############################################################################
-# R/cta_s3.R — S3 methods for cta_tree summary objects
+# R/cta_s3.R — S3 methods and read-only report tables for cta_tree
 #
 # Classes produced here:
 #   cta_tree_summary — structured output of summary.cta_tree()
@@ -7,6 +7,7 @@
 # Public API:
 #   summary.cta_tree()
 #   print.cta_tree_summary()
+#   cta_endpoint_table()
 #
 # These functions are read-only: no refitting, no prediction calls,
 # no calls to predict.cta_tree(), no statistical behavior changes.
@@ -152,4 +153,204 @@ print.cta_tree_summary <- function(x, ...) {
 
   cat("\n")
   invisible(x)
+}
+
+# =============================================================================
+# cta_endpoint_table() — terminal-leaf report table
+# =============================================================================
+
+# Internal: build a human-readable branch label for one branch of a split node.
+#
+# split_nd   — a split node list (has $attribute, $rule, $split_labels)
+# branch_idx — 1-based index into split_nd$child_ids / split_nd$split_labels
+#
+# Returns a character string like "V14<=0.5" or "V14>0.5".
+.cta_branch_string <- function(split_nd, branch_idx) {
+  attr_nm <- split_nd$attribute %||% "?"
+  rule    <- split_nd$rule
+  cls     <- split_nd$split_labels[branch_idx]
+
+  if (is.null(rule)) return(sprintf("%s[->%d]", attr_nm, as.integer(cls)))
+
+  tryCatch({
+    t <- rule$type
+    if (identical(t, "ordered_cut")) {
+      cv        <- rule$cut_value
+      # direction "0->1": <=cut assigned class 0, >cut assigned class 1.
+      # direction "1->0": <=cut assigned class 1, >cut assigned class 0.
+      left_cls  <- if (identical(rule$direction, "0->1")) 0L else 1L
+      if (as.integer(cls) == left_cls)
+        sprintf("%s<=%g", attr_nm, cv)
+      else
+        sprintf("%s>%g", attr_nm, cv)
+    } else if (identical(t, "multiclass_ordered")) {
+      cuts <- rule$cut_values
+      segs <- as.integer(rule$seg_classes)
+      k    <- which(segs == as.integer(cls))[1L]
+      K    <- length(segs)
+      if (is.na(k))
+        sprintf("%s[->%d]", attr_nm, as.integer(cls))
+      else if (k == 1L)
+        sprintf("%s<=%g", attr_nm, cuts[1L])
+      else if (k == K)
+        sprintf("%s>%g", attr_nm, cuts[K - 1L])
+      else
+        sprintf("%g<%s<=%g", cuts[k - 1L], attr_nm, cuts[k])
+    } else if (t %in% c("binary_map", "nominal_cut")) {
+      lvls <- if (as.integer(cls) == 0L) rule$left_levels else rule$right_levels
+      sprintf("%s in {%s}", attr_nm, paste(lvls, collapse = ","))
+    } else {
+      sprintf("%s[->%d]", attr_nm, as.integer(cls))
+    }
+  }, error = function(e) sprintf("%s[->%d]", attr_nm, as.integer(cls)))
+}
+
+# Internal: reconstruct the root-to-leaf path as a character vector of branch
+# labels, one per ancestor split.  Returns character(0) for the root leaf
+# (no-tree case).
+.cta_path_segments <- function(tree, leaf_nid) {
+  segs   <- character(0)
+  cur_id <- leaf_nid
+
+  repeat {
+    nd        <- tree$nodes[[cur_id]]
+    if (is.null(nd)) break
+    parent_id <- nd$parent_id %||% 0L
+    if (parent_id == 0L) break          # reached root; no further ancestor
+
+    parent_nd <- tree$nodes[[parent_id]]
+    if (is.null(parent_nd)) break
+
+    branch_k <- which(parent_nd$child_ids == cur_id)[1L]
+    seg <- if (is.na(branch_k))
+      sprintf("[node%d]", cur_id)
+    else
+      .cta_branch_string(parent_nd, branch_k)
+
+    segs   <- c(seg, segs)              # prepend → builds root-to-leaf order
+    cur_id <- parent_id
+  }
+
+  segs
+}
+
+#' Terminal-leaf report table for a fitted CTA tree
+#'
+#' Returns one row per terminal leaf (endpoint) of a \code{cta_tree}.  All
+#' values are read directly from stored node fields; no refitting or prediction
+#' is performed.
+#'
+#' Per-endpoint class-count and target-class summaries are deferred to the
+#' future CTA confusion/endpoint-count table because leaf class counts are not
+#' currently stored at fit time.
+#'
+#' @param tree A \code{cta_tree} from \code{\link{oda_cta_fit}}.
+#' @return A \code{data.frame} with one row per terminal leaf and columns:
+#' \describe{
+#'   \item{\code{node_id}}{Integer node identifier.}
+#'   \item{\code{parent_id}}{Integer parent node identifier
+#'     (\code{0} for the root leaf in a no-tree fit).}
+#'   \item{\code{depth}}{Integer depth from root (root = 1).}
+#'   \item{\code{path}}{Character; AND-joined branch labels from root to this
+#'     leaf (e.g. \code{"V14<=0.5 AND V15>0.5"}).  \code{"/"} for the root
+#'     leaf.}
+#'   \item{\code{majority_class}}{Integer class label assigned to this leaf.}
+#'   \item{\code{n_obs}}{Integer raw observation count at this leaf.}
+#'   \item{\code{n_weighted}}{Numeric weighted observation count
+#'     (\code{NA} when weights not active).}
+#'   \item{\code{ess}}{Numeric ESS stored on this leaf (\code{NA_real_} —
+#'     ESS is a split-node metric and is always \code{NA} for leaf nodes).}
+#'   \item{\code{ess_weighted}}{Numeric WESS stored on this leaf
+#'     (\code{NA_real_}).}
+#'   \item{\code{loo_status}}{Character LOO status (\code{NA} for leaf nodes).}
+#'   \item{\code{loo_ess}}{Numeric LOO ESS (\code{NA} for leaf nodes).}
+#' }
+#' For a no-tree fit the returned data frame has zero rows but the correct
+#' column structure.
+#' @seealso \code{\link{oda_cta_fit}}, \code{\link{summary.cta_tree}},
+#'   \code{\link{cta_strata}}, \code{\link{cta_endpoint_denominators}}
+#' @examples
+#' data(mtcars)
+#' X    <- mtcars[, c("cyl", "disp", "hp", "wt")]
+#' y    <- as.integer(mtcars$am)
+#' tree <- oda_cta_fit(X, y, mindenom = 5L, mc_iter = 500L, mc_seed = 42L)
+#' cta_endpoint_table(tree)
+cta_endpoint_table <- function(tree) {
+  stopifnot(inherits(tree, "cta_tree"))
+
+  # ------------------------------------------------------------------
+  # Empty data frame template — returned for no-tree or zero-leaf cases
+  # ------------------------------------------------------------------
+  empty_df <- function() {
+    data.frame(
+      node_id        = integer(0),
+      parent_id      = integer(0),
+      depth          = integer(0),
+      path           = character(0),
+      majority_class = integer(0),
+      n_obs          = integer(0),
+      n_weighted     = numeric(0),
+      ess            = numeric(0),
+      ess_weighted   = numeric(0),
+      loo_status     = character(0),
+      loo_ess        = numeric(0),
+      stringsAsFactors = FALSE
+    )
+  }
+
+  if (isTRUE(tree$no_tree)) return(empty_df())
+
+  leaves <- Filter(function(nd) !is.null(nd) && isTRUE(nd$leaf), tree$nodes)
+  if (length(leaves) == 0L) return(empty_df())
+
+  # ------------------------------------------------------------------
+  # Build per-leaf rows
+  # ------------------------------------------------------------------
+  n <- length(leaves)
+  node_id        <- integer(n)
+  parent_id      <- integer(n)
+  depth          <- integer(n)
+  path           <- character(n)
+  majority_class <- integer(n)
+  n_obs          <- integer(n)
+  n_weighted     <- numeric(n)
+  ess            <- numeric(n)
+  ess_weighted   <- numeric(n)
+  loo_status     <- character(n)
+  loo_ess        <- numeric(n)
+
+  for (i in seq_len(n)) {
+    nd <- leaves[[i]]
+    segs <- .cta_path_segments(tree, nd$node_id)
+
+    node_id[i]        <- nd$node_id
+    parent_id[i]      <- nd$parent_id %||% NA_integer_
+    depth[i]          <- nd$depth     %||% NA_integer_
+    path[i]           <- if (length(segs) == 0L) "/"
+                         else paste(segs, collapse = " AND ")
+    majority_class[i] <- nd$majority_class %||% NA_integer_
+    n_obs[i]          <- nd$n_obs          %||% NA_integer_
+    n_weighted[i]     <- nd$n_weighted     %||% NA_real_
+    ess[i]            <- nd$ess            %||% NA_real_
+    ess_weighted[i]   <- nd$ess_weighted   %||% NA_real_
+    loo_status[i]     <- nd$loo_status     %||% NA_character_
+    loo_ess[i]        <- nd$loo_ess        %||% NA_real_
+  }
+
+  df <- data.frame(
+    node_id        = node_id,
+    parent_id      = parent_id,
+    depth          = depth,
+    path           = path,
+    majority_class = majority_class,
+    n_obs          = n_obs,
+    n_weighted     = n_weighted,
+    ess            = ess,
+    ess_weighted   = ess_weighted,
+    loo_status     = loo_status,
+    loo_ess        = loo_ess,
+    stringsAsFactors = FALSE
+  )
+
+  df[order(df$node_id), , drop = FALSE]
 }
