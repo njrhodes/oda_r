@@ -4,17 +4,37 @@
 \alias{new_cta_family}
 \title{Construct a CTA descendant family object (internal)}
 \usage{
-new_cta_family(members = list())
+new_cta_family(
+  members = list(),
+  mindenoms = integer(0L),
+  summary = data.frame(),
+  min_d_idx = NA_integer_,
+  terminated = FALSE,
+  termination_reason = NA_character_
+)
 }
 \arguments{
 \item{members}{A list of objects from \code{\link{new_cta_family_member}}.}
+
+\item{mindenoms}{Integer vector of MINDENOM values, same length as
+\code{members}.}
+
+\item{summary}{Data frame summary with one row per member.}
+
+\item{min_d_idx}{Integer index of the feasible member with minimum D;
+\code{NA_integer_} if none.}
+
+\item{terminated}{Logical; \code{TRUE} when the loop has exited.}
+
+\item{termination_reason}{Character: one of \code{"no_tree"},
+\code{"max_steps"}, \code{"no_next_mindenom"}.}
 }
 \value{
 A list of class \code{cta_family}.
 }
 \description{
-Skeleton container for MDSA descendant family members built by
-\code{\link{new_cta_family_member}}.  The full search loop
-(\code{cta_descendant_family}) is deferred to Phase 2E.
+Container for MDSA descendant family members built by
+\code{\link{new_cta_family_member}}.  Used internally by
+\code{\link{cta_descendant_family}}.
 }
 \keyword{internal}
