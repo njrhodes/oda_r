@@ -21,6 +21,18 @@
 #   node IDs are offset past B's last used node ID to avoid collisions.
 ###############################################################################
 
+# ---- Internal diagnostic helpers ------------------------------------------ #
+
+# .row_hash(idx)
+# Lightweight fingerprint of a row-index set for diagnostic cache audits.
+# Not cryptographic; designed to detect exact repeats in ENUMERATE sub-nodes.
+# idx: integer vector of row positions (order-independent).
+.row_hash <- function(idx) {
+  idx <- sort.int(as.integer(idx))
+  n   <- length(idx)
+  paste0(n, ".", sum(idx), ".", (sum(idx * seq_len(n)) %% 999983L))
+}
+
 # ---- CTA-specific ordered-cut selection ------------------------------------ #
 
 # .cta_ordered_scan()
@@ -142,7 +154,12 @@
 # Returns list(p_mc, ge_count, iter_used).
 .cta_mc_ordered <- function(x, y_coded, w, obs_ess,
                              priors_on, miss_codes, mindenom,
-                             mc_iter, mc_target, mc_stop, mc_stopup, mc_seed) {
+                             mc_iter, mc_target, mc_stop, mc_stopup, mc_seed,
+                             diag_env   = NULL,
+                             row_hash   = NULL,
+                             attr_name  = NA_character_,
+                             pos_id     = NA,
+                             n_obs      = NA_integer_) {
   if (!is.null(mc_seed)) set.seed(mc_seed)
   y_coded   <- as.integer(y_coded)
   n         <- length(y_coded)
@@ -151,10 +168,12 @@
   conf_stop   <- if (!is.na(mc_stop)   && mc_stop   > 1) mc_stop   / 100 else mc_stop
   conf_stopup <- if (!is.na(mc_stopup) && mc_stopup > 1) mc_stopup / 100 else mc_stopup
 
-  ge_count    <- 0L
-  iter_used   <- 0L
-  min_check   <- 50L
-  check_every <- 50L
+  ge_count         <- 0L
+  iter_used        <- 0L
+  min_check        <- 50L
+  check_every      <- 50L
+  stop_reason_code <- "max_iter"
+  t0_mc            <- if (!is.null(diag_env)) proc.time()[["elapsed"]] else NULL
 
   for (b in seq_len(mc_iter)) {
     iter_used <- b
@@ -174,13 +193,45 @@
         upper <- if (!is.na(conf_stop))   stats::qbeta(conf_stop,   ge_count + 1L, b - ge_count)     else NA_real_
         lower <- if (!is.na(conf_stopup)) stats::qbeta(1 - conf_stopup, ge_count, b - ge_count + 1L) else NA_real_
       }
-      if (!is.na(mc_target) && !is.na(upper) && upper < mc_target) break
-      if (!is.na(mc_target) && !is.na(lower) && lower > mc_target) break
+      if (!is.na(mc_target) && !is.na(upper) && upper < mc_target) {
+        stop_reason_code <- "stop_significant"; break
+      }
+      if (!is.na(mc_target) && !is.na(lower) && lower > mc_target) {
+        stop_reason_code <- "stop_nonsignificant"; break
+      }
     }
   }
 
-  list(p_mc     = (ge_count + 1L) / (iter_used + 1L),
-       ge_count = ge_count,
+  if (!is.null(diag_env)) {
+    elapsed_mc <- proc.time()[["elapsed"]] - t0_mc
+    p_pseudo   <- (ge_count + 1L) / (iter_used + 1L)
+    p_raw      <- if (iter_used <= 0L) NA_real_
+                  else if (ge_count == 0L) 0.0
+                  else ge_count / iter_used
+    diag_env$mc_log[[length(diag_env$mc_log) + 1L]] <- list(
+      path             = "cta_specific",
+      attr_name        = attr_name,
+      pos_id           = pos_id,
+      row_hash         = row_hash,
+      n_obs            = n_obs,
+      obs_ess          = obs_ess,
+      mc_target        = mc_target,
+      ge_count         = ge_count,
+      iter_used        = iter_used,
+      stop_reason      = stop_reason_code,
+      p_mc_current     = p_raw,
+      p_mc_raw         = p_raw,
+      p_mc_pseudocount = p_pseudo,
+      signif_current   = !is.na(p_raw)    && p_raw    < mc_target,
+      signif_raw       = !is.na(p_raw)    && p_raw    < mc_target,
+      elapsed_sec      = elapsed_mc
+    )
+  }
+
+  list(p_mc      = if (iter_used <= 0L) NA_real_
+                   else if (ge_count == 0L) 0.0
+                   else ge_count / iter_used,
+       ge_count  = ge_count,
        iter_used = iter_used)
 }
 
@@ -259,9 +310,15 @@ oda_cta_fit <- function(
     loo         = "off",
     attr_names  = NULL,
     K_segments  = NULL,
-    verbose     = FALSE
+    verbose     = FALSE,
+    diag_env    = NULL
 ) {
   # ---- Validate and prep ----------------------------------------------------
+  if (!is.null(diag_env)) {
+    if (!exists("mc_log",  envir = diag_env, inherits = FALSE)) diag_env$mc_log  <- list()
+    if (!exists("loo_log", envir = diag_env, inherits = FALSE)) diag_env$loo_log <- list()
+    diag_env$fit_start <- proc.time()[["elapsed"]]
+  }
   if (!is.data.frame(X)) X <- as.data.frame(X)
   n <- nrow(X)
   stopifnot(length(y) == n)
@@ -375,7 +432,8 @@ oda_cta_fit <- function(
   # Returns a fit-like list or NULL if rejected (Signif F, no eligible cut, or
   # LOO UNSTABLE). When this path is triggered, callers must not fall back to
   # generic ODA — the candidate is either accepted here or rejected entirely.
-  .cta_full_fit_ordered <- function(j, x_j, y_n, w_n, pos_id) {
+  .cta_full_fit_ordered <- function(j, x_j, y_n, w_n, pos_id,
+                                     row_hash = NULL, n_obs_parent = NA_integer_) {
     # Guard: uniform weights → generic ODA applies
     if (all(w_n == w_n[1L])) return(NULL)
     # Guard: binary class (C = 2) only
@@ -412,7 +470,12 @@ oda_cta_fit <- function(
       mc_target  = mc_target,
       mc_stop    = mc_stop,
       mc_stopup  = mc_stopup,
-      mc_seed    = seed_j
+      mc_seed    = seed_j,
+      diag_env   = diag_env,
+      row_hash   = row_hash,
+      attr_name  = attr_names[j],
+      pos_id     = pos_id,
+      n_obs      = n_obs_parent
     )
     p_mc <- mc_res$p_mc
     .vmsg("  [CTA-scan] ", attr_names[j],
@@ -427,6 +490,7 @@ oda_cta_fit <- function(
     # LOO uses generic ODA per-fold refit — true refit-per-fold LOO.
     loo_result <- NULL
     if (!identical(loo_arg, "off")) {
+      t0_loo <- if (!is.null(diag_env)) proc.time()[["elapsed"]] else NULL
       loo_result <- tryCatch(
         oda_loo_for_rule(
           x          = x_j,
@@ -439,6 +503,25 @@ oda_cta_fit <- function(
         ),
         error = function(e) NULL
       )
+      if (!is.null(diag_env)) {
+        loo_elapsed <- proc.time()[["elapsed"]] - t0_loo
+        wessl_d     <- if (!is.null(loo_result)) loo_result$ess_loo %||% NA_real_ else NA_real_
+        delta_d     <- abs(obs_ess - (wessl_d %||% Inf))
+        loo_stable_flag <- if (identical(loo_arg, "stable"))
+          !is.na(wessl_d) && delta_d <= 0.01
+        else NA
+        diag_env$loo_log[[length(diag_env$loo_log) + 1L]] <- list(
+          path        = "cta_specific",
+          attr_name   = attr_names[j],
+          pos_id      = pos_id,
+          row_hash    = row_hash,
+          n_obs       = n_obs_parent,
+          loo_mode    = if (is.null(loo_result)) "failed" else "n_fold_or_algebraic",
+          ess_loo     = wessl_d,
+          stable      = loo_stable_flag,
+          elapsed_sec = loo_elapsed
+        )
+      }
       if (identical(loo_arg, "stable")) {
         wessl <- if (!is.null(loo_result)) loo_result$ess_loo %||% NA_real_
                  else NA_real_
@@ -537,7 +620,9 @@ oda_cta_fit <- function(
       if (!is.null(miss_codes)) x_v <- x_v[!(x_v %in% miss_codes)]
       if (length(unique(x_v)) > 2L) {
         .vmsg("[CTA node ", pos_id, "] CTA-scan path: ", attr_names[j])
-        cta_fit <- .cta_full_fit_ordered(j, x_j, y_n, w_n, pos_id)
+        rh      <- .row_hash(idx)
+        cta_fit <- .cta_full_fit_ordered(j, x_j, y_n, w_n, pos_id,
+                                          row_hash = rh, n_obs_parent = length(idx))
         if (!is.null(cta_fit))
           return(list(j = j, name = attr_names[j], fit = cta_fit,
                       ess = cta_fit$ess, p_mc = cta_fit$p_mc))
@@ -587,6 +672,26 @@ oda_cta_fit <- function(
     }
     .vmsg("  -> accepted: ESS=", round(ess, 2), "% p=", round(p_mc, 4),
           " (", elapsed, "s)")
+    if (!is.null(diag_env)) {
+      diag_env$mc_log[[length(diag_env$mc_log) + 1L]] <- list(
+        path             = "generic_oda",
+        attr_name        = attr_names[j],
+        pos_id           = pos_id,
+        row_hash         = .row_hash(idx),
+        n_obs            = length(idx),
+        obs_ess          = ess,
+        mc_target        = mc_target,
+        ge_count         = NA_integer_,
+        iter_used        = NA_integer_,
+        stop_reason      = NA_character_,
+        p_mc_current     = p_mc,
+        p_mc_raw         = p_mc,
+        p_mc_pseudocount = NA_real_,
+        signif_current   = !is.na(p_mc) && p_mc < alpha_split,
+        signif_raw       = NA,
+        elapsed_sec      = elapsed
+      )
+    }
     list(j = j, name = attr_names[j], fit = fit, ess = ess, p_mc = p_mc)
   }
 
