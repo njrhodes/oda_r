@@ -89,6 +89,7 @@
 # =============================================================================
 
 test_that("myeloma gold: root attribute is V14", {
+  skip_if_slow_tests_disabled("fixture-myeloma-cta")
   if (!.myeloma_fixtures_ok()) skip("myeloma fixture files missing")
   tree <- .myeloma_fit()
   root <- tree$nodes[[tree$root_id]]
@@ -97,6 +98,7 @@ test_that("myeloma gold: root attribute is V14", {
 })
 
 test_that("myeloma gold: root cut value is 0.5", {
+  skip_if_slow_tests_disabled("fixture-myeloma-cta")
   if (!.myeloma_fixtures_ok()) skip("myeloma fixture files missing")
   tree <- .myeloma_fit()
   root <- tree$nodes[[tree$root_id]]
@@ -104,6 +106,7 @@ test_that("myeloma gold: root cut value is 0.5", {
 })
 
 test_that("myeloma gold: root n_obs = 255", {
+  skip_if_slow_tests_disabled("fixture-myeloma-cta")
   if (!.myeloma_fixtures_ok()) skip("myeloma fixture files missing")
   tree <- .myeloma_fit()
   root <- tree$nodes[[tree$root_id]]
@@ -111,6 +114,7 @@ test_that("myeloma gold: root n_obs = 255", {
 })
 
 test_that("myeloma gold: root WESS within 0.1% of 14.06%", {
+  skip_if_slow_tests_disabled("fixture-myeloma-cta")
   if (!.myeloma_fixtures_ok()) skip("myeloma fixture files missing")
   tree <- .myeloma_fit()
   root <- tree$nodes[[tree$root_id]]
@@ -118,6 +122,7 @@ test_that("myeloma gold: root WESS within 0.1% of 14.06%", {
 })
 
 test_that("myeloma gold: root LOO status is STABLE", {
+  skip_if_slow_tests_disabled("fixture-myeloma-cta")
   if (!.myeloma_fixtures_ok()) skip("myeloma fixture files missing")
   tree <- .myeloma_fit()
   root <- tree$nodes[[tree$root_id]]
@@ -125,6 +130,7 @@ test_that("myeloma gold: root LOO status is STABLE", {
 })
 
 test_that("myeloma gold: depth-2 split is V15 with cut 0.5", {
+  skip_if_slow_tests_disabled("fixture-myeloma-cta")
   if (!.myeloma_fixtures_ok()) skip("myeloma fixture files missing")
   tree <- .myeloma_fit()
   tbl  <- cta_node_table(tree)
@@ -138,6 +144,7 @@ test_that("myeloma gold: depth-2 split is V15 with cut 0.5", {
 })
 
 test_that("myeloma gold: node 2 n_obs = 211", {
+  skip_if_slow_tests_disabled("fixture-myeloma-cta")
   if (!.myeloma_fixtures_ok()) skip("myeloma fixture files missing")
   tree <- .myeloma_fit()
   tbl  <- cta_node_table(tree)
@@ -146,6 +153,7 @@ test_that("myeloma gold: node 2 n_obs = 211", {
 })
 
 test_that("myeloma gold: node 2 WESS within 0.1% of 20.71%", {
+  skip_if_slow_tests_disabled("fixture-myeloma-cta")
   if (!.myeloma_fixtures_ok()) skip("myeloma fixture files missing")
   tree <- .myeloma_fit()
   tbl  <- cta_node_table(tree)
@@ -156,6 +164,7 @@ test_that("myeloma gold: node 2 WESS within 0.1% of 20.71%", {
 })
 
 test_that("myeloma gold: node 2 LOO status is STABLE", {
+  skip_if_slow_tests_disabled("fixture-myeloma-cta")
   if (!.myeloma_fixtures_ok()) skip("myeloma fixture files missing")
   tree <- .myeloma_fit()
   tbl  <- cta_node_table(tree)
@@ -166,6 +175,7 @@ test_that("myeloma gold: node 2 LOO status is STABLE", {
 })
 
 test_that("myeloma gold: all split nodes have LOO = STABLE", {
+  skip_if_slow_tests_disabled("fixture-myeloma-cta")
   if (!.myeloma_fixtures_ok()) skip("myeloma fixture files missing")
   tree <- .myeloma_fit()
   tbl  <- cta_node_table(tree)
@@ -179,6 +189,7 @@ test_that("myeloma gold: all split nodes have LOO = STABLE", {
 # =============================================================================
 
 test_that("myeloma gold: full-tree training confusion matches [[146,40],[36,33]]", {
+  skip_if_slow_tests_disabled("fixture-myeloma-cta")
   if (!.myeloma_fixtures_ok()) skip("myeloma fixture files missing")
   d    <- .load_myeloma()
   tree <- .myeloma_fit()
@@ -243,6 +254,7 @@ test_that("myeloma gold: full-tree training confusion matches [[146,40],[36,33]]
 # 255 obs (WEIGHTED ESS=14.06%). V17 wins.
 
 test_that("myeloma MINDENOM=30: root is V17 stump (not V14)", {
+  skip_if_slow_tests_disabled("fixture-myeloma-cta")
   if (!.myeloma_fixtures_ok()) skip("myeloma fixture files missing")
   tree <- .myeloma_fit30()
   root <- tree$nodes[[tree$root_id]]
@@ -255,6 +267,7 @@ test_that("myeloma MINDENOM=30: root is V17 stump (not V14)", {
 })
 
 test_that("myeloma MINDENOM=30: classified n = 186 (path-local)", {
+  skip_if_slow_tests_disabled("fixture-myeloma-cta")
   if (!.myeloma_fixtures_ok()) skip("myeloma fixture files missing")
   d    <- .load_myeloma()
   tree <- .myeloma_fit30()
@@ -265,6 +278,7 @@ test_that("myeloma MINDENOM=30: classified n = 186 (path-local)", {
 })
 
 test_that("myeloma MINDENOM=30: confusion [[101,34],[30,21]]", {
+  skip_if_slow_tests_disabled("fixture-myeloma-cta")
   if (!.myeloma_fixtures_ok()) skip("myeloma fixture files missing")
   d    <- .load_myeloma()
   tree <- .myeloma_fit30()
@@ -284,6 +298,7 @@ test_that("myeloma MINDENOM=30: confusion [[101,34],[30,21]]", {
 })
 
 test_that("myeloma MINDENOM=30: OVERALL ESS ≈ 15.99%", {
+  skip_if_slow_tests_disabled("fixture-myeloma-cta")
   if (!.myeloma_fixtures_ok()) skip("myeloma fixture files missing")
   d    <- .load_myeloma()
   tree <- .myeloma_fit30()
@@ -299,6 +314,7 @@ test_that("myeloma MINDENOM=30: OVERALL ESS ≈ 15.99%", {
 })
 
 test_that("myeloma MINDENOM=30: WEIGHTED ESS ≈ 16.51%", {
+  skip_if_slow_tests_disabled("fixture-myeloma-cta")
   if (!.myeloma_fixtures_ok()) skip("myeloma fixture files missing")
   d    <- .load_myeloma()
   tree <- .myeloma_fit30()
@@ -315,6 +331,7 @@ test_that("myeloma MINDENOM=30: WEIGHTED ESS ≈ 16.51%", {
 })
 
 test_that("myeloma CTA: MINDENOM=56 returns no tree", {
+  skip_if_slow_tests_disabled("fixture-myeloma-cta")
   if (!.myeloma_fixtures_ok()) skip("myeloma fixture files missing")
   d <- .load_myeloma()
   X <- d[, .myeloma_attr_names]
@@ -344,6 +361,7 @@ test_that("myeloma CTA: MINDENOM=56 returns no tree", {
 })
 
 test_that("myeloma gold: weighted ESS within 0.5% of 27.69%", {
+  skip_if_slow_tests_disabled("fixture-myeloma-cta")
   if (!.myeloma_fixtures_ok()) skip("myeloma fixture files missing")
   d     <- .load_myeloma()
   tree  <- .myeloma_fit()

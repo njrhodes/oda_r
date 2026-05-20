@@ -374,6 +374,7 @@ test_that("new_cta_family: returns cta_family S3 class with members list", {
 }
 
 test_that("myeloma MINDENOM=1: min_terminal_denom == 29, next_mindenom == 30", {
+  skip_if_slow_tests_disabled("cta-myeloma-chain")
   tree <- .myeloma_tree(1L)
   expect_false(tree$no_tree)
   expect_equal(cta_strata(tree), 3L)
@@ -383,6 +384,7 @@ test_that("myeloma MINDENOM=1: min_terminal_denom == 29, next_mindenom == 30", {
 })
 
 test_that("myeloma MINDENOM=30: min_terminal_denom == 55, next_mindenom == 56", {
+  skip_if_slow_tests_disabled("cta-myeloma-chain")
   tree <- .myeloma_tree(30L)
   expect_false(tree$no_tree)
   expect_equal(cta_strata(tree), 2L)
@@ -392,6 +394,7 @@ test_that("myeloma MINDENOM=30: min_terminal_denom == 55, next_mindenom == 56", 
 })
 
 test_that("myeloma MINDENOM=56: no_tree, strata NA, denominators integer(0)", {
+  skip_if_slow_tests_disabled("cta-myeloma-chain")
   tree <- .myeloma_tree(56L)
   expect_true(tree$no_tree)
   expect_identical(cta_strata(tree), NA_integer_)
@@ -504,6 +507,7 @@ test_that("cta_d_stat: two leaves, overall_ess = 50 returns D = 2", {
 }
 
 test_that("PRUNE no-op: prune_alpha=1.0 retains all grown split nodes", {
+  skip_if_slow_tests_disabled("cta-myeloma-prune")
   tree <- .myeloma_prune_tree(1.0)
   # With no pruning, HO candidate V14->V15->V11 survives (3 splits).
   expect_equal(.n_split_nodes(tree), 3L,
@@ -513,6 +517,7 @@ test_that("PRUNE no-op: prune_alpha=1.0 retains all grown split nodes", {
 })
 
 test_that("PRUNE active: Sidak-flagged V11 pruned, WESS improves", {
+  skip_if_slow_tests_disabled("cta-myeloma-prune")
   tree <- .myeloma_prune_tree(0.05)
   # V11 (p=0.04 > alpha_3~0.017) is Sidak-flagged; pruning improves WESS.
   expect_equal(.n_split_nodes(tree), 2L,
@@ -540,6 +545,7 @@ test_that("PRUNE active: Sidak-flagged V11 pruned, WESS improves", {
 # Uses the same .myeloma_prune_tree(0.05) fixture (mc_seed=800, MINDENOM=1).
 
 test_that("ENUMERATE A×B×C: myeloma MINDENOM=1 right branch of V14 is a leaf", {
+  skip_if_slow_tests_disabled("cta-myeloma-prune")
   tree <- .myeloma_prune_tree(0.05)
   skip_if(isTRUE(tree$no_tree), "no tree found — fixture issue")
   root <- tree$nodes[[tree$root_id]]
@@ -557,6 +563,7 @@ test_that("ENUMERATE A×B×C: myeloma MINDENOM=1 right branch of V14 is a leaf",
 })
 
 test_that("ENUMERATE A×B×C: myeloma MINDENOM=1 left branch of V14 is V15 split", {
+  skip_if_slow_tests_disabled("cta-myeloma-prune")
   tree <- .myeloma_prune_tree(0.05)
   skip_if(isTRUE(tree$no_tree), "no tree found — fixture issue")
   root <- tree$nodes[[tree$root_id]]
@@ -617,27 +624,32 @@ test_that("ENUMERATE A×B×C: myeloma MINDENOM=1 left branch of V14 is V15 split
 })
 
 test_that("cta_descendant_family: myeloma chain length is 3", {
+  skip_if_slow_tests_disabled("cta-family")
   fam <- .myeloma_family()
   expect_equal(length(fam$members), 3L)
 })
 
 test_that("cta_descendant_family: myeloma MINDENOM chain is {1, 30, 56}", {
+  skip_if_slow_tests_disabled("cta-family")
   fam <- .myeloma_family()
   expect_equal(fam$mindenoms, c(1L, 30L, 56L))
 })
 
 test_that("cta_descendant_family: myeloma terminated = TRUE, reason = 'no_tree'", {
+  skip_if_slow_tests_disabled("cta-family")
   fam <- .myeloma_family()
   expect_true(fam$terminated)
   expect_equal(fam$termination_reason, "no_tree")
 })
 
 test_that("cta_descendant_family: myeloma final member is no-tree", {
+  skip_if_slow_tests_disabled("cta-family")
   fam <- .myeloma_family()
   expect_true(fam$members[[3L]]$no_tree)
 })
 
 test_that("cta_descendant_family: myeloma feasible members have finite D", {
+  skip_if_slow_tests_disabled("cta-family")
   fam <- .myeloma_family()
   expect_true(is.finite(fam$members[[1L]]$d),
               label = "member 1 (MINDENOM=1) has finite D")
@@ -646,18 +658,21 @@ test_that("cta_descendant_family: myeloma feasible members have finite D", {
 })
 
 test_that("cta_descendant_family: myeloma no-tree member has NA D", {
+  skip_if_slow_tests_disabled("cta-family")
   fam <- .myeloma_family()
   expect_true(is.na(fam$members[[3L]]$d),
               label = "member 3 (MINDENOM=56, no-tree) D is NA")
 })
 
 test_that("cta_descendant_family: myeloma min_d_idx = 1L (MINDENOM=1 wins)", {
+  skip_if_slow_tests_disabled("cta-family")
   fam <- .myeloma_family()
   expect_equal(fam$min_d_idx, 1L,
                label = "MINDENOM=1 has lower D than MINDENOM=30")
 })
 
 test_that("cta_descendant_family: myeloma summary has required columns and shape", {
+  skip_if_slow_tests_disabled("cta-family")
   fam <- .myeloma_family()
   required <- c("mindenom","status","strata","min_terminal_denom",
                 "overall_ess","d","no_tree")

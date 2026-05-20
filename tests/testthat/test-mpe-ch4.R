@@ -56,6 +56,7 @@ test_that("Bowker Table 4.1: transcription checks (N=55981, diagonal sum=53295)"
 })
 
 test_that("Bowker Table 4.1: ordered training ESS approx 93.7", {
+  skip_if_slow_tests_disabled("MPE Chapter 4 canon")
   # Class = 1985 category (col index); Attribute = 1980 category (row index).
   # bowker is rows=1980, cols=1985. Transpose so rows=class(1985), cols=attr(1980).
   bowker <- matrix(c(
@@ -115,6 +116,7 @@ test_that("Marginal dissymmetry Table 4.1: transcription check (N=2686)", {
 })
 
 test_that("Marginal dissymmetry Table 4.1: categorical training ESS approx 21.1", {
+  skip_if_slow_tests_disabled("MPE Chapter 4 canon")
   # SDA step 2: classify changers (off-diagonal) — categorical (unordered)
   # because dissymmetry patterns need not respect ordinal rank.
   # Class = 1985 category; Attribute = 1980 category.
@@ -161,6 +163,7 @@ test_that("Pinckney Table 4.3: transcription check (N=225)", {
 })
 
 test_that("Pinckney Table 4.3: categorical training ESS approx 28.8", {
+  skip_if_slow_tests_disabled("MPE Chapter 4 canon")
   # MPE p.76: nondirectional (no DIRECTIONAL command).
   # MegaODA syntax: CATEGORICAL ON; TABLE 3; CLASS COL; MCARLO ITER 10000; GO;
   # Class = vote (col); Attribute = region (row).
@@ -203,6 +206,7 @@ test_that("Pinckney Table 4.3: categorical training ESS approx 28.8", {
 })
 
 test_that("Pinckney Table 4.4: residual categorical training ESS approx 40.9", {
+  skip_if_slow_tests_disabled("MPE Chapter 4 canon")
   # MPE p.77: primary voters (correctly classified by Table 4.3 model) removed.
   # Residual minority voting pattern; same nondirectional analysis.
   #
@@ -260,6 +264,7 @@ test_that("Political affiliation: categorical multiclass DIRECTIONAL p < 0.0001 
 # ---- Bray-Curtis (MPE Table 4.2) --------------------------------------------
 
 test_that("Bray-Curtis Table 4.2: training ESS approx 44.7", {
+  skip_if_slow_tests_disabled("MPE Chapter 4 canon")
   # Table 4.2: rows = ecological category (A-E = 1-5),
   #            cols = sampling site (S29 = 1, S30 = 2)
   # Class = site; Attribute = category.
@@ -294,6 +299,7 @@ test_that("Bray-Curtis Table 4.2: training ESS approx 44.7", {
 })
 
 test_that("Bray-Curtis Table 4.2: LOO ESS approx 43.5 (absent-level override)", {
+  skip_if_slow_tests_disabled("MPE Chapter 4 canon")
   # LOO ESS = 43.5 requires the absent-level override in oda_loo_for_rule():
   # category E (the single S30 obs in that category) is absent from its LOO
   # training fold; MegaODA assigns it to the left class (S29), producing one

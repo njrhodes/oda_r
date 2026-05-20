@@ -29,6 +29,7 @@ run_iris_attr <- function(col_name) {
 
 # ---- V1: Sepal.Length -------------------------------------------------------
 test_that("iris V1 (Sepal.Length): rule matches MegaODA gold", {
+  skip_if_slow_tests_disabled("iris canon")
   fit <- run_iris_attr("Sepal.Length")
   expect_true(fit$ok)
   expect_equal(round(fit$rule$cut_values, 2), c(5.45, 6.15),
@@ -38,6 +39,7 @@ test_that("iris V1 (Sepal.Length): rule matches MegaODA gold", {
 })
 
 test_that("iris V1 (Sepal.Length): training confusion matches gold", {
+  skip_if_slow_tests_disabled("iris canon")
   fit <- run_iris_attr("Sepal.Length")
   gold <- matrix(c(45,5,0, 6,28,16, 1,10,39), nrow=3, byrow=TRUE)
   yhat <- oda_rule_predict_multiclass(iris$Sepal.Length, fit$rule,
@@ -48,6 +50,7 @@ test_that("iris V1 (Sepal.Length): training confusion matches gold", {
 })
 
 test_that("iris V1 (Sepal.Length): LOO confusion matches gold", {
+  skip_if_slow_tests_disabled("iris canon")
   fit <- run_iris_attr("Sepal.Length")
   gold <- matrix(c(45,5,0, 6,28,16, 1,12,37), nrow=3, byrow=TRUE)
   expect_true(isTRUE(fit$loo$allowed), label = "V1: LOO allowed")
@@ -59,6 +62,7 @@ test_that("iris V1 (Sepal.Length): LOO confusion matches gold", {
 
 # ---- V2: Sepal.Width --------------------------------------------------------
 test_that("iris V2 (Sepal.Width): rule matches MegaODA gold", {
+  skip_if_slow_tests_disabled("iris canon")
   fit <- run_iris_attr("Sepal.Width")
   expect_true(fit$ok)
   expect_equal(round(fit$rule$cut_values, 2), c(2.95, 3.35),
@@ -68,6 +72,7 @@ test_that("iris V2 (Sepal.Width): rule matches MegaODA gold", {
 })
 
 test_that("iris V2 (Sepal.Width): training PAC matches gold", {
+  skip_if_slow_tests_disabled("iris canon")
   fit <- run_iris_attr("Sepal.Width")
   yhat <- oda_rule_predict_multiclass(iris$Sepal.Width, fit$rule,
                                       boundary="right_closed")
@@ -76,6 +81,7 @@ test_that("iris V2 (Sepal.Width): training PAC matches gold", {
 })
 
 test_that("iris V2 (Sepal.Width): LOO PAC matches gold", {
+  skip_if_slow_tests_disabled("iris canon")
   fit <- run_iris_attr("Sepal.Width")
   expect_true(isTRUE(fit$loo$allowed), label = "V2: LOO allowed")
   conf_l <- unname(fit$loo$confusion_raw$confusion)
@@ -85,6 +91,7 @@ test_that("iris V2 (Sepal.Width): LOO PAC matches gold", {
 
 # ---- V3: Petal.Length -------------------------------------------------------
 test_that("iris V3 (Petal.Length): rule matches MegaODA gold", {
+  skip_if_slow_tests_disabled("iris canon")
   fit <- run_iris_attr("Petal.Length")
   expect_true(fit$ok)
   expect_equal(round(fit$rule$cut_values, 2), c(2.45, 4.75),
@@ -94,6 +101,7 @@ test_that("iris V3 (Petal.Length): rule matches MegaODA gold", {
 })
 
 test_that("iris V3 (Petal.Length): training confusion matches gold", {
+  skip_if_slow_tests_disabled("iris canon")
   fit <- run_iris_attr("Petal.Length")
   gold <- matrix(c(50,0,0, 0,44,6, 0,1,49), nrow=3, byrow=TRUE)
   yhat <- oda_rule_predict_multiclass(iris$Petal.Length, fit$rule,
@@ -104,6 +112,7 @@ test_that("iris V3 (Petal.Length): training confusion matches gold", {
 })
 
 test_that("iris V3 (Petal.Length): LOO confusion matches gold", {
+  skip_if_slow_tests_disabled("iris canon")
   fit <- run_iris_attr("Petal.Length")
   gold <- matrix(c(50,0,0, 0,44,6, 0,3,47), nrow=3, byrow=TRUE)
   conf_l <- unname(fit$loo$confusion_raw$confusion)
@@ -114,6 +123,7 @@ test_that("iris V3 (Petal.Length): LOO confusion matches gold", {
 
 # ---- V4: Petal.Width --------------------------------------------------------
 test_that("iris V4 (Petal.Width): rule matches MegaODA gold", {
+  skip_if_slow_tests_disabled("iris canon")
   fit <- run_iris_attr("Petal.Width")
   expect_true(fit$ok)
   expect_equal(round(fit$rule$cut_values, 2), c(0.80, 1.65),
@@ -123,6 +133,7 @@ test_that("iris V4 (Petal.Width): rule matches MegaODA gold", {
 })
 
 test_that("iris V4 (Petal.Width): training confusion matches gold", {
+  skip_if_slow_tests_disabled("iris canon")
   fit <- run_iris_attr("Petal.Width")
   gold <- matrix(c(50,0,0, 0,48,2, 0,4,46), nrow=3, byrow=TRUE)
   yhat <- oda_rule_predict_multiclass(iris$Petal.Width, fit$rule,
@@ -133,6 +144,7 @@ test_that("iris V4 (Petal.Width): training confusion matches gold", {
 })
 
 test_that("iris V4 (Petal.Width): LOO confusion matches gold", {
+  skip_if_slow_tests_disabled("iris canon")
   fit <- run_iris_attr("Petal.Width")
   gold <- matrix(c(50,0,0, 0,48,2, 0,5,45), nrow=3, byrow=TRUE)
   conf_l <- unname(fit$loo$confusion_raw$confusion)

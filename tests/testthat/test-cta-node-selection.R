@@ -66,6 +66,7 @@
 # =============================================================================
 
 test_that("node-selection: Node 4 V4-only is always rejected → leaf-only tree", {
+  skip_if_slow_tests_disabled("cta-node-selection")
   if (!.ns_myeloma_ok()) skip("myeloma fixture missing")
 
   d   <- .ns_load_myeloma()
@@ -106,6 +107,7 @@ test_that("node-selection: Node 4 V4-only is always rejected → leaf-only tree"
 # =============================================================================
 
 test_that("node-selection: Node 2 V4-only always LOO UNSTABLE → leaf-only tree", {
+  skip_if_slow_tests_disabled("cta-node-selection")
   if (!.ns_myeloma_ok()) skip("myeloma fixture missing")
 
   d   <- .ns_load_myeloma()
@@ -146,6 +148,7 @@ test_that("node-selection: Node 2 V4-only always LOO UNSTABLE → leaf-only tree
 # =============================================================================
 
 test_that("node-selection: Node 2 V4+V15 → V4 rejected; root is V15 (STABLE)", {
+  skip_if_slow_tests_disabled("cta-node-selection")
   if (!.ns_myeloma_ok()) skip("myeloma fixture missing")
 
   d   <- .ns_load_myeloma()
@@ -196,6 +199,7 @@ test_that("node-selection: Node 2 V4+V15 → V4 rejected; root is V15 (STABLE)",
 # =============================================================================
 
 test_that("cta-demo regression: uniform weights bypass CTA path; root=V2 ESS=52.63%", {
+  skip_if_slow_tests_disabled("cta-node-selection")
   f <- tryCatch(testthat::test_path("fixtures/cta_demo/CTA_DEMO.CSV"),
                 error = function(e) "")
   if (!nzchar(f) || !file.exists(f)) skip("CTA_DEMO.CSV not found")

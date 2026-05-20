@@ -62,6 +62,7 @@ load_cta_demo <- function() {
 # ---- top-three-node structure -----------------------------------------------
 
 test_that("cta-demo gold: enumerated root is V2", {
+  skip_if_slow_tests_disabled("fixture-cta-demo")
   tree <- .cta_demo_fit()
   root <- tree$nodes[[tree$root_id]]
   expect_false(isTRUE(root$leaf))
@@ -69,24 +70,28 @@ test_that("cta-demo gold: enumerated root is V2", {
 })
 
 test_that("cta-demo gold: root cut value is 4.5", {
+  skip_if_slow_tests_disabled("fixture-cta-demo")
   tree <- .cta_demo_fit()
   root <- tree$nodes[[tree$root_id]]
   expect_equal(root$rule$cut_value, 4.5)
 })
 
 test_that("cta-demo gold: root n_obs = 200", {
+  skip_if_slow_tests_disabled("fixture-cta-demo")
   tree <- .cta_demo_fit()
   root <- tree$nodes[[tree$root_id]]
   expect_equal(root$n_obs, 200L)
 })
 
 test_that("cta-demo gold: root LOO status is STABLE", {
+  skip_if_slow_tests_disabled("fixture-cta-demo")
   tree <- .cta_demo_fit()
   root <- tree$nodes[[tree$root_id]]
   expect_equal(root$loo_status, "STABLE")
 })
 
 test_that("cta-demo gold: depth-2 nodes are V6 (n=110) and V2 (n=90), both STABLE", {
+  skip_if_slow_tests_disabled("fixture-cta-demo")
   tree <- .cta_demo_fit()
   tbl  <- cta_node_table(tree)
   d2   <- tbl[tbl$depth == 2 & !tbl$leaf, ]
@@ -101,12 +106,14 @@ test_that("cta-demo gold: depth-2 nodes are V6 (n=110) and V2 (n=90), both STABL
 })
 
 test_that("cta-demo gold: root ESS >= 50% (MegaODA = 52.63%)", {
+  skip_if_slow_tests_disabled("fixture-cta-demo")
   tree <- .cta_demo_fit()
   root <- tree$nodes[[tree$root_id]]
   expect_gte(root$ess, 50.0)
 })
 
 test_that("cta-demo gold: 8 split nodes (matching MegaODA node table)", {
+  skip_if_slow_tests_disabled("fixture-cta-demo")
   tree <- .cta_demo_fit()
   tbl  <- cta_node_table(tree)
   n_split <- sum(!tbl$leaf)
@@ -114,6 +121,7 @@ test_that("cta-demo gold: 8 split nodes (matching MegaODA node table)", {
 })
 
 test_that("cta-demo gold: split node obs counts match MegaODA exactly", {
+  skip_if_slow_tests_disabled("fixture-cta-demo")
   tree <- .cta_demo_fit()
   tbl  <- cta_node_table(tree)
   split_obs <- sort(tbl$n_obs[!tbl$leaf])
@@ -122,6 +130,7 @@ test_that("cta-demo gold: split node obs counts match MegaODA exactly", {
 })
 
 test_that("cta-demo gold: split node attributes match MegaODA (V2x2, V3, V4x2, V5, V6x2)", {
+  skip_if_slow_tests_disabled("fixture-cta-demo")
   tree <- .cta_demo_fit()
   tbl  <- cta_node_table(tree)
   split_attrs <- sort(tbl$attribute[!tbl$leaf])
@@ -130,6 +139,7 @@ test_that("cta-demo gold: split node attributes match MegaODA (V2x2, V3, V4x2, V
 })
 
 test_that("cta-demo gold: all split nodes have LOO = STABLE", {
+  skip_if_slow_tests_disabled("fixture-cta-demo")
   tree <- .cta_demo_fit()
   tbl  <- cta_node_table(tree)
   split_loo <- tbl$loo_status[!tbl$leaf]
@@ -138,6 +148,7 @@ test_that("cta-demo gold: all split nodes have LOO = STABLE", {
 })
 
 test_that("cta-demo gold: all split node p-values are finite", {
+  skip_if_slow_tests_disabled("fixture-cta-demo")
   # p-values are RNG-dependent and are not assertable to exact values.
   # Structure and ESS are the gold values.
   tree <- .cta_demo_fit()
@@ -147,6 +158,7 @@ test_that("cta-demo gold: all split node p-values are finite", {
 })
 
 test_that("cta-demo gold: depth-3 nodes are V3(29), V5(81), V6(47)", {
+  skip_if_slow_tests_disabled("fixture-cta-demo")
   tree <- .cta_demo_fit()
   tbl  <- cta_node_table(tree)
   d3   <- tbl[tbl$depth == 3 & !tbl$leaf, ]
@@ -156,6 +168,7 @@ test_that("cta-demo gold: depth-3 nodes are V3(29), V5(81), V6(47)", {
 })
 
 test_that("cta-demo gold: depth-4 nodes are both V4, obs 25 and 37", {
+  skip_if_slow_tests_disabled("fixture-cta-demo")
   tree <- .cta_demo_fit()
   tbl  <- cta_node_table(tree)
   d4   <- tbl[tbl$depth == 4 & !tbl$leaf, ]
@@ -167,6 +180,7 @@ test_that("cta-demo gold: depth-4 nodes are both V4, obs 25 and 37", {
 # ---- full-tree performance --------------------------------------------------
 
 test_that("cta-demo gold: full-tree training confusion matches [[103,21],[6,70]]", {
+  skip_if_slow_tests_disabled("fixture-cta-demo")
   d    <- load_cta_demo()
   tree <- .cta_demo_fit()
   X    <- d[, c("V2", "V3", "V4", "V5", "V6")]
@@ -186,6 +200,7 @@ test_that("cta-demo gold: full-tree training confusion matches [[103,21],[6,70]]
 })
 
 test_that("cta-demo gold: overall training ESS = 75.17% (tolerance 0.5%)", {
+  skip_if_slow_tests_disabled("fixture-cta-demo")
   d    <- load_cta_demo()
   tree <- .cta_demo_fit()
   X    <- d[, c("V2", "V3", "V4", "V5", "V6")]
