@@ -41,8 +41,9 @@ test_drive.R
 tests/testthat/myeloma/
 tests/testthat/CTA_DEMO.CSV
 
-# local Claude/prompt workbench
-prompts/
+# local Claude/prompt workbench — session logs and workbench files are not committed
+prompts/*
+!prompts/prod-roadmap-*.md
 
 # MegaODA/CTA engine binaries under vignette fixture folders — never commit
 tests/testthat/fixtures/vignettes/data/**/*.EXE
