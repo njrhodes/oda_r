@@ -314,3 +314,159 @@ cta_descendant_family <- function(
     termination_reason = term_reason
   )
 }
+
+# ---- Public CTA family reporting surface ------------------------------------
+
+#' Tidy table of a CTA descendant family
+#'
+#' Returns a \code{data.frame} with one row per family member.  All values are
+#' read from the stored \code{cta_family} object — no refitting or recomputation
+#' is performed.
+#'
+#' @param family A \code{cta_family} from \code{\link{cta_descendant_family}}.
+#' @return A \code{data.frame} with columns:
+#' \describe{
+#'   \item{\code{index}}{Integer position of the member in the chain.}
+#'   \item{\code{mindenom}}{Integer MINDENOM used for this fit.}
+#'   \item{\code{status}}{Character: \code{"valid_tree"}, \code{"stump"}, or
+#'     \code{"no_tree"}.}
+#'   \item{\code{no_tree}}{Logical; \code{TRUE} for the terminal no-tree member.}
+#'   \item{\code{strata}}{Integer number of terminal leaf endpoints;
+#'     \code{NA} for no-tree members.}
+#'   \item{\code{min_terminal_denom}}{Integer minimum leaf \code{n_obs};
+#'     \code{NA} for no-tree members.}
+#'   \item{\code{next_mindenom}}{Integer MINDENOM for the next chain step
+#'     (\code{min_terminal_denom + 1}); \code{NA} for no-tree members.}
+#'   \item{\code{overall_ess}}{Numeric overall ESS or WESS; \code{NA} for
+#'     no-tree members.}
+#'   \item{\code{has_weights}}{Logical; \code{TRUE} when case weights were
+#'     active for this fit.}
+#'   \item{\code{d}}{Numeric D statistic; \code{NA} for no-tree members.}
+#'   \item{\code{selected_min_d}}{Logical; \code{TRUE} for the feasible member
+#'     with minimum D (i.e., at index \code{family$min_d_idx}).  All
+#'     \code{FALSE} when no feasible member exists.}
+#' }
+#' @seealso \code{\link{cta_descendant_family}}, \code{\link{summary.cta_family}}
+#' @export
+cta_family_table <- function(family) {
+  stopifnot(inherits(family, "cta_family"))
+  n <- length(family$members)
+  if (n == 0L) {
+    return(data.frame(
+      index              = integer(0),
+      mindenom           = integer(0),
+      status             = character(0),
+      no_tree            = logical(0),
+      strata             = integer(0),
+      min_terminal_denom = integer(0),
+      next_mindenom      = integer(0),
+      overall_ess        = double(0),
+      has_weights        = logical(0),
+      d                  = double(0),
+      selected_min_d     = logical(0),
+      stringsAsFactors   = FALSE
+    ))
+  }
+  s <- family$summary
+  next_md_v <- vapply(family$members, function(m) {
+    v <- m[["next_mindenom"]]
+    if (is.null(v)) NA_integer_ else as.integer(v)
+  }, integer(1L))
+  has_wt_v <- vapply(family$members, function(m) {
+    isTRUE(m[["has_weights"]])
+  }, logical(1L))
+  sel <- rep(FALSE, n)
+  mid <- family$min_d_idx
+  if (!is.na(mid) && mid >= 1L && mid <= n) sel[mid] <- TRUE
+  data.frame(
+    index              = seq_len(n),
+    mindenom           = s$mindenom,
+    status             = s$status,
+    no_tree            = s$no_tree,
+    strata             = s$strata,
+    min_terminal_denom = s$min_terminal_denom,
+    next_mindenom      = next_md_v,
+    overall_ess        = s$overall_ess,
+    has_weights        = has_wt_v,
+    d                  = s$d,
+    selected_min_d     = sel,
+    stringsAsFactors   = FALSE
+  )
+}
+
+#' Summary of a CTA descendant family
+#'
+#' Returns a structured S3 summary object for a \code{cta_family}.  All values
+#' are read from stored fields — no refitting or recomputation is performed.
+#'
+#' @param object A \code{cta_family} from \code{\link{cta_descendant_family}}.
+#' @param ... Unused; included for S3 compatibility.
+#' @return A list of class \code{c("cta_family_summary", "list")} with fields:
+#' \describe{
+#'   \item{\code{n_members}}{Integer number of family members.}
+#'   \item{\code{min_d_idx}}{Integer index of the feasible member with minimum D;
+#'     \code{NA_integer_} if none.}
+#'   \item{\code{terminated}}{Logical; always \code{TRUE} for a completed chain.}
+#'   \item{\code{termination_reason}}{Character: one of \code{"no_tree"},
+#'     \code{"max_steps"}, \code{"no_next_mindenom"}.}
+#'   \item{\code{has_weights}}{Logical; \code{TRUE} when any family member used
+#'     case weights.}
+#'   \item{\code{table}}{A \code{data.frame} from \code{\link{cta_family_table}}.}
+#' }
+#' @seealso \code{\link{cta_descendant_family}}, \code{\link{cta_family_table}}
+#' @export
+summary.cta_family <- function(object, ...) {
+  stopifnot(inherits(object, "cta_family"))
+  has_wt <- any(vapply(object$members, function(m) isTRUE(m[["has_weights"]]),
+                       logical(1L)))
+  structure(
+    list(
+      n_members          = length(object$members),
+      min_d_idx          = object$min_d_idx,
+      terminated         = object$terminated,
+      termination_reason = object$termination_reason,
+      has_weights        = has_wt,
+      table              = cta_family_table(object)
+    ),
+    class = c("cta_family_summary", "list")
+  )
+}
+
+#' Print a CTA family summary
+#'
+#' Compact display of the \code{cta_family_summary} object returned by
+#' \code{\link{summary.cta_family}}.
+#'
+#' @param x A \code{cta_family_summary} object.
+#' @param ... Unused; included for S3 compatibility.
+#' @return \code{invisible(x)}.
+#' @seealso \code{\link{summary.cta_family}}, \code{\link{cta_family_table}}
+#' @export
+print.cta_family_summary <- function(x, ...) {
+  ess_label <- if (isTRUE(x$has_weights)) "WESS" else "ESS"
+  cat("CTA descendant family\n")
+  cat(sprintf("  members: %d  |  termination: %s  |  min-D index: %s\n",
+              x$n_members,
+              x$termination_reason,
+              if (is.na(x$min_d_idx)) "none" else as.character(x$min_d_idx)))
+  tbl <- x$table
+  names(tbl)[names(tbl) == "mindenom"]    <- "MINDENOM"
+  names(tbl)[names(tbl) == "overall_ess"] <- ess_label
+  names(tbl)[names(tbl) == "d"]           <- "D"
+  print(tbl, row.names = FALSE)
+  invisible(x)
+}
+
+#' Print a CTA descendant family
+#'
+#' Calls \code{\link{summary.cta_family}} and prints the result.
+#'
+#' @param x A \code{cta_family} from \code{\link{cta_descendant_family}}.
+#' @param ... Passed to \code{\link{print.cta_family_summary}}.
+#' @return \code{invisible(x)}.
+#' @seealso \code{\link{summary.cta_family}}, \code{\link{cta_family_table}}
+#' @export
+print.cta_family <- function(x, ...) {
+  print(summary(x), ...)
+  invisible(x)
+}
