@@ -245,7 +245,7 @@ test_that("summary.oda_fit binary train section has ess", {
   expect_true(is.numeric(s$train$ess))
 })
 
-test_that("summary.oda_fit contains no fake LOO p-value when loo=off", {
+test_that("summary.oda_fit contains no spurious LOO p-value when loo=off", {
   fit <- .bin_fit(loo = "off")
   s   <- summary(fit)
   # loo section should be NULL (no LOO was run)

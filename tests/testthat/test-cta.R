@@ -411,7 +411,7 @@ test_that("myeloma MINDENOM=56: no_tree, strata NA, denominators integer(0)", {
 #
 # Synthetic minimal cta_tree objects: no fitting required.  Leaf nodes only;
 # split nodes are not needed for the accessor contract under test.
-.fake_cta_tree <- function(overall_ess, n_leaves, no_tree = FALSE) {
+.synthetic_cta_tree <- function(overall_ess, n_leaves, no_tree = FALSE) {
   nodes <- lapply(seq_len(n_leaves), function(i)
     list(leaf = TRUE, node_id = i, n_obs = 10L))
   structure(
@@ -421,40 +421,40 @@ test_that("myeloma MINDENOM=56: no_tree, strata NA, denominators integer(0)", {
 }
 
 test_that("cta_d_stat: no_tree returns NA_real_", {
-  tree <- .fake_cta_tree(overall_ess = 50, n_leaves = 2L, no_tree = TRUE)
+  tree <- .synthetic_cta_tree(overall_ess = 50, n_leaves = 2L, no_tree = TRUE)
   expect_identical(cta_d_stat(tree), NA_real_)
 })
 
 test_that("cta_d_stat: missing overall_ess returns NA_real_", {
-  tree <- .fake_cta_tree(overall_ess = 50, n_leaves = 2L)
+  tree <- .synthetic_cta_tree(overall_ess = 50, n_leaves = 2L)
   tree$overall_ess <- NULL
   expect_identical(cta_d_stat(tree), NA_real_)
 })
 
 test_that("cta_d_stat: non-finite overall_ess returns NA_real_", {
-  tree_inf <- .fake_cta_tree(overall_ess = Inf,  n_leaves = 2L)
-  tree_nan <- .fake_cta_tree(overall_ess = NaN,  n_leaves = 2L)
-  tree_na  <- .fake_cta_tree(overall_ess = NA_real_, n_leaves = 2L)
+  tree_inf <- .synthetic_cta_tree(overall_ess = Inf,  n_leaves = 2L)
+  tree_nan <- .synthetic_cta_tree(overall_ess = NaN,  n_leaves = 2L)
+  tree_na  <- .synthetic_cta_tree(overall_ess = NA_real_, n_leaves = 2L)
   expect_identical(cta_d_stat(tree_inf), NA_real_)
   expect_identical(cta_d_stat(tree_nan), NA_real_)
   expect_identical(cta_d_stat(tree_na),  NA_real_)
 })
 
 test_that("cta_d_stat: non-positive overall_ess returns NA_real_", {
-  tree_zero <- .fake_cta_tree(overall_ess =  0,  n_leaves = 2L)
-  tree_neg  <- .fake_cta_tree(overall_ess = -5,  n_leaves = 2L)
+  tree_zero <- .synthetic_cta_tree(overall_ess =  0,  n_leaves = 2L)
+  tree_neg  <- .synthetic_cta_tree(overall_ess = -5,  n_leaves = 2L)
   expect_identical(cta_d_stat(tree_zero), NA_real_)
   expect_identical(cta_d_stat(tree_neg),  NA_real_)
 })
 
 test_that("cta_d_stat: strata < 2 returns NA_real_", {
-  tree <- .fake_cta_tree(overall_ess = 50, n_leaves = 1L)
+  tree <- .synthetic_cta_tree(overall_ess = 50, n_leaves = 1L)
   expect_identical(cta_d_stat(tree), NA_real_)
 })
 
 test_that("cta_d_stat: two leaves, overall_ess = 50 returns D = 2", {
   # D = 100 / (50 / 2) - 2 = 4 - 2 = 2
-  tree <- .fake_cta_tree(overall_ess = 50, n_leaves = 2L)
+  tree <- .synthetic_cta_tree(overall_ess = 50, n_leaves = 2L)
   expect_equal(cta_d_stat(tree), 2)
 })
 

@@ -20,9 +20,9 @@
   )
 }
 
-# Fake 3-leaf tree (2 splits) — mirrors .fake_valid_tree() in test-cta-summary.R
+# Synthetic 3-leaf tree (2 splits) — mirrors .synthetic_valid_tree() in test-cta-summary.R
 # but with parent linkage and child_ids for path reconstruction.
-.fake_3leaf_tree <- function() {
+.synthetic_3leaf_tree <- function() {
   # Layout:
   #   node 1 (split): x<=4.5 → node 2 (leaf, class 0)
   #                   x>4.5  → node 3 (split): x<=6.5 → node 4 (leaf, class 0)
@@ -187,53 +187,53 @@ test_that("cta_endpoint_table: stump rows sorted by node_id", {
 })
 
 # =============================================================================
-# Fake 3-leaf tree — path reconstruction and structural checks
+# Synthetic 3-leaf tree — path reconstruction and structural checks
 # =============================================================================
 
-test_that("cta_endpoint_table: fake 3-leaf tree has 3 rows", {
-  df <- cta_endpoint_table(.fake_3leaf_tree())
+test_that("cta_endpoint_table: synthetic 3-leaf tree has 3 rows", {
+  df <- cta_endpoint_table(.synthetic_3leaf_tree())
   expect_equal(nrow(df), 3L)
 })
 
-test_that("cta_endpoint_table: fake 3-leaf node_ids are 2, 4, 5", {
-  df <- cta_endpoint_table(.fake_3leaf_tree())
+test_that("cta_endpoint_table: synthetic 3-leaf node_ids are 2, 4, 5", {
+  df <- cta_endpoint_table(.synthetic_3leaf_tree())
   expect_equal(sort(df$node_id), c(2L, 4L, 5L))
 })
 
-test_that("cta_endpoint_table: fake 3-leaf node2 path = 'x<=4.5'", {
-  df <- cta_endpoint_table(.fake_3leaf_tree())
+test_that("cta_endpoint_table: synthetic 3-leaf node2 path = 'x<=4.5'", {
+  df <- cta_endpoint_table(.synthetic_3leaf_tree())
   nd2 <- df[df$node_id == 2L, , drop = FALSE]
   expect_equal(nd2$path, "x<=4.5")
 })
 
-test_that("cta_endpoint_table: fake 3-leaf node4 path = 'x>4.5 AND x<=6.5'", {
-  df <- cta_endpoint_table(.fake_3leaf_tree())
+test_that("cta_endpoint_table: synthetic 3-leaf node4 path = 'x>4.5 AND x<=6.5'", {
+  df <- cta_endpoint_table(.synthetic_3leaf_tree())
   nd4 <- df[df$node_id == 4L, , drop = FALSE]
   expect_equal(nd4$path, "x>4.5 AND x<=6.5")
 })
 
-test_that("cta_endpoint_table: fake 3-leaf node5 path = 'x>4.5 AND x>6.5'", {
-  df <- cta_endpoint_table(.fake_3leaf_tree())
+test_that("cta_endpoint_table: synthetic 3-leaf node5 path = 'x>4.5 AND x>6.5'", {
+  df <- cta_endpoint_table(.synthetic_3leaf_tree())
   nd5 <- df[df$node_id == 5L, , drop = FALSE]
   expect_equal(nd5$path, "x>4.5 AND x>6.5")
 })
 
-test_that("cta_endpoint_table: fake 3-leaf depths correct", {
-  df <- cta_endpoint_table(.fake_3leaf_tree())
+test_that("cta_endpoint_table: synthetic 3-leaf depths correct", {
+  df <- cta_endpoint_table(.synthetic_3leaf_tree())
   expect_equal(df[df$node_id == 2L, "depth"], 2L)
   expect_equal(df[df$node_id == 4L, "depth"], 3L)
   expect_equal(df[df$node_id == 5L, "depth"], 3L)
 })
 
-test_that("cta_endpoint_table: fake 3-leaf majority classes", {
-  df <- cta_endpoint_table(.fake_3leaf_tree())
+test_that("cta_endpoint_table: synthetic 3-leaf majority classes", {
+  df <- cta_endpoint_table(.synthetic_3leaf_tree())
   expect_equal(df[df$node_id == 2L, "majority_class"], 0L)
   expect_equal(df[df$node_id == 4L, "majority_class"], 0L)
   expect_equal(df[df$node_id == 5L, "majority_class"], 1L)
 })
 
-test_that("cta_endpoint_table: fake 3-leaf n_obs correct", {
-  df <- cta_endpoint_table(.fake_3leaf_tree())
+test_that("cta_endpoint_table: synthetic 3-leaf n_obs correct", {
+  df <- cta_endpoint_table(.synthetic_3leaf_tree())
   expect_equal(df[df$node_id == 2L, "n_obs"], 4L)
   expect_equal(df[df$node_id == 4L, "n_obs"], 3L)
   expect_equal(df[df$node_id == 5L, "n_obs"], 3L)

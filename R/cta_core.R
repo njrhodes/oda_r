@@ -331,7 +331,8 @@ oda_cta_fit <- function(
   if (is.null(attr_names))
     attr_names <- colnames(X) %||% paste0("V", seq_len(ncol(X)))
   n_attrs <- ncol(X)
-  C       <- length(unique(y))
+  C            <- length(unique(y))
+  class_levels <- sort(unique(as.integer(y)))   # fit-level class universe
   loo_arg <- if (is.numeric(loo)) "pvalue" else as.character(loo)
 
   .vmsg <- if (isTRUE(verbose)) function(...) message(...) else function(...) invisible(NULL)
@@ -406,6 +407,25 @@ oda_cta_fit <- function(
     conf <- oda_confusion_binary(y_node, y_pred_raw)
     matrix(c(conf$TN, conf$FP, conf$FN, conf$TP), nrow = 2L, ncol = 2L,
            dimnames = list(actual = c("0","1"), predicted = c("0","1")))
+  }
+
+  # Final full-tree training confusion matrix from actual and predicted labels.
+  # y_actual and y_pred must already be filtered to classified observations
+  # (NA rows excluded by the caller).
+  # levels defaults to class_levels (the fit-level class universe) so that
+  # the stored matrix always spans all fitted classes — preventing silent
+  # class dropping in edge cases where path-local scoring excludes a class.
+  .make_training_conf <- function(y_actual, y_pred, levels = class_levels) {
+    y_actual <- as.integer(y_actual)
+    y_pred   <- as.integer(y_pred)
+    levels   <- as.integer(levels)
+    tbl <- table(
+      actual    = factor(y_actual, levels = levels),
+      predicted = factor(y_pred,   levels = levels)
+    )
+    matrix(as.integer(tbl), nrow = length(levels), ncol = length(levels),
+           dimnames = list(actual    = as.character(levels),
+                           predicted = as.character(levels)))
   }
 
   # LOO metadata from a fit result
@@ -938,8 +958,9 @@ oda_cta_fit <- function(
            # Final tree objective on the ESS/WESS scale: WESS when weights are
            # active, ESS otherwise.  NA for no-tree fits.  Retained for the
            # cta_d_stat() contract; do not rename without updating accessors.
-           overall_ess  = NA_real_,
-           has_weights  = any(w != 1)),
+           overall_ess       = NA_real_,
+           has_weights       = any(w != 1),
+           training_confusion = NULL),
       class = "cta_tree"))
   }
 
@@ -967,9 +988,10 @@ oda_cta_fit <- function(
   # B split candidates sorted by left-branch ESS desc then leaf last; within
   # each (A, B), C split candidates sorted by right-branch ESS desc then leaf last.
 
-  best_wess    <- -Inf
-  best_nodes   <- NULL
-  best_n_nodes <- 0L
+  best_wess       <- -Inf
+  best_nodes      <- NULL
+  best_n_nodes    <- 0L
+  best_confusion  <- NULL
 
   .vmsg("[ENUMERATE] ", length(root_cands), " root candidates (A\u00d7B\u00d7C)")
 
@@ -1099,6 +1121,7 @@ oda_cta_fit <- function(
         # ---- Prune, score, compare -------------------------------------------
         pruned_nodes <- .prune_tree(cand_nodes)
 
+        preds     <- NULL
         wess_cand <- tryCatch({
           preds <- .predict_all(pruned_nodes, root_id = 1L)
           .wess_classes(y, preds, w)
@@ -1110,6 +1133,12 @@ oda_cta_fit <- function(
           best_wess    <- wess_cand
           best_nodes   <- pruned_nodes
           best_n_nodes <- sum(!vapply(pruned_nodes, is.null, logical(1L)))
+          # Capture final-tree confusion at the moment of selection.
+          # preds is from majority-fallback .predict_all(); filter classified.
+          if (!is.null(preds)) {
+            ok_exp         <- !is.na(preds)
+            best_confusion <- .make_training_conf(y[ok_exp], preds[ok_exp])
+          }
         }
       }  # end C loop
     }  # end B loop
@@ -1170,6 +1199,9 @@ oda_cta_fit <- function(
       best_wess    <- wess_stump
       best_nodes   <- stump_nodes
       best_n_nodes <- 3L
+      # Capture final-tree confusion at the moment of selection.
+      # stump_preds[ok] is path-local: missing-root obs already excluded.
+      best_confusion <- .make_training_conf(y[ok], stump_preds[ok])
     }
   }  # end root-only phase
 
@@ -1210,8 +1242,12 @@ oda_cta_fit <- function(
       # Final tree objective on the ESS/WESS scale: WESS when weights are
       # active, ESS otherwise.  NA for no-tree fits.  Retained for the
       # cta_d_stat() contract; do not rename without updating accessors.
-      overall_ess = if (no_tree) NA_real_ else best_wess,
-      has_weights = any(w != 1)
+      overall_ess        = if (no_tree) NA_real_ else best_wess,
+      has_weights        = any(w != 1),
+      # Final selected tree training confusion (rows=actual, cols=predicted).
+      # Captured at the exact moment the winning candidate is selected, using
+      # the same scoring predictions.  NULL for no-tree fits.
+      training_confusion = if (no_tree) NULL else best_confusion
     ),
     class = "cta_tree"
   )

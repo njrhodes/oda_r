@@ -22,8 +22,8 @@
   )
 }
 
-# Fake valid_tree with strata = 3 — no fitting, structural tests only.
-.fake_valid_tree <- function() {
+# Synthetic valid_tree with strata = 3 — no fitting, structural tests only.
+.synthetic_valid_tree <- function() {
   nodes <- lapply(seq_len(3L), function(i)
     list(leaf = TRUE, node_id = i, n_obs = 10L))
   structure(
@@ -163,33 +163,33 @@ test_that("summary.cta_tree: stump fit params stored correctly", {
 })
 
 # =============================================================================
-# valid_tree path via fake tree (strata > 2, no fitting)
+# valid_tree path via synthetic tree (strata > 2, no fitting)
 # =============================================================================
 
-test_that("summary.cta_tree: fake valid_tree status = 'valid_tree'", {
-  s <- summary(.fake_valid_tree())
+test_that("summary.cta_tree: synthetic valid_tree status = 'valid_tree'", {
+  s <- summary(.synthetic_valid_tree())
   expect_equal(s$status, "valid_tree")
   expect_false(s$no_tree)
 })
 
-test_that("summary.cta_tree: fake valid_tree strata = 3", {
-  s <- summary(.fake_valid_tree())
+test_that("summary.cta_tree: synthetic valid_tree strata = 3", {
+  s <- summary(.synthetic_valid_tree())
   expect_equal(s$strata,   3L)
   expect_equal(s$n_leaves, 3L)
 })
 
-test_that("summary.cta_tree: fake valid_tree overall_ess read correctly", {
-  s <- summary(.fake_valid_tree())
+test_that("summary.cta_tree: synthetic valid_tree overall_ess read correctly", {
+  s <- summary(.synthetic_valid_tree())
   expect_equal(s$overall_ess, 75.0)
 })
 
-test_that("summary.cta_tree: fake valid_tree d = 1 (100/(75/3) - 3)", {
-  s <- summary(.fake_valid_tree())
+test_that("summary.cta_tree: synthetic valid_tree d = 1 (100/(75/3) - 3)", {
+  s <- summary(.synthetic_valid_tree())
   expect_equal(s$d, 1.0)
 })
 
-test_that("summary.cta_tree: fake valid_tree has_weights = FALSE", {
-  s <- summary(.fake_valid_tree())
+test_that("summary.cta_tree: synthetic valid_tree has_weights = FALSE", {
+  s <- summary(.synthetic_valid_tree())
   expect_false(s$has_weights)
 })
 
@@ -211,8 +211,8 @@ test_that("print.cta_tree_summary: stump prints status and ESS", {
   expect_output(print(s), "overall_ess")
 })
 
-test_that("print.cta_tree_summary: valid_tree fake prints overall_ess and D", {
-  s <- summary(.fake_valid_tree())
+test_that("print.cta_tree_summary: synthetic valid_tree prints overall_ess and D", {
+  s <- summary(.synthetic_valid_tree())
   out <- capture.output(print(s))
   joined <- paste(out, collapse = "\n")
   expect_match(joined, "overall_ess", fixed = TRUE)
@@ -248,15 +248,15 @@ test_that("print.cta_tree: stump footer includes strata and min_denom labels", {
   expect_match(out, "min_denom", fixed = TRUE)
 })
 
-test_that("print.cta_tree: WESS label shown for weighted fake tree", {
-  wt <- .fake_valid_tree()
+test_that("print.cta_tree: WESS label shown for weighted synthetic tree", {
+  wt <- .synthetic_valid_tree()
   wt$has_weights  <- TRUE
   wt$alpha_split  <- 0.05
   wt$mindenom     <- 1L
   wt$prune_alpha  <- 1.0
   wt$max_depth    <- 10L
   wt$loo          <- "off"
-  # Fake nodes are all leaves so the split-node loop body is skipped;
+  # Synthetic nodes are all leaves so the split-node loop body is skipped;
   # the footer still runs.
   out <- tryCatch(
     paste(capture.output(print(wt)), collapse = "\n"),
