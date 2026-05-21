@@ -434,3 +434,108 @@ cta_confusion_table <- function(tree) {
                    stringsAsFactors = FALSE)
   df[order(df$actual, df$predicted), , drop = FALSE]
 }
+
+# =============================================================================
+# cta_endpoint_summary() — conservative endpoint reporting accessor
+# =============================================================================
+
+#' Endpoint reporting summary for a fitted CTA tree
+#'
+#' Returns one row per terminal leaf (endpoint) with stable endpoint
+#' identifiers and stored node fields suitable for downstream reporting.
+#' All values are read directly from stored node fields; no refitting,
+#' no prediction, and no recomputation of tree metrics is performed.
+#'
+#' \strong{Scope:} This function reports structural endpoint fields only.
+#' It does \emph{not} include endpoint class counts, target-class
+#' proportions, event rates, odds, or staging order.  Staging-table and
+#' event-rate reporting require per-endpoint class counts, which are not
+#' currently stored at fit time.  That capability is deferred until
+#' fit-time endpoint class-count storage is designed.
+#'
+#' @param tree A \code{cta_tree} from \code{\link{oda_cta_fit}}.
+#' @return A \code{data.frame} with one row per terminal leaf and columns:
+#' \describe{
+#'   \item{\code{endpoint_id}}{Integer sequential index 1..n in node order.}
+#'   \item{\code{endpoint_node_id}}{Integer tree node identifier for this
+#'     leaf, corresponding to \code{node_id} in \code{\link{cta_endpoint_table}}.}
+#'   \item{\code{path}}{Character; AND-joined branch labels from root to this
+#'     leaf (e.g. \code{"V14<=0.5 AND V15>0.5"}).}
+#'   \item{\code{depth}}{Integer depth from root (root = 1).}
+#'   \item{\code{terminal_prediction}}{Integer class label assigned to this
+#'     endpoint (stored leaf \code{majority_class}).}
+#'   \item{\code{n_obs}}{Integer raw observation count at this endpoint.}
+#'   \item{\code{n_weighted}}{Numeric weighted observation count.  Equals
+#'     \code{n_obs} when case weights are not active (not \code{NA}).}
+#'   \item{\code{denominator}}{Integer endpoint denominator (equal to
+#'     \code{n_obs}); included to align with MPE/MDSA terminology.}
+#' }
+#' For a no-tree fit the returned data frame has zero rows but the correct
+#' column structure and types.
+#' @seealso \code{\link{oda_cta_fit}}, \code{\link{cta_endpoint_table}},
+#'   \code{\link{cta_strata}}, \code{\link{cta_endpoint_denominators}}
+#' @examples
+#' data(mtcars)
+#' X    <- mtcars[, c("cyl", "disp", "hp", "wt")]
+#' y    <- as.integer(mtcars$am)
+#' tree <- oda_cta_fit(X, y, mindenom = 5L, mc_iter = 500L, mc_seed = 42L)
+#' cta_endpoint_summary(tree)
+cta_endpoint_summary <- function(tree) {
+  stopifnot(inherits(tree, "cta_tree"))
+
+  empty_df <- function() {
+    data.frame(
+      endpoint_id         = integer(0),
+      endpoint_node_id    = integer(0),
+      path                = character(0),
+      depth               = integer(0),
+      terminal_prediction = integer(0),
+      n_obs               = integer(0),
+      n_weighted          = numeric(0),
+      denominator         = integer(0),
+      stringsAsFactors    = FALSE
+    )
+  }
+
+  if (isTRUE(tree$no_tree)) return(empty_df())
+
+  leaves <- Filter(function(nd) !is.null(nd) && isTRUE(nd$leaf), tree$nodes)
+  if (length(leaves) == 0L) return(empty_df())
+
+  # Sort leaves by node_id for stable ordering (matches cta_endpoint_table).
+  node_ids <- vapply(leaves, function(nd) nd$node_id, integer(1L))
+  leaves   <- leaves[order(node_ids)]
+
+  n <- length(leaves)
+  endpoint_node_id    <- integer(n)
+  path                <- character(n)
+  depth               <- integer(n)
+  terminal_prediction <- integer(n)
+  n_obs               <- integer(n)
+  n_weighted          <- numeric(n)
+
+  for (i in seq_len(n)) {
+    nd   <- leaves[[i]]
+    segs <- .cta_path_segments(tree, nd$node_id)
+
+    endpoint_node_id[i]    <- nd$node_id
+    path[i]                <- if (length(segs) == 0L) "/"
+                              else paste(segs, collapse = " AND ")
+    depth[i]               <- nd$depth          %||% NA_integer_
+    terminal_prediction[i] <- nd$majority_class  %||% NA_integer_
+    n_obs[i]               <- nd$n_obs           %||% NA_integer_
+    n_weighted[i]          <- nd$n_weighted      %||% NA_real_
+  }
+
+  data.frame(
+    endpoint_id         = seq_len(n),
+    endpoint_node_id    = endpoint_node_id,
+    path                = path,
+    depth               = depth,
+    terminal_prediction = terminal_prediction,
+    n_obs               = n_obs,
+    n_weighted          = n_weighted,
+    denominator         = n_obs,
+    stringsAsFactors    = FALSE
+  )
+}
