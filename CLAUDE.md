@@ -24,6 +24,43 @@ devtools::document()                      # regenerate docs from roxygen (NAMESP
 devtools::install(".")                    # install locally
 ```
 
+### Test tiers
+
+Tests are gated by the `ODACORE_TEST_TIER` environment variable (see `tests/testthat/helper-test-tier.R`). When set to `"fast"`, slow canon-fixture tests are skipped. When unset or any other value, all tests run.
+
+```bash
+# Fast tier — skips all canon-fixture tests (dev loop)
+ODACORE_TEST_TIER=fast Rscript --vanilla -e "devtools::test(reporter='progress')"
+
+# Full suite — all tests including fixtures (~3–5 min)
+Rscript --vanilla -e "devtools::test(reporter='progress')"
+```
+
+### Production-smoke gate
+
+**Required before pushing any CTA, MDSA, or reporting changes.**
+`ODACORE_TEST_TIER=fast` is NOT sufficient for CTA/MDSA/reporting production validation — it skips all myeloma and CTA canon fixtures. The production-smoke gate must be run without the fast-tier env var.
+
+**Important:** `devtools::test(filter=...)` matches **test file names**, not skip-reason strings.
+`"cta-family"` and `"cta-myeloma-chain"` are skip-reason labels passed to `skip_if_slow_tests_disabled()`,
+not file names. The slow tests they gate live inside `test-cta.R` (matched by `filter='cta'`).
+
+```bash
+# Step 1 — Required myeloma production smoke:
+# Covers LOO STABLE selection, path-local missingness, confusion semantics,
+# stump/valid_tree structure (test-fixture-myeloma-cta.R + test-cta-confusion-table.R).
+Rscript --vanilla -e "devtools::test(filter='fixture-myeloma-cta|cta-confusion-table', reporter='progress')"
+
+# Step 2 — Required CTA family/chain check:
+# filter='cta' is broad CTA coverage (matches test-cta.R and related CTA files).
+# This is the correct way to run the cta-family and cta-myeloma-chain gated tests,
+# since those are skip-reason labels, not file names.
+Rscript --vanilla -e "devtools::test(filter='cta', reporter='progress')"
+
+# Steps 1+2 combined — full broad CTA production smoke:
+Rscript --vanilla -e "devtools::test(filter='fixture-myeloma-cta|cta-confusion-table|cta', reporter='progress')"
+```
+
 ## Architecture
 
 Files are sourced alphabetically by R's package loader, so `utils.R` is always first.
