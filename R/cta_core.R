@@ -360,10 +360,22 @@ oda_cta_fit <- function(
   .leaf_nd <- function(nid, parent_id, depth, idx, pred_class = NULL) {
     maj <- if (!is.null(pred_class)) as.integer(pred_class)
            else .majority_class(idx)
+    yy <- as.integer(y[idx])
+    ww <- w[idx]
+    class_counts_raw <- setNames(
+      as.integer(table(factor(yy, levels = class_levels))),
+      as.character(class_levels)
+    )
+    class_counts_weighted <- setNames(
+      vapply(class_levels, function(cl) sum(ww[yy == cl]), numeric(1L)),
+      as.character(class_levels)
+    )
     list(
       node_id = nid, parent_id = parent_id, depth = depth,
-      n_obs = length(idx), n_weighted = sum(w[idx]),
+      n_obs = length(idx), n_weighted = sum(ww),
       leaf = TRUE, majority_class = maj,
+      class_counts_raw = class_counts_raw,
+      class_counts_weighted = class_counts_weighted,
       attribute = NA_character_, attr_col = NA_integer_,
       attr_type = NA_character_, rule = NULL,
       ess = NA_real_, ess_weighted = NA_real_, p_mc = NA_real_,

@@ -297,7 +297,7 @@ test_that("cta_endpoint_summary: myeloma MINDENOM=1 denominators match cta_endpo
   skip_if_slow_tests_disabled("cta-endpoint-summary")
   tree <- .epsum_myeloma_fit(1L)
   df   <- cta_endpoint_summary(tree)
-  canon_denoms <- sort(cta_endpoint_denominators(tree))
+  canon_denoms <- sort(unname(cta_endpoint_denominators(tree)))
   expect_equal(sort(df$denominator), canon_denoms)
 })
 
@@ -305,7 +305,7 @@ test_that("cta_endpoint_summary: myeloma MINDENOM=30 denominators match cta_endp
   skip_if_slow_tests_disabled("cta-endpoint-summary")
   tree <- .epsum_myeloma_fit(30L)
   df   <- cta_endpoint_summary(tree)
-  canon_denoms <- sort(cta_endpoint_denominators(tree))
+  canon_denoms <- sort(unname(cta_endpoint_denominators(tree)))
   expect_equal(sort(df$denominator), canon_denoms)
 })
 
