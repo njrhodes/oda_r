@@ -9,10 +9,9 @@ recomputation of tree metrics is performed.
 
 \strong{Scope:} This function reports structural endpoint fields only.
 It does \emph{not} include endpoint class counts, target-class proportions,
-event rates, odds, or staging order.  Staging-table and event-rate reporting
-require per-endpoint class counts, which are not currently stored at fit time.
-That capability is deferred until fit-time endpoint class-count storage is
-designed.
+event rates, odds, or staging order.  Per-endpoint class counts are available
+via \code{\link{cta_endpoint_counts}}.  Staging-table and event-rate summaries
+remain deferred until \code{cta_staging_table()} is implemented.
 }
 \usage{cta_endpoint_summary(tree)}
 \arguments{
@@ -40,7 +39,8 @@ column structure and types.
 }
 \seealso{
   \code{\link{oda_cta_fit}}, \code{\link{cta_endpoint_table}},
-  \code{\link{cta_strata}}, \code{\link{cta_endpoint_denominators}}
+  \code{\link{cta_strata}}, \code{\link{cta_endpoint_denominators}},
+  \code{\link{cta_endpoint_counts}}
 }
 \examples{
 data(mtcars)

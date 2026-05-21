@@ -448,10 +448,10 @@ cta_confusion_table <- function(tree) {
 #'
 #' \strong{Scope:} This function reports structural endpoint fields only.
 #' It does \emph{not} include endpoint class counts, target-class
-#' proportions, event rates, odds, or staging order.  Staging-table and
-#' event-rate reporting require per-endpoint class counts, which are not
-#' currently stored at fit time.  That capability is deferred until
-#' fit-time endpoint class-count storage is designed.
+#' proportions, event rates, odds, or staging order.  Per-endpoint class
+#' counts are available via \code{\link{cta_endpoint_counts}}.
+#' Staging-table and event-rate summaries remain deferred until
+#' \code{cta_staging_table()} is implemented.
 #'
 #' @param tree A \code{cta_tree} from \code{\link{oda_cta_fit}}.
 #' @return A \code{data.frame} with one row per terminal leaf and columns:
@@ -473,7 +473,8 @@ cta_confusion_table <- function(tree) {
 #' For a no-tree fit the returned data frame has zero rows but the correct
 #' column structure and types.
 #' @seealso \code{\link{oda_cta_fit}}, \code{\link{cta_endpoint_table}},
-#'   \code{\link{cta_strata}}, \code{\link{cta_endpoint_denominators}}
+#'   \code{\link{cta_strata}}, \code{\link{cta_endpoint_denominators}},
+#'   \code{\link{cta_endpoint_counts}}
 #' @examples
 #' data(mtcars)
 #' X    <- mtcars[, c("cyl", "disp", "hp", "wt")]
@@ -536,6 +537,136 @@ cta_endpoint_summary <- function(tree) {
     n_obs               = n_obs,
     n_weighted          = n_weighted,
     denominator         = n_obs,
+    stringsAsFactors    = FALSE
+  )
+}
+
+# =============================================================================
+# cta_endpoint_counts() — per-endpoint × class count table
+# =============================================================================
+
+#' Per-endpoint class count table for a fitted CTA tree
+#'
+#' Returns one row per terminal endpoint (leaf) per actual class, read
+#' directly from stored leaf node fields.  No refitting, no prediction,
+#' and no recomputation from training data is performed.
+#'
+#' Class counts are stored at fit time by \code{\link{oda_cta_fit}} on
+#' every terminal leaf.  Row order within each endpoint follows the order
+#' of \code{names(leaf$class_counts_raw)}, which is ascending by class
+#' label.  Endpoints are ordered by \code{node_id}, matching
+#' \code{\link{cta_endpoint_summary}}.
+#'
+#' \strong{Scope:} This function exposes stored raw and weighted class
+#' counts only.  It does \emph{not} include target-class proportions,
+#' event rates, odds, or staging order.  Staging-table and event-rate
+#' summaries remain deferred until \code{cta_staging_table()} is
+#' implemented.
+#'
+#' If any terminal leaf is missing the stored class counts (i.e., the
+#' \code{cta_tree} was fitted by an earlier version of odacore that did
+#' not store endpoint counts), the function stops with a clear error.
+#'
+#' @param tree A \code{cta_tree} from \code{\link{oda_cta_fit}}.
+#' @return A \code{data.frame} with one row per terminal endpoint per
+#'   actual class and columns:
+#' \describe{
+#'   \item{\code{endpoint_id}}{Integer sequential endpoint index 1..n in
+#'     node order, matching \code{\link{cta_endpoint_summary}}.}
+#'   \item{\code{endpoint_node_id}}{Integer tree node identifier for this
+#'     endpoint leaf.}
+#'   \item{\code{path}}{Character; AND-joined branch labels from root to
+#'     this leaf (e.g. \code{"V14<=0.5 AND V15>0.5"}).}
+#'   \item{\code{terminal_prediction}}{Integer class label assigned to
+#'     this endpoint (stored leaf \code{majority_class}).}
+#'   \item{\code{class}}{Character; actual class label for this row
+#'     (e.g. \code{"0"}, \code{"1"}).}
+#'   \item{\code{n_raw}}{Integer raw count of observations of this actual
+#'     class reaching this endpoint.}
+#'   \item{\code{n_weighted}}{Numeric weighted total for this actual class
+#'     reaching this endpoint.  Equals \code{n_raw} when case weights are
+#'     not active.}
+#' }
+#' For a no-tree fit the returned data frame has zero rows but the correct
+#' column structure and types.
+#' @seealso \code{\link{oda_cta_fit}}, \code{\link{cta_endpoint_summary}},
+#'   \code{\link{cta_confusion_table}}, \code{\link{cta_endpoint_table}}
+#' @examples
+#' data(mtcars)
+#' X    <- mtcars[, c("cyl", "disp", "hp", "wt")]
+#' y    <- as.integer(mtcars$am)
+#' tree <- oda_cta_fit(X, y, mindenom = 5L, mc_iter = 500L, mc_seed = 42L)
+#' cta_endpoint_counts(tree)
+cta_endpoint_counts <- function(tree) {
+  stopifnot(inherits(tree, "cta_tree"))
+
+  empty_df <- function() {
+    data.frame(
+      endpoint_id         = integer(0),
+      endpoint_node_id    = integer(0),
+      path                = character(0),
+      terminal_prediction = integer(0),
+      class               = character(0),
+      n_raw               = integer(0),
+      n_weighted          = numeric(0),
+      stringsAsFactors    = FALSE
+    )
+  }
+
+  if (isTRUE(tree$no_tree)) return(empty_df())
+
+  leaves <- Filter(function(nd) !is.null(nd) && isTRUE(nd$leaf), tree$nodes)
+  if (length(leaves) == 0L) return(empty_df())
+
+  # Sort by node_id (matches cta_endpoint_summary ordering).
+  node_ids <- vapply(leaves, function(nd) nd$node_id, integer(1L))
+  leaves   <- leaves[order(node_ids)]
+
+  # Guard: require both stored class-count fields on all leaves.
+  missing_counts <- vapply(leaves,
+                           function(nd) is.null(nd$class_counts_raw) ||
+                                        is.null(nd$class_counts_weighted),
+                           logical(1L))
+  if (any(missing_counts)) {
+    stop("endpoint class counts are unavailable for this cta_tree; ",
+         "refit with a version of odacore that stores endpoint counts")
+  }
+
+  # Build output columns — one entry per leaf × class.
+  out_endpoint_id         <- integer(0)
+  out_endpoint_node_id    <- integer(0)
+  out_path                <- character(0)
+  out_terminal_prediction <- integer(0)
+  out_class               <- character(0)
+  out_n_raw               <- integer(0)
+  out_n_weighted          <- numeric(0)
+
+  for (i in seq_along(leaves)) {
+    nd     <- leaves[[i]]
+    segs   <- .cta_path_segments(tree, nd$node_id)
+    path_s <- if (length(segs) == 0L) "/" else paste(segs, collapse = " AND ")
+    pred   <- nd$majority_class %||% NA_integer_
+
+    cls_names <- names(nd$class_counts_raw)
+    m         <- length(cls_names)
+
+    out_endpoint_id         <- c(out_endpoint_id,         rep(i,          m))
+    out_endpoint_node_id    <- c(out_endpoint_node_id,    rep(nd$node_id, m))
+    out_path                <- c(out_path,                rep(path_s,     m))
+    out_terminal_prediction <- c(out_terminal_prediction, rep(pred,       m))
+    out_class               <- c(out_class,               cls_names)
+    out_n_raw               <- c(out_n_raw,               unname(nd$class_counts_raw))
+    out_n_weighted          <- c(out_n_weighted,          unname(nd$class_counts_weighted))
+  }
+
+  data.frame(
+    endpoint_id         = out_endpoint_id,
+    endpoint_node_id    = out_endpoint_node_id,
+    path                = out_path,
+    terminal_prediction = out_terminal_prediction,
+    class               = out_class,
+    n_raw               = out_n_raw,
+    n_weighted          = out_n_weighted,
     stringsAsFactors    = FALSE
   )
 }
