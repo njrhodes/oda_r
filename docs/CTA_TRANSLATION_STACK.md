@@ -54,8 +54,10 @@ oda_cta_fit(X, y, w, ...)
         +-- cta_family_table()     MINDENOM family summary with D-statistic
 ```
 
-All functions except `cta_assign_endpoints` and `cta_observation_weights`
-operate solely on stored leaf counts — no `newdata` required.
+Most reporting functions operate on stored tree/family summaries and leaf
+counts.  `cta_assign_endpoints()` and `cta_observation_weights()` additionally
+require caller-supplied `newdata`; `cta_confusion_table()` reads the stored
+final-tree training confusion.
 
 ---
 
@@ -65,7 +67,7 @@ operate solely on stored leaf counts — no `newdata` required.
 |---|---|---|---|
 | `cta_endpoint_summary()` | endpoint | Endpoint structure: `node_id`, path, majority-class prediction, `n_obs`, denominator, and reference sizes | No |
 | `cta_endpoint_counts()` | endpoint × actual class | Raw and weighted class counts per leaf endpoint | No |
-| `cta_staging_table()` | endpoint | Target-class proportion, propensity (odds-style), and adjusted values for perfectly predicted endpoints | No |
+| `cta_staging_table()` | endpoint | Target-class count, denominator, proportion, odds, perfect-endpoint flags, and adjusted reporting values | No |
 | `cta_propensity_weights()` | endpoint × actual class | Stabilized propensity weights (`n_s × Pr(Z=z) / n_{s,z}`) computed from raw counts; adjusted variant for perfectly predicted endpoints; `undefined_empirical` flag when class absent | No |
 | `cta_assign_endpoints()` | observation | Traverses the fitted tree for each row of `newdata`; returns `endpoint_node_id` and sequential `endpoint_id`; supports `missing_action = "na"` (canonical) or `"majority"` | No |
 | `cta_observation_weights()` | observation | Joins `cta_assign_endpoints()` output with `cta_propensity_weights()` on `(endpoint_id, actual_class)`; returns endpoint-level weight assigned to each observation | No |
@@ -76,19 +78,21 @@ operate solely on stored leaf counts — no `newdata` required.
 
 ## Perfect endpoint handling
 
-`cta_staging_table()` and `cta_propensity_weights()` expose empirical values
-directly from the stored leaf counts.  When an endpoint contains observations
-from only one class, the empirical propensity for the absent class is undefined
-(zero denominator).  Both functions flag these cases with a
-`perfectly_predicted_endpoint` column (logical) and an `undefined_empirical`
-column per endpoint × class row.
+`cta_staging_table()` exposes empirical values directly from the stored leaf
+counts and flags perfectly predicted endpoints with a
+`perfectly_predicted_endpoint` column (logical).
 
-For perfectly predicted endpoints, adjusted values are available via the
-Yarnold-Linden (2017) remedy: one hypothetical misclassified observation is
-added to the absent-class profile.  The addition is applied uniformly within
-each endpoint (all class rows for that endpoint share the same adjusted
-denominator increment) to preserve the internal consistency of the weight
-formula.
+`cta_propensity_weights()` additionally marks each endpoint × class row with
+an `undefined_empirical` flag (logical) when `class_n == 0` at that cell —
+i.e., the absent class at a perfectly predicted endpoint.  The empirical
+propensity weight is undefined (infinite) for those cells.
+
+For perfectly predicted endpoints, adjusted values are available in
+`cta_propensity_weights()` via the Yarnold-Linden (2017) remedy: one
+hypothetical misclassified observation is added to the absent-class profile.
+The adjusted denominator increment is applied uniformly within each endpoint
+(all class rows for that endpoint receive the same increment) to preserve the
+internal consistency of the weight formula.
 
 The adjustment is a reporting and translation artifact only.  It does not
 alter the fitted tree, the stored leaf counts, or any prediction.  Callers
@@ -104,12 +108,11 @@ increasing `mindenom` values, stepping each time by `next_mindenom =
 min_terminal_denom + 1`.  The result is a `cta_family` object whose members
 span from the most complex admissible tree to the no-tree terminal case.
 
-`cta_family_table()` summarizes the family.  Each member's D-statistic
-(ESS / maximum possible ESS, or WESS variant for weighted fits) is computed
-alongside strata count and parsimony metrics.  The member with the minimum
-D-statistic identifies the MINDENOM value that balances translational strength
-against parsimony — the MDSA (Minimum Descriptive Sample Adequacy) selection
-criterion.
+`cta_family_table()` summarizes the family.  Each member's D-statistic is
+reported as implemented by the family machinery alongside strata count and
+parsimony metrics.  The member with the minimum D-statistic identifies the
+MINDENOM value that balances translational strength against parsimony — the
+MDSA (Minimum Descriptive Sample Adequacy) selection criterion.
 
 The myeloma fixture illustrates the full family:
 
