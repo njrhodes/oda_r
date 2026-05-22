@@ -11,7 +11,7 @@ recomputation of tree metrics is performed.
 It does \emph{not} include endpoint class counts, target-class proportions,
 event rates, odds, or staging order.  Per-endpoint class counts are available
 via \code{\link{cta_endpoint_counts}}.  Staging-table and event-rate summaries
-remain deferred until \code{cta_staging_table()} is implemented.
+are available via \code{\link{cta_staging_table}}.
 }
 \usage{cta_endpoint_summary(tree)}
 \arguments{
@@ -40,7 +40,7 @@ column structure and types.
 \seealso{
   \code{\link{oda_cta_fit}}, \code{\link{cta_endpoint_table}},
   \code{\link{cta_strata}}, \code{\link{cta_endpoint_denominators}},
-  \code{\link{cta_endpoint_counts}}
+  \code{\link{cta_endpoint_counts}}, \code{\link{cta_staging_table}}
 }
 \examples{
 data(mtcars)

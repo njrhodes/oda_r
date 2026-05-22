@@ -450,8 +450,8 @@ cta_confusion_table <- function(tree) {
 #' It does \emph{not} include endpoint class counts, target-class
 #' proportions, event rates, odds, or staging order.  Per-endpoint class
 #' counts are available via \code{\link{cta_endpoint_counts}}.
-#' Staging-table and event-rate summaries remain deferred until
-#' \code{cta_staging_table()} is implemented.
+#' Staging-table and event-rate summaries are available via
+#' \code{\link{cta_staging_table}}.
 #'
 #' @param tree A \code{cta_tree} from \code{\link{oda_cta_fit}}.
 #' @return A \code{data.frame} with one row per terminal leaf and columns:
@@ -474,7 +474,7 @@ cta_confusion_table <- function(tree) {
 #' column structure and types.
 #' @seealso \code{\link{oda_cta_fit}}, \code{\link{cta_endpoint_table}},
 #'   \code{\link{cta_strata}}, \code{\link{cta_endpoint_denominators}},
-#'   \code{\link{cta_endpoint_counts}}
+#'   \code{\link{cta_endpoint_counts}}, \code{\link{cta_staging_table}}
 #' @examples
 #' data(mtcars)
 #' X    <- mtcars[, c("cyl", "disp", "hp", "wt")]
@@ -560,8 +560,7 @@ cta_endpoint_summary <- function(tree) {
 #' \strong{Scope:} This function exposes stored raw and weighted class
 #' counts only.  It does \emph{not} include target-class proportions,
 #' event rates, odds, or staging order.  Staging-table and event-rate
-#' summaries remain deferred until \code{cta_staging_table()} is
-#' implemented.
+#' summaries are available via \code{\link{cta_staging_table}}.
 #'
 #' If any terminal leaf is missing the stored class counts (i.e., the
 #' \code{cta_tree} was fitted by an earlier version of odacore that did
@@ -590,7 +589,8 @@ cta_endpoint_summary <- function(tree) {
 #' For a no-tree fit the returned data frame has zero rows but the correct
 #' column structure and types.
 #' @seealso \code{\link{oda_cta_fit}}, \code{\link{cta_endpoint_summary}},
-#'   \code{\link{cta_confusion_table}}, \code{\link{cta_endpoint_table}}
+#'   \code{\link{cta_confusion_table}}, \code{\link{cta_endpoint_table}},
+#'   \code{\link{cta_staging_table}}
 #' @examples
 #' data(mtcars)
 #' X    <- mtcars[, c("cyl", "disp", "hp", "wt")]
@@ -668,5 +668,225 @@ cta_endpoint_counts <- function(tree) {
     n_raw               = out_n_raw,
     n_weighted          = out_n_weighted,
     stringsAsFactors    = FALSE
+  )
+}
+
+# =============================================================================
+# cta_staging_table() — per-endpoint staging table ordered by target propensity
+# =============================================================================
+
+#' Staging table for a fitted CTA tree
+#'
+#' Returns one row per terminal endpoint ordered by ascending target-class
+#' propensity (lowest to highest risk stratum).  Empirical counts,
+#' proportions, and odds are computed from the stored leaf class counts.
+#' When an endpoint is perfectly predicted (100 percent one class), the
+#' empirical odds and proportion are undefined; the \code{adjust_perfect}
+#' option adds one hypothetical misclassified observation to the undefined
+#' profile so all endpoints can be ranked and compared — a canon remedy
+#' anchored in Yarnold and Linden (2017).
+#'
+#' \strong{Scope:} The two-class case is handled automatically when
+#' \code{target_class = NULL} (defaults to the numerically larger class
+#' label, typically 1).  For trees with three or more classes
+#' \code{target_class} must be supplied explicitly.
+#'
+#' @param tree A \code{cta_tree} from \code{\link{oda_cta_fit}}.
+#' @param target_class Integer (or coercible); the class label treated as the
+#'   target (positive / high-risk) class.  \code{NULL} (default) uses the
+#'   numerically largest class label for binary trees, and stops for trees
+#'   with three or more classes.
+#' @param weighted Logical.  \code{FALSE} (default) uses raw observation
+#'   counts; \code{TRUE} uses case-weighted counts.
+#' @param adjust_perfect Logical.  \code{TRUE} (default) applies the
+#'   one-hypothetical-misclassification adjustment to perfectly predicted
+#'   endpoints so that all endpoints can be ordered by propensity.
+#' @return A \code{data.frame} with one row per terminal endpoint, ordered
+#'   by ascending target-class propensity (lowest to highest risk stratum),
+#'   with columns:
+#' \describe{
+#'   \item{\code{stage}}{Integer rank 1..n, ascending by target proportion.}
+#'   \item{\code{endpoint_id}}{Integer sequential endpoint index, matching
+#'     \code{\link{cta_endpoint_summary}}.}
+#'   \item{\code{endpoint_node_id}}{Integer tree node identifier.}
+#'   \item{\code{path}}{Character; AND-joined branch labels from root.}
+#'   \item{\code{terminal_prediction}}{Integer majority-class prediction.}
+#'   \item{\code{target_class}}{Integer; the target class used for this
+#'     table.}
+#'   \item{\code{target_n}}{Numeric; raw (or weighted) count of target-class
+#'     observations at this endpoint.}
+#'   \item{\code{denominator}}{Numeric; total raw (or weighted) observations
+#'     at this endpoint.}
+#'   \item{\code{target_proportion}}{Numeric; empirical target-class
+#'     proportion (\code{target_n / denominator}).}
+#'   \item{\code{non_target_n}}{Numeric; denominator minus target_n.}
+#'   \item{\code{odds}}{Numeric; empirical odds
+#'     (\code{target_n / non_target_n}); \code{NA} when
+#'     \code{perfectly_predicted} is \code{TRUE}.}
+#'   \item{\code{perfectly_predicted}}{Logical; \code{TRUE} when the
+#'     endpoint is 100 percent one class (\code{target_n == 0} or
+#'     \code{non_target_n == 0}).}
+#'   \item{\code{adjusted}}{Logical; \code{TRUE} when the
+#'     one-hypothetical-misclassification adjustment has been applied.
+#'     Always \code{FALSE} when \code{adjust_perfect = FALSE}.}
+#'   \item{\code{adjusted_target_n}}{Numeric; target_n after adjustment.
+#'     Equal to \code{target_n} when \code{adjusted} is \code{FALSE}.}
+#'   \item{\code{adjusted_denominator}}{Numeric; denominator after
+#'     adjustment.}
+#'   \item{\code{adjusted_target_proportion}}{Numeric; adjusted proportion.}
+#'   \item{\code{adjusted_non_target_n}}{Numeric; adjusted non-target
+#'     count.}
+#'   \item{\code{adjusted_odds}}{Numeric; adjusted odds.}
+#'   \item{\code{weighted}}{Logical; the value of the \code{weighted}
+#'     argument.}
+#'   \item{\code{n_obs}}{Integer; raw observation count at this endpoint
+#'     (from \code{\link{cta_endpoint_summary}}).}
+#'   \item{\code{n_weighted}}{Numeric; weighted observation count.}
+#' }
+#' For a no-tree fit the returned data frame has zero rows but the correct
+#' column structure and types.
+#' @references
+#' Yarnold PR, Linden A (2017). Computing propensity score weights for CTA
+#' models involving perfectly predicted endpoints.
+#' \emph{Optimal Data Analysis}, \strong{6}, 43-46.
+#' @seealso \code{\link{oda_cta_fit}}, \code{\link{cta_endpoint_summary}},
+#'   \code{\link{cta_endpoint_counts}}
+#' @examples
+#' data(mtcars)
+#' X    <- mtcars[, c("cyl", "disp", "hp", "wt")]
+#' y    <- as.integer(mtcars$am)
+#' tree <- oda_cta_fit(X, y, mindenom = 5L, mc_iter = 500L, mc_seed = 42L)
+#' cta_staging_table(tree)
+cta_staging_table <- function(tree, target_class = NULL, weighted = FALSE,
+                               adjust_perfect = TRUE) {
+  stopifnot(inherits(tree, "cta_tree"))
+
+  empty_df <- function() {
+    data.frame(
+      stage                      = integer(0),
+      endpoint_id                = integer(0),
+      endpoint_node_id           = integer(0),
+      path                       = character(0),
+      terminal_prediction        = integer(0),
+      target_class               = integer(0),
+      target_n                   = numeric(0),
+      denominator                = numeric(0),
+      target_proportion          = numeric(0),
+      non_target_n               = numeric(0),
+      odds                       = numeric(0),
+      perfectly_predicted        = logical(0),
+      adjusted                   = logical(0),
+      adjusted_target_n          = numeric(0),
+      adjusted_denominator       = numeric(0),
+      adjusted_target_proportion = numeric(0),
+      adjusted_non_target_n      = numeric(0),
+      adjusted_odds              = numeric(0),
+      weighted                   = logical(0),
+      n_obs                      = integer(0),
+      n_weighted                 = numeric(0),
+      stringsAsFactors           = FALSE
+    )
+  }
+
+  if (isTRUE(tree$no_tree)) return(empty_df())
+
+  # Consume endpoint tables (no refitting, no prediction).
+  es <- cta_endpoint_summary(tree)
+  ec <- cta_endpoint_counts(tree)
+
+  if (nrow(es) == 0L) return(empty_df())
+
+  # Resolve target_class.
+  all_classes <- sort(unique(ec$class))          # character, ascending
+  if (is.null(target_class)) {
+    if (length(all_classes) != 2L)
+      stop("target_class must be specified for trees with ",
+           length(all_classes), " classes (found: ",
+           paste(all_classes, collapse = ", "), ")")
+    target_class_int <- as.integer(max(as.integer(all_classes)))
+  } else {
+    target_class_int <- as.integer(target_class)
+  }
+  target_class_chr <- as.character(target_class_int)
+  if (!target_class_chr %in% all_classes)
+    stop("target_class ", target_class_int,
+         " not found in tree classes: ", paste(all_classes, collapse = ", "))
+
+  # Select count column.
+  count_col <- if (isTRUE(weighted)) "n_weighted" else "n_raw"
+
+  # Per-endpoint denominator (sum over all classes).
+  denom_by_ep <- tapply(ec[[count_col]], ec$endpoint_id, sum)
+
+  # Per-endpoint target count.
+  ec_target    <- ec[ec$class == target_class_chr, , drop = FALSE]
+  target_by_ep <- setNames(ec_target[[count_col]],
+                            as.character(ec_target$endpoint_id))
+
+  # Align to es row order.
+  ep_chr      <- as.character(es$endpoint_id)
+  denominator <- as.numeric(denom_by_ep[ep_chr])
+  target_n    <- as.numeric(target_by_ep[ep_chr])
+  target_n[is.na(target_n)] <- 0.0      # guard: zero-count class absent from ec
+
+  non_target_n      <- denominator - target_n
+  target_proportion <- ifelse(denominator > 0, target_n / denominator, NA_real_)
+
+  perfectly_predicted <- (denominator > 0) &
+                         (target_n == 0 | non_target_n == 0)
+
+  odds <- ifelse(perfectly_predicted | denominator == 0,
+                 NA_real_,
+                 target_n / non_target_n)
+
+  # Canon adjustment: one hypothetical misclassified obs in undefined profile.
+  adjusted         <- isTRUE(adjust_perfect) & perfectly_predicted
+  adj_target_n     <- target_n
+  adj_non_target_n <- non_target_n
+  adj_denominator  <- denominator
+
+  boost_target    <- adjusted & (target_n == 0)
+  boost_nontarget <- adjusted & (non_target_n == 0)
+
+  adj_target_n[boost_target]        <- adj_target_n[boost_target] + 1.0
+  adj_denominator[boost_target]     <- adj_denominator[boost_target] + 1.0
+  adj_non_target_n[boost_nontarget] <- adj_non_target_n[boost_nontarget] + 1.0
+  adj_denominator[boost_nontarget]  <- adj_denominator[boost_nontarget] + 1.0
+
+  adj_target_proportion <- ifelse(adj_denominator > 0,
+                                  adj_target_n / adj_denominator,
+                                  NA_real_)
+  adj_odds <- ifelse(adj_non_target_n == 0 | adj_denominator == 0,
+                     NA_real_,
+                     adj_target_n / adj_non_target_n)
+
+  # Sort: adjusted proportion when adjust_perfect, else empirical; tie by node_id.
+  sort_prop <- if (isTRUE(adjust_perfect)) adj_target_proportion else target_proportion
+  ord       <- order(sort_prop, es$endpoint_node_id, na.last = TRUE)
+  n         <- nrow(es)
+
+  data.frame(
+    stage                      = seq_len(n),
+    endpoint_id                = es$endpoint_id[ord],
+    endpoint_node_id           = es$endpoint_node_id[ord],
+    path                       = es$path[ord],
+    terminal_prediction        = es$terminal_prediction[ord],
+    target_class               = rep(target_class_int, n),
+    target_n                   = target_n[ord],
+    denominator                = denominator[ord],
+    target_proportion          = target_proportion[ord],
+    non_target_n               = non_target_n[ord],
+    odds                       = odds[ord],
+    perfectly_predicted        = perfectly_predicted[ord],
+    adjusted                   = adjusted[ord],
+    adjusted_target_n          = adj_target_n[ord],
+    adjusted_denominator       = adj_denominator[ord],
+    adjusted_target_proportion = adj_target_proportion[ord],
+    adjusted_non_target_n      = adj_non_target_n[ord],
+    adjusted_odds              = adj_odds[ord],
+    weighted                   = rep(isTRUE(weighted), n),
+    n_obs                      = es$n_obs[ord],
+    n_weighted                 = es$n_weighted[ord],
+    stringsAsFactors           = FALSE
   )
 }

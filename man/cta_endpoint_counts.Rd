@@ -15,8 +15,7 @@ label.  Endpoints are ordered by \code{node_id}, matching
 \strong{Scope:} This function exposes stored raw and weighted class
 counts only.  It does \emph{not} include target-class proportions,
 event rates, odds, or staging order.  Staging-table and event-rate
-summaries remain deferred until \code{cta_staging_table()} is
-implemented.
+summaries are available via \code{\link{cta_staging_table}}.
 
 If any terminal leaf is missing the stored class counts (i.e., the
 \code{cta_tree} was fitted by an earlier version of odacore that did
@@ -51,7 +50,8 @@ column structure and types.
 }
 \seealso{
   \code{\link{oda_cta_fit}}, \code{\link{cta_endpoint_summary}},
-  \code{\link{cta_confusion_table}}, \code{\link{cta_endpoint_table}}
+  \code{\link{cta_confusion_table}}, \code{\link{cta_endpoint_table}},
+  \code{\link{cta_staging_table}}
 }
 \examples{
 data(mtcars)
