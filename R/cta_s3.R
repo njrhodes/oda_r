@@ -1327,3 +1327,136 @@ cta_assign_endpoints <- function(tree, newdata,
     stringsAsFactors = FALSE
   )
 }
+
+###############################################################################
+# cta_observation_weights()
+# Convenience wrapper: assigns each observation to its endpoint via
+# cta_assign_endpoints(), retrieves endpoint-level propensity weights via
+# cta_propensity_weights(), and joins the two on (endpoint_id, class).
+# Returns one row per row of newdata — never fewer, never more.
+###############################################################################
+
+#' Assign per-observation CTA propensity weights
+#'
+#' Convenience wrapper that calls \code{\link{cta_assign_endpoints}} and
+#' \code{\link{cta_propensity_weights}} and returns a joined
+#' observation-level data frame.  The \code{cta_tree} object is not mutated;
+#' all computation is on-demand.
+#'
+#' \strong{Column order requirement:} Same as \code{\link{cta_assign_endpoints}}
+#' — \code{newdata} must have the same attribute column order as the \code{X}
+#' matrix passed to \code{\link{oda_cta_fit}}.
+#'
+#' Observations with \code{NA} endpoint (missing root split attribute under
+#' \code{missing_action = "na"}) or \code{NA} class label receive
+#' \code{assigned = FALSE} and \code{NA} for all weight columns.
+#'
+#' @param tree A \code{cta_tree} from \code{\link{oda_cta_fit}}.
+#' @param newdata A \code{data.frame} (or coercible object) with the same
+#'   column order as the training \code{X}.
+#' @param y Class labels for each row of \code{newdata}.  Any type coercible
+#'   to character; length must equal \code{nrow(newdata)}.
+#' @param target_class Passed to \code{\link{cta_propensity_weights}} as an
+#'   annotation parameter.  It identifies which class is treated as the design
+#'   target (high-risk class) for the \code{target_class} output column; it does
+#'   \emph{not} filter the endpoint × class rows used for the join.  Each
+#'   observation is matched to its own \code{actual_class} regardless of this
+#'   value.  \code{NULL} (default) lets \code{cta_propensity_weights} resolve
+#'   the target class automatically (numerically largest class for binary trees;
+#'   required explicitly for trees with three or more classes).
+#' @param adjusted Passed to \code{\link{cta_propensity_weights}}.
+#'   Default \code{TRUE}.
+#' @param missing_action Passed to \code{\link{cta_assign_endpoints}}.
+#'   One of \code{"na"} (default) or \code{"majority"}.
+#' @return A \code{data.frame} with \code{nrow(newdata)} rows and columns:
+#' \describe{
+#'   \item{\code{row_id}}{Integer; positional row index (1 to
+#'     \code{nrow(newdata)}).}
+#'   \item{\code{actual_class}}{Character; class label from \code{y}.}
+#'   \item{\code{endpoint_node_id}}{Integer; node ID of terminal leaf, or
+#'     \code{NA_integer_} when unroutable.}
+#'   \item{\code{endpoint_id}}{Integer; sequential endpoint index matching
+#'     \code{\link{cta_endpoint_summary}}, or \code{NA_integer_}.}
+#'   \item{\code{target_class}}{Integer; resolved design target class from
+#'     \code{\link{cta_propensity_weights}}, or \code{NA_integer_} when
+#'     unassigned.}
+#'   \item{\code{propensity_weight}}{Numeric; unadjusted propensity weight for
+#'     the observation's endpoint–class cell, or \code{NA}.}
+#'   \item{\code{adjusted_propensity_weight}}{Numeric; adjusted propensity
+#'     weight, or \code{NA}.}
+#'   \item{\code{undefined_empirical}}{Logical; \code{TRUE} when the
+#'     endpoint–class cell has zero observed frequency, or \code{NA}.}
+#'   \item{\code{perfectly_predicted_endpoint}}{Logical; \code{TRUE} when the
+#'     endpoint is perfectly predicted, or \code{NA}.}
+#'   \item{\code{adjusted}}{Logical; \code{TRUE} when the adjusted weight was
+#'     applied, or \code{NA}.}
+#'   \item{\code{assigned}}{Logical; \code{TRUE} when a propensity weight was
+#'     successfully matched.}
+#' }
+#' @seealso \code{\link{cta_assign_endpoints}},
+#'   \code{\link{cta_propensity_weights}}, \code{\link{oda_cta_fit}}
+#' @export
+cta_observation_weights <- function(
+    tree,
+    newdata,
+    y,
+    target_class   = NULL,
+    adjusted       = TRUE,
+    missing_action = c("na", "majority")
+) {
+  stopifnot(inherits(tree, "cta_tree"))
+  missing_action <- match.arg(missing_action)
+  if (!is.data.frame(newdata)) newdata <- as.data.frame(newdata)
+  n <- nrow(newdata)
+  if (length(y) != n)
+    stop("cta_observation_weights: length(y) must equal nrow(newdata).",
+         call. = FALSE)
+
+  actual_class <- as.character(y)
+
+  ep <- cta_assign_endpoints(tree, newdata, missing_action = missing_action)
+  pw <- cta_propensity_weights(tree, target_class = target_class,
+                               adjusted = adjusted)
+
+  # Build composite key (endpoint_id + "\001" + class) for order-preserving join
+  pw_key <- if (nrow(pw) > 0L)
+    paste(pw$endpoint_id, pw$class, sep = "\001")
+  else
+    character(0L)
+
+  ep_key  <- paste(ep$endpoint_id, actual_class, sep = "\001")
+  pw_idx  <- match(ep_key, pw_key)
+
+  # NA endpoint or NA class → no match possible
+  pw_idx[is.na(ep$endpoint_id)] <- NA_integer_
+  pw_idx[is.na(y)]              <- NA_integer_
+
+  # Warn for classified obs whose class is not represented in pw
+  unmatched <- !is.na(ep$endpoint_id) & !is.na(y) & is.na(pw_idx)
+  if (any(unmatched))
+    warning(sprintf(
+      paste0("cta_observation_weights: %d classified observation(s) could not",
+             " be matched to endpoint-class propensity weights"),
+      sum(unmatched)
+    ), call. = FALSE)
+
+  assigned <- !is.na(pw_idx)
+
+  # Helper: index into pw column, preserving NA for unmatched rows
+  get_col <- function(col) { v <- pw[[col]]; v[pw_idx] }
+
+  data.frame(
+    row_id                    = ep$row_id,
+    actual_class              = actual_class,
+    endpoint_node_id          = ep$endpoint_node_id,
+    endpoint_id               = ep$endpoint_id,
+    target_class              = get_col("target_class"),
+    propensity_weight         = get_col("propensity_weight"),
+    adjusted_propensity_weight = get_col("adjusted_propensity_weight"),
+    undefined_empirical       = get_col("undefined_empirical"),
+    perfectly_predicted_endpoint = get_col("perfectly_predicted_endpoint"),
+    adjusted                  = get_col("adjusted"),
+    assigned                  = assigned,
+    stringsAsFactors          = FALSE
+  )
+}
