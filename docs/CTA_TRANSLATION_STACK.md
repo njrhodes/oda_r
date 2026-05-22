@@ -135,9 +135,15 @@ confusion table recovery, and the lean-fit invariant check.
 
 ## Current limitations
 
-- **No balance diagnostics.** Propensity weights are computed but there is no
-  function yet to assess whether they improve covariate balance across
-  endpoint-defined groups (standardized mean differences, variance ratios, etc.).
+- **No balance diagnostics.** Propensity weights are computed but no function
+  yet assesses covariate balance after weight application. Future
+  balance-diagnostic work should be canon-reviewed against the Linden/Yarnold
+  JEP covariate-balance paper in `docs/theory/`. That paper frames balance
+  assessment as an ODA classification problem: after matching or weighting,
+  observed pre-intervention covariates should have weak or non-significant
+  ability to discriminate assignment/study groups. Conventional
+  standardized-difference summaries may be useful complements, but they are not
+  the canon center.
 - **Raw-count propensity formula only.** `cta_propensity_weights()` uses raw
   class counts in the weight formula.  Weighted counts are stored in the tree
   (`class_counts_weighted`) but are not yet surfaced in the propensity

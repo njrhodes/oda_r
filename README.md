@@ -68,7 +68,8 @@ and MINDENOM endpoint constraints. Predictions use `predict(tree, newdata)`.
 
 CTA examples use repository fixtures validated against CTA.exe golden outputs.
 See `tests/testthat/fixtures/cta_demo/` and `tests/testthat/fixtures/myeloma/`.
-A full vignette is planned.
+See `docs/CTA_TRANSLATION_STACK.md` for the reporting/translation stack and
+`docs/myeloma-cta-translation.md` for a worked myeloma example.
 
 ## Architecture
 
@@ -78,7 +79,10 @@ R/
 ├── unioda_core.R    — Binary-class engine: oda_univariate_core()
 ├── multioda_core.R  — Multiclass engine: oda_multiclass_unioda_core()
 ├── oda_fit.R        — Unified dispatcher: oda_fit() routes on C
-└── cta_core.R       — Classification tree: oda_cta_fit()
+├── oda_s3.R         — ODA S3 methods: predict/print/summary
+├── cta_core.R       — Classification tree: oda_cta_fit()
+├── cta_s3.R         — CTA S3 + translation layer: staging/propensity/endpoints
+└── cta_family.R     — MDSA family: cta_descendant_family(), cta_family_table()
 ```
 
 ## Tie-breaking spec (MegaODA-faithful)

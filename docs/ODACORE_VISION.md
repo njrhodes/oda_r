@@ -25,17 +25,22 @@ extensions and must not alter parity behavior on covered fixtures.
 
 ## 2. Current production state
 
-### Architecture (five-file structure)
+### Architecture
 
 ```
-utils.R          ← shared primitives (%||%, tick(), fmt helpers)
+utils.R          ← shared primitives (%||%, tick(), fmt helpers, .validate_case_weights())
     ↓
 unioda_core.R    ← binary ODA engine (oda_univariate_core)
 multioda_core.R  ← multiclass ODA engine (oda_multiclass_unioda_core)
     ↓
 oda_fit.R        ← unified dispatcher: C=2 → binary, C≥3 → multiclass
+oda_s3.R         ← ODA S3 methods: predict/print/summary for oda_fit
     ↓
 cta_core.R       ← CTA recursive tree (oda_cta_fit, predict.cta_tree, helpers)
+cta_s3.R         ← CTA S3 + translation layer: summary/print/accessors/staging/
+                   propensity/assign_endpoints/observation_weights
+cta_family.R     ← MDSA family: cta_descendant_family(), cta_family_table(),
+                   summary/print methods for cta_family
 ```
 
 No circular dependencies. CTA calls `oda_fit()` and reads standardized result
@@ -60,6 +65,19 @@ fields; it knows nothing about the internal structure of either ODA engine.
 - `oda_confusion_binary`, `oda_confusion_multiclass`
 - `oda_mean_pac`, `oda_ess_from_meanpac`, `oda_ess_from_mean`
 
+**CTA reporting and translation:**
+- `cta_endpoint_summary(tree)`
+- `cta_endpoint_counts(tree)`
+- `cta_staging_table(tree, target_class, ...)`
+- `cta_propensity_weights(tree, target_class, ...)`
+- `cta_assign_endpoints(tree, newdata, ...)`
+- `cta_observation_weights(tree, newdata, y, ...)`
+- `cta_confusion_table(tree)`
+
+**MDSA family:**
+- `cta_descendant_family(X, y, w, ..., start_mindenom, max_steps)`
+- `cta_family_table(family)`
+
 ### Return value contract
 
 - `$confusion` — always raw integer counts (rows = actual, cols = predicted)
@@ -79,7 +97,7 @@ fields; it knows nothing about the internal structure of either ODA engine.
 | myeloma    | 30       | CTA (WEIGHT V2)    | ✓ green  | V17 stump, WESS 16.51%, n=186     |
 | myeloma    | 56       | CTA (WEIGHT V2)    | ✓ green  | No tree (all child sizes < 56)    |
 
-**Full test suite: 224/224 passing.**
+**Full test suite: 765/765 passing.**
 
 **devtools::check(): 0 errors / 0 warnings / 1 note** (network timestamp
 check — environment issue, not a package issue).
@@ -322,10 +340,17 @@ stable S3 reporting or prediction contract.
 failed/degenerate fit prediction policy; print smoke tests; summary structure
 tests; no fake LOO p-value.
 
-#### Phase 2B — CTA summary, endpoint reporting, and staging tables
+#### Phase 2B — CTA summary, endpoint reporting, and staging tables ✓ (complete — first production version)
 
-**Problem:** CTA reporting is minimal; no-tree behavior has been clarified but
-summaries do not yet safely expose train/LOO/MC metrics.
+**Completed:** `summary.cta_tree()`, `print.cta_tree()`, `cta_node_table()`, `cta_endpoint_summary()`,
+`cta_endpoint_counts()`, `cta_staging_table()`, `cta_propensity_weights()`, `cta_assign_endpoints()`,
+`cta_observation_weights()`, `cta_confusion_table()` are all implemented.
+See `docs/CTA_TRANSLATION_STACK.md` (pipeline overview) and `docs/myeloma-cta-translation.md` (worked example).
+Lean-fit invariant maintained: `cta_tree` stores only tree nodes, `training_confusion`, and per-leaf
+`class_counts_raw`/`class_counts_weighted`.
+
+**Original problem statement (preserved for context):** CTA reporting was minimal; no-tree behavior had been clarified but
+summaries did not yet safely expose train/LOO/MC metrics.
 
 **Plan:**
 
@@ -388,9 +413,12 @@ table endpoint ordering; print smoke tests.
 
 **Deliverable:** Design notes first, implementation later.
 
-#### Phase 2D — D statistic and terminal endpoint denominators
+#### Phase 2D — D statistic and terminal endpoint denominators ✓ (complete)
 
-**Problem:** MDSA needs a model comparison metric and endpoint denominators.
+**Completed:** `cta_strata()`, `cta_endpoint_denominators()`, `cta_min_terminal_denom()`, `cta_d_stat()`,
+and `oda_d_stat()` are all implemented and exported.
+
+**Original problem statement (preserved for context):** MDSA needs a model comparison metric and endpoint denominators.
 These must be downstream/reporting functions — not changes to parity selection
 logic.
 
@@ -418,7 +446,11 @@ selection behavior.
 **Tests:** Known D values for simple fixtures once fields are stable; no_tree D
 is NA; endpoint denominator extraction.
 
-#### Phase 2E — MDSA descendant family
+#### Phase 2E — MDSA descendant family ✓ (complete — first production version)
+
+**Completed:** `cta_descendant_family()` and `cta_family_table()` are implemented.
+The myeloma chain {MINDENOM=1, 30, 56} is a passing regression fixture.
+`summary()` and `print()` methods for `cta_family` are implemented.
 
 **Canon:** Next MINDENOM = current model's minimum terminal endpoint denominator
 + 1. No-tree terminates the descendant family.
@@ -753,5 +785,8 @@ inside nested closures.
 | `docs/ODA_CANON.md` | ODA engine canonical behavior spec |
 | `docs/CTA_CANON.md` | CTA engine canonical behavior spec |
 | `docs/CTA_ORDERED_CUT_AUDIT.md` | Weighted ordered scan / LOO STABLE audit evidence |
+| `docs/CTA_TRANSLATION_STACK.md` | CTA reporting/translation pipeline navigation map |
+| `docs/myeloma-cta-translation.md` | Myeloma CTA translation walkthrough (worked example with actual computed values) |
 | `.github/copilot-instructions.md` | AI code review policy (10 rules) |
 | `data-raw/README.md` | Fixture provenance (MegaODA.exe and CTA.exe run settings) |
+| `docs/theory/jep12538.pdf` | **Local-only canon/theory archive** (untracked by git): Linden/Yarnold JEP covariate-balance paper; canon-adjacent reference for future balance-diagnostic design; not current implementation. |

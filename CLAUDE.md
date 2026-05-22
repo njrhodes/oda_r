@@ -67,11 +67,16 @@ Files are sourced alphabetically by R's package loader, so `utils.R` is always f
 
 ```
 R/
-├── utils.R          — %||%, tick(), fmt helpers (loaded first)
+├── utils.R          — %||%, tick(), fmt helpers, .validate_case_weights() (loaded first)
 ├── unioda_core.R    — Binary-class engine: oda_univariate_core() and helpers
 ├── multioda_core.R  — Multiclass engine: oda_multiclass_unioda_core() and helpers
 ├── oda_fit.R        — Unified dispatcher: oda_fit() routes on C
-└── cta_core.R       — CTA engine: oda_cta_fit(), predict.cta_tree(), helpers
+├── oda_s3.R         — ODA S3 methods: predict/print/summary for oda_fit
+├── cta_core.R       — CTA engine: oda_cta_fit(), predict.cta_tree(), helpers
+├── cta_s3.R         — CTA S3 + translation layer: summary/print/accessors/staging/
+│                      propensity/assign_endpoints/observation_weights
+└── cta_family.R     — MDSA family: cta_descendant_family(), cta_family_table(),
+                       summary/print methods for cta_family
 ```
 
 ### Key internal concepts
@@ -106,6 +111,16 @@ In multiclass ordered rules: SAMPLEREP operates **within** a cut position (acros
 **Path-local missingness (CTA):** `predict.cta_tree()` supports `missing_action = c("na", "majority")`.
 - `"na"` — canonical: observation is excluded (returns `NA_integer_`) when the split attribute is missing on its actual traversal path.
 - `"majority"` — legacy: route missing obs to the split node's majority class.
+
+**CTA lean-fit invariant:** `oda_cta_fit()` stores only what is needed for on-demand reporting:
+- Tree nodes (split rules, child pointers, `n_obs`)
+- `training_confusion` — C×C raw integer confusion from the final selected tree
+- Per-leaf `class_counts_raw` and `class_counts_weighted` vectors
+
+Nothing else is stored at fit time: no training `X` or `y`, no row indices, no endpoint membership, no staging tables, no propensity tables, no observation-weight tables, no cached reporting artifacts of any kind.
+**Do not add fit-time storage to `cta_tree` for reporting or translation convenience.** All translation/reporting artifacts are computed on explicit function call. This invariant must be maintained as the translation stack grows.
+
+**Global case-weight guard:** `.validate_case_weights(w, n, arg = "w")` in `utils.R` is the single canonical weight validator. It rejects non-numeric, wrong length, NA/NaN, Inf/-Inf, zero, and negative weights. It is wired into `oda_fit()`, `oda_cta_fit()`, and `cta_descendant_family()`. Do not add redundant weight checks elsewhere.
 
 ### NAMESPACE note
 
@@ -205,6 +220,8 @@ Gold values in tests come from MegaODA.exe output. When a test checks confusion 
 - `docs/ODA_CANON.md` — canonical `oda_fit()` / UniODA / MultiODA behavior spec.
 - `docs/CTA_CANON.md` — canonical `oda_cta_fit()` behavior spec, including ENUMERATE, pruning, LOO, and current gold fixture status.
 - `docs/CTA_ORDERED_CUT_AUDIT.md` — audit evidence and canon for weighted ordered-cut selection and LOO STABLE law; MPE.pdf anchors and myeloma V4/V15 empirical evidence.
+- `docs/CTA_TRANSLATION_STACK.md` — navigation map for the CTA reporting and translation pipeline (lean-fit principle, function map, pipeline overview).
+- `docs/myeloma-cta-translation.md` — canonical myeloma CTA walkthrough with actual computed values covering MINDENOM=1/30/56.
 
 ## Current known-good state
 
@@ -214,6 +231,17 @@ Gold values in tests come from MegaODA.exe output. When a test checks confusion 
   - `"na"` is canonical path-local missingness.
   - `"majority"` is legacy compatibility.
 - The old full-tree path-local ENUMERATE patch was reverted. **Do not reapply blindly.**
+- **Global case-weight guard (production):** `.validate_case_weights()` in `utils.R` wired into `oda_fit()`, `oda_cta_fit()`, `cta_descendant_family()`. Rejects non-numeric, wrong-length, NA/NaN, Inf/-Inf, zero, and negative weights.
+- **CTA translation stack — first production version (complete):**
+  - `cta_endpoint_summary()` — endpoint structure and denominators
+  - `cta_endpoint_counts()` — endpoint × class raw/weighted counts
+  - `cta_staging_table()` — target-class count, proportion, odds, perfect-endpoint flags, adjusted values
+  - `cta_propensity_weights()` — stabilized weights (raw counts); adjusted variant; `undefined_empirical` flag
+  - `cta_assign_endpoints()` — row → endpoint traversal on demand
+  - `cta_observation_weights()` — row → endpoint-level weight assignment on demand
+  - `cta_confusion_table()` — actual × predicted confusion with PAC/ESS from stored `training_confusion`
+  - `cta_family_table()` — MINDENOM family summary with D-statistic and min-D selection
+  - All on-demand: lean-fit invariant maintained (see Architecture section above).
 - **Weighted ordered predictor node-level fitting (production, commit 85459a4):**
   - `.cta_ordered_scan()`, `.cta_mc_ordered()`, `.cta_full_fit_ordered()` are implemented helpers in `R/cta_core.R`.
   - `.full_fit_one()` dispatches to the CTA path for non-uniform weights + binary class + >2 unique non-missing attribute values.
@@ -252,6 +280,8 @@ Gold values in tests come from MegaODA.exe output. When a test checks confusion 
 - Do not touch verbose reporting.
 - Do not globally apply path-local scoring to expanded ENUMERATE candidates. Only root-only stump candidates are scored path-locally. Expanded candidates use majority-fallback `.predict_all()`. This split is canon (MODEL1.TXT Trees 2–4 vs Trees 5–7).
 - Do not touch the weighted ordered scan / LOO STABLE gate (`cta_ordered_scan`, `.cta_mc_ordered`, `.cta_full_fit_ordered`, `.full_fit_one`) unless a regression in the node-selection tests proves it is involved.
+- Do not add fit-time storage to `cta_tree` for reporting or translation convenience. The lean-fit invariant (tree nodes + `training_confusion` + per-leaf `class_counts_raw`/`class_counts_weighted` only) must be preserved. All translation/reporting artifacts are computed on explicit function call.
+- Do not add redundant weight validation outside `.validate_case_weights()` in `utils.R`. It is already wired into all public fit entrypoints.
 
 ## Implementation policy
 
@@ -263,7 +293,7 @@ Canonical ENUMERATE: evaluate each valid root candidate, grow the CTA.exe-compat
 1. **Expanded phase** (Trees 2–4): grow full HO-CTA below each root candidate; score with majority-fallback `.predict_all()`. Do not apply path-local scoring here.
 2. **Root-only stump phase** (Trees 5–7): score each root candidate as a stump path-locally (missing-root obs excluded). Runs after the expanded phase; competes for overall best WESS.
 
-Node-level weighted ordered fitting and LOO STABLE gate are implemented and passing (commit 85459a4). Root-only ENUMERATE stump phase is implemented and passing (commit a2e2a9d). All canon fixtures pass: 224/224.
+Node-level weighted ordered fitting and LOO STABLE gate are implemented and passing (commit 85459a4). Root-only ENUMERATE stump phase is implemented and passing (commit a2e2a9d). All canon fixtures pass: 765/765.
 
 **Remaining known risk — MC stochasticity at Node 4 (Tree 4):**
 - Node 4 = V17≤0.5 ∧ V15≤0.5, n=113. CTA.exe reports V14 Signif F (WESS=19.19%).

@@ -21,6 +21,9 @@ The reporting stack follows a strict separation:
   `cta_staging_table`, `cta_propensity_weights`, `cta_confusion_table`) —
   pure on-demand views over the stored leaf counts. No refitting, no
   prediction, and no training-data recomputation.
+- **Translation** (`cta_assign_endpoints`, `cta_observation_weights`) —
+  on-demand traversal and weight assignment requiring caller-supplied
+  `newdata` and class labels.
 
 This walkthrough covers the myeloma MINDENOM family: MINDENOM=1 (full
 two-split tree), MINDENOM=30 (stump), and MINDENOM=56 (no-tree terminal).
@@ -227,10 +230,16 @@ where `n_s` is the endpoint denominator, `Pr(Z=z)` is the marginal class
 probability across all classified observations, and `n_{s,z}` is the raw
 count of actual class `z` at endpoint `s`.
 
-**Important scope note:** These are endpoint-level weights, not
-observation-level weights. Observation-level expansion (mapping each training
-observation to its endpoint weight) is not implemented yet. The weights here
-are the building block for future observation-level propensity analysis.
+**Scope:** `cta_propensity_weights()` returns endpoint × actual-class weights —
+one row per endpoint × class combination. `cta_assign_endpoints()` maps
+caller-supplied rows to endpoint IDs on demand. `cta_observation_weights()`
+joins endpoint assignment to the endpoint × class weights and returns one row
+per observation. No endpoint membership is stored at fit time; assignment and
+weight lookup are performed on explicit function call and remain lean-fit
+compatible.
+
+The endpoint-level weights (this section) are the building block. The
+observation-level join (`cta_observation_weights()`) is the downstream step.
 
 ### MINDENOM=1
 
@@ -419,26 +428,28 @@ Nothing else related to reporting is cached:
 
 All reporting functions (`cta_endpoint_summary`, `cta_endpoint_counts`,
 `cta_staging_table`, `cta_propensity_weights`) read the leaf-count vectors
-and compute everything on demand. The fit object does not grow when new
-reporting functions are added.
+and compute everything on demand.  The translation functions
+(`cta_assign_endpoints`, `cta_observation_weights`) additionally traverse the
+tree on demand using caller-supplied `newdata`.  The fit object does not grow
+when new reporting or translation functions are added.
 
 ---
 
 ## 9. Current Limitations
 
-The following capabilities are planned but not yet implemented:
+**Implemented since this doc was first written:**
+- Observation-level propensity weights: `cta_assign_endpoints()` and
+  `cta_observation_weights()` assign endpoint-level weights to individual
+  observations on demand.
 
-- **Observation-level propensity weights.** Expanding the endpoint × class
-  weights to individual training observations requires endpoint membership
-  per observation (i.e., which leaf each training observation reached).
-  Endpoint membership is not stored on the fit object and would require
-  re-predicting training observations — a deliberate deferred cost.
+**Not yet implemented (deferred):**
 - **Weighted propensity weights.** `cta_propensity_weights()` uses raw
   observation counts (`n_raw`) exclusively. A `weighted = TRUE` path using
   `n_weighted` and weighted marginals is not yet implemented.
 - **Balance diagnostics.** Standardized mean differences or other
   covariate-balance checks after propensity-weight application are not
-  provided.
+  provided. Future balance-diagnostic work should be canon-reviewed against
+  the Linden/Yarnold JEP covariate-balance paper stored in `docs/theory/`.
 - **Downstream outcome models.** Propensity-weighted outcome regression or
   marginal structural model fitting is not part of this package.
 

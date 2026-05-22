@@ -215,10 +215,9 @@ LOO STABLE;
 
 This fixture is used to validate EO-CTA structure and pruning behavior.
 
-**Current status:** Tree structure tests (root attribute, cut value, node counts, LOO
-status) pass. The full-tree confusion matrix test (`[[103,21],[6,70]]`) is currently
-failing because pruning is not yet implemented. Do not change the expected gold values.
-The failing test is a known open item — resume when CTA pruning work begins.
+**Current status:** Covered CTA_DEMO fixture tests currently pass. Preserve
+the documented gold expectations; do not change expected values without
+rerunning the matching CTA.exe fixture.
 
 ## Non-Canonical Future Extensions
 
