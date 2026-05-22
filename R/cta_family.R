@@ -241,6 +241,7 @@ cta_descendant_family <- function(
     !is.na(start_mindenom) && start_mindenom >= 1L,
     !is.na(max_steps)      && max_steps      >= 1L
   )
+  .validate_case_weights(w, nrow(X))
 
   members     <- vector("list", 0L)
   current_md  <- start_mindenom

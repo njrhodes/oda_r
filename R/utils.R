@@ -27,6 +27,26 @@ fmt6 <- function(x) sprintf("%.6f", as.numeric(x))
 identical_fmt2 <- function(x, y) identical(fmt2(x), fmt2(y))
 identical_fmt6 <- function(x, y) identical(fmt6(x), fmt6(y))
 
+# Internal case-weight validator — call at every public fit entrypoint.
+# NULL w is always accepted (interpreted as unit weights by the caller).
+# Non-NULL w must be numeric/integer, length n, finite, non-missing, > 0.
+.validate_case_weights <- function(w, n, arg = "w") {
+  if (is.null(w)) return(invisible(NULL))
+  if (!is.numeric(w) && !is.integer(w))
+    stop(sprintf("'%s' must be numeric or integer.", arg), call. = FALSE)
+  if (length(w) != n)
+    stop(sprintf("'%s' must have length %d (got %d).", arg, n, length(w)),
+         call. = FALSE)
+  if (anyNA(w))
+    stop(sprintf("'%s' must not contain NA or NaN.", arg), call. = FALSE)
+  if (any(!is.finite(w)))
+    stop(sprintf("'%s' must be finite (no Inf or -Inf).", arg), call. = FALSE)
+  if (any(w <= 0))
+    stop(sprintf("'%s' must be strictly positive (no zeros or negatives).", arg),
+         call. = FALSE)
+  invisible(NULL)
+}
+
 # p-value bucket (for deterministic MC significance category checks)
 p_bucket <- function(p) {
   if (is.na(p)) return(NA_character_)

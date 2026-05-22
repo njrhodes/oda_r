@@ -324,10 +324,8 @@ oda_cta_fit <- function(
   n <- nrow(X)
   stopifnot(length(y) == n)
   y <- as.integer(y)
-  if (is.null(w)) w <- rep(1.0, n) else {
-    w <- as.numeric(w)
-    stopifnot(length(w) == n, all(w >= 0))
-  }
+  .validate_case_weights(w, n)
+  if (is.null(w)) w <- rep(1.0, n) else w <- as.numeric(w)
   if (is.null(attr_names))
     attr_names <- colnames(X) %||% paste0("V", seq_len(ncol(X)))
   n_attrs <- ncol(X)

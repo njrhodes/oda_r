@@ -79,6 +79,9 @@ oda_fit <- function(
   eval_order    <- match.arg(eval_order)
   direction     <- match.arg(direction)
 
+  # Validate weights before any routing
+  .validate_case_weights(w, length(x))
+
   # Resolve alias
   if (!is.null(missing_code))
     miss_codes <- unique(c(miss_codes, as.numeric(missing_code)))
