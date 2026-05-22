@@ -1121,3 +1121,209 @@ cta_propensity_weights <- function(tree, target_class = NULL, adjusted = TRUE) {
     stringsAsFactors                    = FALSE
   )
 }
+
+# ---- cta_assign_endpoints --------------------------------------------------- #
+
+#' Assign training (or new) observations to CTA terminal endpoints
+#'
+#' Traverses the fitted \code{cta_tree} for each row of \code{newdata} and
+#' returns the terminal leaf reached, expressed as both its stored
+#' \code{node_id} (\code{endpoint_node_id}) and its sequential endpoint index
+#' (\code{endpoint_id}) matching \code{\link{cta_endpoint_summary}}.
+#'
+#' No endpoint membership is stored at fit time.  This function performs
+#' the traversal on demand so the \code{cta_tree} object remains lean.  Use
+#' the returned \code{endpoint_id} to join with
+#' \code{\link{cta_propensity_weights}} and assign endpoint-level weights to
+#' individual observations.
+#'
+#' \strong{Column order requirement:} \code{newdata} must have the same
+#' attribute column order as the \code{X} matrix passed to
+#' \code{\link{oda_cta_fit}}.  Traversal uses stored integer column positions
+#' (\code{attr_col}), not column names.  If both \code{names(newdata)} and the
+#' stored \code{tree$attr_names} are non-NULL, a warning is issued when they
+#' disagree at the split attribute positions.
+#'
+#' \strong{Missingness:}
+#' \itemize{
+#'   \item \code{"na"} (default) — canonical path-local behaviour: when a
+#'     split attribute is \code{NA} or a stored miss-code on the observation's
+#'     actual traversal path, the row returns \code{NA} for both output
+#'     columns.
+#'   \item \code{"majority"} — routes the missing observation to the child
+#'     subtree with the larger \code{n_obs}, then continues traversal until a
+#'     terminal leaf is reached.  Ties are broken by picking the first child.
+#' }
+#'
+#' @param tree A \code{cta_tree} from \code{\link{oda_cta_fit}}.
+#' @param newdata A \code{data.frame} (or coercible object) with the same
+#'   column order as the training \code{X}.
+#' @param missing_action Character; one of \code{"na"} (default) or
+#'   \code{"majority"}.  See Details.
+#' @return A \code{data.frame} with one row per row of \code{newdata} and
+#'   columns:
+#' \describe{
+#'   \item{\code{row_id}}{Integer; positional row index in \code{newdata}
+#'     (1 to \code{nrow(newdata)}).}
+#'   \item{\code{endpoint_node_id}}{Integer; \code{node_id} of the terminal
+#'     leaf reached by traversal.  \code{NA_integer_} when the observation
+#'     cannot be classified (missing split attribute with
+#'     \code{missing_action = "na"}, or no-tree fit).}
+#'   \item{\code{endpoint_id}}{Integer; sequential endpoint index matching
+#'     \code{\link{cta_endpoint_summary}}.  \code{NA_integer_} under the same
+#'     conditions as \code{endpoint_node_id}.}
+#' }
+#' For no-tree fits all rows have \code{endpoint_node_id = NA_integer_} and
+#' \code{endpoint_id = NA_integer_}.
+#' @seealso \code{\link{oda_cta_fit}}, \code{\link{cta_endpoint_summary}},
+#'   \code{\link{cta_propensity_weights}}
+#' @examples
+#' data(mtcars)
+#' X    <- mtcars[, c("cyl", "disp", "hp", "wt")]
+#' y    <- as.integer(mtcars$am)
+#' tree <- oda_cta_fit(X, y, mindenom = 5L, mc_iter = 500L, mc_seed = 42L)
+#' ep   <- cta_assign_endpoints(tree, X)
+#' head(ep)
+#' @export
+cta_assign_endpoints <- function(tree, newdata,
+                                  missing_action = c("na", "majority")) {
+  stopifnot(inherits(tree, "cta_tree"))
+  missing_action <- match.arg(missing_action)
+  if (!is.data.frame(newdata)) newdata <- as.data.frame(newdata)
+
+  n_new <- nrow(newdata)
+
+  # --- schema for no-tree or zero-row result ---------------------------------
+  empty_df <- function() {
+    data.frame(
+      row_id           = integer(0),
+      endpoint_node_id = integer(0),
+      endpoint_id      = integer(0)
+    )
+  }
+
+  # No-tree: all NA.
+  if (isTRUE(tree$no_tree)) {
+    return(data.frame(
+      row_id           = seq_len(n_new),
+      endpoint_node_id = rep(NA_integer_, n_new),
+      endpoint_id      = rep(NA_integer_, n_new)
+    ))
+  }
+
+  # --- column count validation (runs even for zero-row newdata) ---------------
+  split_nodes <- Filter(function(nd) !isTRUE(nd$leaf), tree$nodes)
+  max_attr_col <- if (length(split_nodes) == 0L) 0L else {
+    max(vapply(split_nodes, function(nd) nd$attr_col %||% 0L, integer(1L)))
+  }
+  if (ncol(newdata) < max_attr_col) {
+    stop(sprintf(
+      "cta_assign_endpoints: newdata has %d column(s) but tree requires at least %d.",
+      ncol(newdata), max_attr_col
+    ))
+  }
+
+  if (n_new == 0L) return(empty_df())
+
+  # --- optional name-mismatch warning ----------------------------------------
+  nd_names   <- names(newdata)
+  tree_names <- tree$attr_names
+  if (!is.null(nd_names) && !is.null(tree_names)) {
+    split_cols <- vapply(split_nodes, function(nd) nd$attr_col %||% NA_integer_,
+                         integer(1L))
+    split_cols <- unique(split_cols[!is.na(split_cols)])
+    for (jj in split_cols) {
+      if (jj <= length(tree_names) && jj <= length(nd_names) &&
+          !is.na(tree_names[jj]) && !is.na(nd_names[jj]) &&
+          tree_names[jj] != nd_names[jj]) {
+        warning(sprintf(
+          paste0("cta_assign_endpoints: column %d is named '%s' in newdata ",
+                 "but '%s' in tree$attr_names. Traversal uses column position."),
+          jj, nd_names[jj], tree_names[jj]
+        ))
+      }
+    }
+  }
+
+  # --- build endpoint_node_id -> endpoint_id lookup --------------------------
+  es <- cta_endpoint_summary(tree)
+  ep_lookup <- integer(0)
+  if (nrow(es) > 0L) {
+    ep_lookup <- setNames(es$endpoint_id, as.character(es$endpoint_node_id))
+  }
+
+  miss_codes <- tree$miss_codes
+
+  # --- traversal helper: returns terminal node_id for one observation --------
+  traverse_one <- function(i) {
+    nid <- tree$root_id
+    repeat {
+      nd <- tree$nodes[[nid]]
+      if (is.null(nd) || isTRUE(nd$leaf) || length(nd$child_ids) == 0L)
+        return(nd$node_id %||% NA_integer_)
+
+      j     <- nd$attr_col
+      x_val <- newdata[[j]][i]
+
+      miss_here <- is.na(x_val)
+      if (!is.null(miss_codes) && !miss_here) miss_here <- x_val %in% miss_codes
+      if (miss_here) {
+        if (missing_action == "na") return(NA_integer_)
+        # majority: route to child with largest n_obs; ties -> first child
+        child_ns <- vapply(nd$child_ids, function(cid) {
+          cn <- tree$nodes[[cid]]
+          if (is.null(cn)) NA_integer_ else cn$n_obs %||% NA_integer_
+        }, integer(1L))
+        nid <- nd$child_ids[which.max(child_ns)]
+        next
+      }
+
+      rule <- nd$rule
+      if (!is.null(rule$type) &&
+          rule$type %in% c("multiclass_ordered", "multiclass_nominal")) {
+        y_hat <- as.integer(oda_rule_predict_multiclass(
+          x_val, rule, boundary = rule$boundary %||% "megaoda_halfopen"))
+        sl <- nd$split_labels
+        ic <- which(sl == y_hat)
+        if (length(ic) == 0L) {
+          # unrecognised label: route to largest child
+          child_ns <- vapply(nd$child_ids, function(cid) {
+            cn <- tree$nodes[[cid]]
+            if (is.null(cn)) NA_integer_ else cn$n_obs %||% NA_integer_
+          }, integer(1L))
+          nid <- nd$child_ids[which.max(child_ns)]
+          next
+        }
+      } else {
+        y_hat <- as.integer(oda_rule_predict(x_val, rule))
+        if (!(y_hat %in% 0:1)) {
+          child_ns <- vapply(nd$child_ids, function(cid) {
+            cn <- tree$nodes[[cid]]
+            if (is.null(cn)) NA_integer_ else cn$n_obs %||% NA_integer_
+          }, integer(1L))
+          nid <- nd$child_ids[which.max(child_ns)]
+          next
+        }
+        ic <- y_hat + 1L
+      }
+      next_nid <- nd$child_ids[ic[1L]]
+      if (is.na(next_nid) || next_nid < 1L) return(nd$node_id %||% NA_integer_)
+      nid <- next_nid
+    }
+  }
+
+  # --- traverse all rows -----------------------------------------------------
+  endpoint_node_ids <- vapply(seq_len(n_new), traverse_one, integer(1L))
+  endpoint_ids <- ifelse(
+    is.na(endpoint_node_ids),
+    NA_integer_,
+    as.integer(ep_lookup[as.character(endpoint_node_ids)])
+  )
+
+  data.frame(
+    row_id           = seq_len(n_new),
+    endpoint_node_id = endpoint_node_ids,
+    endpoint_id      = endpoint_ids,
+    stringsAsFactors = FALSE
+  )
+}
