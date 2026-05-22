@@ -51,7 +51,7 @@ column structure and types.
 \seealso{
   \code{\link{oda_cta_fit}}, \code{\link{cta_endpoint_summary}},
   \code{\link{cta_confusion_table}}, \code{\link{cta_endpoint_table}},
-  \code{\link{cta_staging_table}}
+  \code{\link{cta_staging_table}}, \code{\link{cta_propensity_weights}}
 }
 \examples{
 data(mtcars)

@@ -83,7 +83,7 @@ Analysis}, \strong{6}, 43-46.
 }
 \seealso{
   \code{\link{oda_cta_fit}}, \code{\link{cta_endpoint_summary}},
-  \code{\link{cta_endpoint_counts}}
+  \code{\link{cta_endpoint_counts}}, \code{\link{cta_propensity_weights}}
 }
 \examples{
 data(mtcars)
