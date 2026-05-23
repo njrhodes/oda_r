@@ -1,25 +1,16 @@
 \name{summary.cta_family}
 \alias{summary.cta_family}
-\alias{print.cta_family_summary}
-\alias{print.cta_family}
-\title{Summary and print methods for CTA descendant family}
+\title{Summarise a CTA descendant family}
 \description{
-\code{summary.cta_family} returns a structured S3 object summarising the CTA
-descendant family.  \code{print.cta_family_summary} displays it compactly.
-\code{print.cta_family} calls \code{summary} then prints.
-
+Returns a structured S3 object summarising the CTA descendant family.
 All values are read from stored fields — no refitting or recomputation is
 performed.
 }
 \usage{
 \method{summary}{cta_family}(object, \dots)
-\method{print}{cta_family_summary}(x, \dots)
-\method{print}{cta_family}(x, \dots)
 }
 \arguments{
   \item{object}{A \code{cta_family} from \code{\link{cta_descendant_family}}.}
-  \item{x}{A \code{cta_family_summary} (for \code{print.cta_family_summary})
-    or \code{cta_family} (for \code{print.cta_family}).}
   \item{\dots}{Unused; included for S3 compatibility.}
 }
 \value{
@@ -36,8 +27,6 @@ performed.
     case weights.}
   \item{\code{table}}{A \code{data.frame} from \code{\link{cta_family_table}}.}
 }
-\code{print.cta_family_summary} and \code{print.cta_family} return their
-first argument invisibly.
 }
 \seealso{
   \code{\link{cta_descendant_family}}, \code{\link{cta_family_table}}
