@@ -1460,3 +1460,320 @@ cta_observation_weights <- function(
     stringsAsFactors          = FALSE
   )
 }
+
+# =============================================================================
+# cta_plot_data() — pure layout-data contract for tree visualisation
+# =============================================================================
+
+#' Extract layout data for plotting a CTA tree
+#'
+#' Returns a pure-data list describing tree topology and layout coordinates.
+#' No graphics are produced.  Use this as input to \code{\link{plot.cta_tree}}
+#' or to custom rendering code.
+#'
+#' Layout algorithm: leaves receive sequential integer x-positions in
+#' depth-first (left-to-right) order; internal nodes are centred over their
+#' children.  \code{y = -depth} so the root sits at the top.
+#'
+#' @param tree A \code{cta_tree} from \code{\link{oda_cta_fit}}.
+#' @return A list with elements:
+#' \describe{
+#'   \item{\code{nodes}}{A \code{data.frame} with one row per node and
+#'     columns \code{node_id} (integer), \code{parent_id} (integer),
+#'     \code{depth} (integer), \code{x} (numeric), \code{y} (numeric),
+#'     \code{leaf} (logical), \code{attribute} (character; \code{NA} for
+#'     leaves), \code{n_obs} (integer), \code{majority_class} (integer),
+#'     \code{ess} (numeric; \code{NA} for leaves), \code{label} (character
+#'     multi-line display text).}
+#'   \item{\code{edges}}{A \code{data.frame} with one row per parent-to-child
+#'     edge and columns \code{from_node_id} (integer), \code{to_node_id}
+#'     (integer), \code{x0}, \code{y0}, \code{x1}, \code{y1} (numeric
+#'     centre-to-centre coordinates), \code{label} (character branch
+#'     condition, e.g. \code{"V14<=0.5"}).}
+#'   \item{\code{no_tree}}{Logical; \code{TRUE} for leaf-only fits.}
+#'   \item{\code{has_weights}}{Logical; \code{TRUE} when case weights are
+#'     active.}
+#' }
+#' @seealso \code{\link{plot.cta_tree}}, \code{\link{oda_cta_fit}}
+#' @export
+cta_plot_data <- function(tree) {
+  stopifnot(inherits(tree, "cta_tree"))
+
+  no_tree     <- isTRUE(tree$no_tree)
+  has_weights <- isTRUE(tree$has_weights)
+
+  empty_nodes <- data.frame(
+    node_id        = integer(0),
+    parent_id      = integer(0),
+    depth          = integer(0),
+    x              = numeric(0),
+    y              = numeric(0),
+    leaf           = logical(0),
+    attribute      = character(0),
+    n_obs          = integer(0),
+    majority_class = integer(0),
+    ess            = numeric(0),
+    label          = character(0),
+    stringsAsFactors = FALSE
+  )
+  empty_edges <- data.frame(
+    from_node_id = integer(0),
+    to_node_id   = integer(0),
+    x0           = numeric(0),
+    y0           = numeric(0),
+    x1           = numeric(0),
+    y1           = numeric(0),
+    label        = character(0),
+    stringsAsFactors = FALSE
+  )
+
+  all_nodes <- Filter(Negate(is.null), tree$nodes)
+  if (no_tree || length(all_nodes) == 0L)
+    return(list(nodes = empty_nodes, edges = empty_edges,
+                no_tree = no_tree, has_weights = has_weights))
+
+  # ------------------------------------------------------------------
+  # Assign layout x-positions via depth-first (left-to-right) traversal.
+  # Leaves receive sequential integers 1, 2, 3, ...
+  # Internal nodes receive the mean of their children's x-positions.
+  # ------------------------------------------------------------------
+  x_pos        <- numeric(0)   # named by node_id character
+  leaf_counter <- 0L
+
+  assign_x <- function(nid) {
+    nd <- tree$nodes[[nid]]
+    if (is.null(nd)) return(NA_real_)
+    is_leaf <- isTRUE(nd$leaf) || length(nd$child_ids) == 0L
+    if (is_leaf) {
+      leaf_counter <<- leaf_counter + 1L
+      x_pos[as.character(nid)] <<- as.numeric(leaf_counter)
+      return(as.numeric(leaf_counter))
+    }
+    child_xs <- vapply(nd$child_ids, assign_x, numeric(1L))
+    cx <- mean(child_xs, na.rm = TRUE)
+    x_pos[as.character(nid)] <<- cx
+    cx
+  }
+
+  assign_x(tree$root_id)
+
+  # ------------------------------------------------------------------
+  # Build nodes data.frame
+  # ------------------------------------------------------------------
+  n          <- length(all_nodes)
+  nid_vec    <- integer(n)
+  pid_vec    <- integer(n)
+  depth_vec  <- integer(n)
+  x_vec      <- numeric(n)
+  y_vec      <- numeric(n)
+  leaf_vec   <- logical(n)
+  attr_vec   <- character(n)
+  nobs_vec   <- integer(n)
+  maj_vec    <- integer(n)
+  ess_vec    <- numeric(n)
+  lbl_vec    <- character(n)
+
+  ess_label <- if (has_weights) "WESS" else "ESS"
+
+  for (i in seq_along(all_nodes)) {
+    nd  <- all_nodes[[i]]
+    nid <- nd$node_id
+    is_leaf  <- isTRUE(nd$leaf) || length(nd$child_ids) == 0L
+    ess_val  <- if (is_leaf) NA_real_ else (nd$ess %||% NA_real_)
+    x_i      <- x_pos[as.character(nid)] %||% NA_real_
+    dep_i    <- nd$depth %||% NA_integer_
+
+    nid_vec[i]   <- nid
+    pid_vec[i]   <- nd$parent_id %||% NA_integer_
+    depth_vec[i] <- dep_i
+    x_vec[i]     <- x_i
+    y_vec[i]     <- -dep_i
+    leaf_vec[i]  <- is_leaf
+    attr_vec[i]  <- if (!is_leaf) (nd$attribute %||% NA_character_) else NA_character_
+    nobs_vec[i]  <- nd$n_obs %||% NA_integer_
+    maj_vec[i]   <- nd$majority_class %||% NA_integer_
+    ess_vec[i]   <- ess_val
+    lbl_vec[i]   <- if (is_leaf) {
+      sprintf("class=%d\nn=%d", nd$majority_class %||% NA_integer_,
+              nd$n_obs %||% NA_integer_)
+    } else if (!is.na(ess_val)) {
+      sprintf("%s\n%s=%.1f%%\nn=%d",
+              nd$attribute %||% "?", ess_label, ess_val,
+              nd$n_obs %||% NA_integer_)
+    } else {
+      sprintf("%s\nn=%d", nd$attribute %||% "?", nd$n_obs %||% NA_integer_)
+    }
+  }
+
+  nodes_df <- data.frame(
+    node_id        = nid_vec,
+    parent_id      = pid_vec,
+    depth          = depth_vec,
+    x              = x_vec,
+    y              = y_vec,
+    leaf           = leaf_vec,
+    attribute      = attr_vec,
+    n_obs          = nobs_vec,
+    majority_class = maj_vec,
+    ess            = ess_vec,
+    label          = lbl_vec,
+    stringsAsFactors = FALSE
+  )
+
+  # ------------------------------------------------------------------
+  # Build edges data.frame
+  # ------------------------------------------------------------------
+  split_nds <- Filter(
+    function(nd) !is.null(nd) && !isTRUE(nd$leaf) && length(nd$child_ids) > 0L,
+    tree$nodes
+  )
+
+  n_edges    <- sum(vapply(split_nds, function(nd) length(nd$child_ids), integer(1L)))
+  from_vec   <- integer(n_edges)
+  to_vec     <- integer(n_edges)
+  x0_vec     <- numeric(n_edges)
+  y0_vec     <- numeric(n_edges)
+  x1_vec     <- numeric(n_edges)
+  y1_vec     <- numeric(n_edges)
+  elbl_vec   <- character(n_edges)
+
+  ei <- 0L
+  for (nd in split_nds) {
+    px <- x_pos[as.character(nd$node_id)] %||% NA_real_
+    py <- -(nd$depth %||% 1L)
+    for (k in seq_along(nd$child_ids)) {
+      cid <- nd$child_ids[k]
+      cnd <- tree$nodes[[cid]]
+      if (is.null(cnd)) next
+      ei <- ei + 1L
+      cx <- x_pos[as.character(cid)] %||% NA_real_
+      cy <- -(cnd$depth %||% 2L)
+      from_vec[ei]  <- nd$node_id
+      to_vec[ei]    <- cid
+      x0_vec[ei]    <- px
+      y0_vec[ei]    <- py
+      x1_vec[ei]    <- cx
+      y1_vec[ei]    <- cy
+      elbl_vec[ei]  <- .cta_branch_string(nd, k)
+    }
+  }
+
+  if (ei < n_edges) {
+    keep     <- seq_len(ei)
+    from_vec <- from_vec[keep]; to_vec   <- to_vec[keep]
+    x0_vec   <- x0_vec[keep];   y0_vec   <- y0_vec[keep]
+    x1_vec   <- x1_vec[keep];   y1_vec   <- y1_vec[keep]
+    elbl_vec <- elbl_vec[keep]
+  }
+
+  edges_df <- data.frame(
+    from_node_id = from_vec,
+    to_node_id   = to_vec,
+    x0           = x0_vec,
+    y0           = y0_vec,
+    x1           = x1_vec,
+    y1           = y1_vec,
+    label        = elbl_vec,
+    stringsAsFactors = FALSE
+  )
+
+  list(nodes = nodes_df, edges = edges_df,
+       no_tree = no_tree, has_weights = has_weights)
+}
+
+# =============================================================================
+# plot.cta_tree() — base-R tree diagram
+# =============================================================================
+
+#' Plot a fitted CTA tree
+#'
+#' Produces a base-R tree diagram.  Calls \code{\link{cta_plot_data}} for
+#' layout; uses only base graphics — no external dependencies.
+#'
+#' Split (internal) nodes show the split attribute, node-level ESS or WESS,
+#' and observation count.  Leaf (terminal) nodes show the majority-class
+#' prediction and observation count.  Edge labels show the branch condition
+#' (e.g. \code{"V14<=0.5"}).
+#'
+#' @param x A \code{cta_tree} from \code{\link{oda_cta_fit}}.
+#' @param main Character plot title.  Default \code{"CTA Tree"}.
+#' @param node_col_split Fill colour for split nodes.
+#'   Default \code{"#D9EAF7"} (light blue).
+#' @param node_col_leaf Fill colour for leaf nodes.
+#'   Default \code{"#D9F7E6"} (light green).
+#' @param edge_col Colour for edge lines.  Default \code{"grey40"}.
+#' @param cex Text expansion factor for node labels.  Default \code{0.75}.
+#' @param ... Unused; included for S3 compatibility.
+#' @return \code{invisible(x)}.
+#' @seealso \code{\link{cta_plot_data}}, \code{\link{oda_cta_fit}}
+#' @export
+plot.cta_tree <- function(x, main = "CTA Tree",
+                          node_col_split = "#D9EAF7",
+                          node_col_leaf  = "#D9F7E6",
+                          edge_col       = "grey40",
+                          cex            = 0.75, ...) {
+  pd <- cta_plot_data(x)
+
+  if (pd$no_tree || nrow(pd$nodes) == 0L) {
+    graphics::plot.new()
+    graphics::title(main = main)
+    graphics::text(0.5, 0.5, "no tree (leaf only)", cex = 1.2, col = "grey50")
+    return(invisible(x))
+  }
+
+  nd <- pd$nodes
+  ed <- pd$edges
+
+  xr  <- range(nd$x, na.rm = TRUE)
+  yr  <- range(nd$y, na.rm = TRUE)
+  # Ensure non-degenerate ranges (single leaf, stump, etc.)
+  if (diff(xr) < 1) xr <- xr + c(-0.5, 0.5)
+  if (diff(yr) < 1) yr <- yr + c(-0.5, 0.5)
+  xpad <- diff(xr) * 0.10 + 0.5
+  ypad <- diff(yr) * 0.12 + 0.4
+
+  # Box half-dimensions in data coordinates.
+  # hw: half of node box width; hh: half of node box height.
+  hw <- 0.40
+  hh <- 0.28
+
+  op <- graphics::par(mar = c(1, 1, 3, 1))
+  on.exit(graphics::par(op), add = TRUE)
+
+  graphics::plot.new()
+  graphics::plot.window(
+    xlim = xr + c(-xpad, xpad),
+    ylim = yr + c(-ypad, ypad)
+  )
+  graphics::title(main = main, cex.main = 1)
+
+  # Edges — drawn before boxes so boxes sit on top
+  if (nrow(ed) > 0L) {
+    for (i in seq_len(nrow(ed))) {
+      # Connect bottom of parent box to top of child box
+      graphics::segments(
+        ed$x0[i], ed$y0[i] - hh,
+        ed$x1[i], ed$y1[i] + hh,
+        col = edge_col, lwd = 1.2
+      )
+      # Edge label at midpoint
+      mx <- (ed$x0[i] + ed$x1[i]) / 2
+      my <- (ed$y0[i] - hh + ed$y1[i] + hh) / 2
+      graphics::text(mx, my, labels = ed$label[i],
+                     cex = cex * 0.82, col = "grey30", font = 1)
+    }
+  }
+
+  # Node boxes + labels
+  for (i in seq_len(nrow(nd))) {
+    cx <- nd$x[i]
+    cy <- nd$y[i]
+    if (is.na(cx) || is.na(cy)) next
+    fc <- if (nd$leaf[i]) node_col_leaf else node_col_split
+    graphics::rect(cx - hw, cy - hh, cx + hw, cy + hh,
+                   col = fc, border = "grey30", lwd = 0.8)
+    graphics::text(cx, cy, labels = nd$label[i], cex = cex, adj = c(0.5, 0.5))
+  }
+
+  invisible(x)
+}
