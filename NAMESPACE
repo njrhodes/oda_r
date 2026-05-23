@@ -51,6 +51,10 @@ S3method(summary, cta_family)
 S3method(print,   cta_family)
 S3method(print,   cta_family_summary)
 
+# ----- Novometric bootstrap -----
+export(novo_boot_ci)
+S3method(print, novo_boot_ci)
+
 # ----- Imports -----
-importFrom(stats, fisher.test, predict, qbeta, runif, setNames)
+importFrom(stats, fisher.test, predict, qbeta, quantile, runif, setNames)
 importFrom(utils, combn, head, modifyList)

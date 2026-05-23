@@ -308,6 +308,113 @@ Zero-row data frame with correct schema — no tree, no endpoints, no weights.
 
 ---
 
+## 5.1. Endpoint Assignment
+
+`cta_assign_endpoints()` traverses the fitted tree for each row of `newdata`
+and returns the endpoint each observation reaches.  It requires only the fitted
+`cta_tree` and a data frame with the model attributes — no training data is
+stored or accessed.  Path-local missingness is canonical: any observation whose
+split attribute is missing on its actual traversal path receives `NA` for
+`endpoint_node_id` and `endpoint_id`.
+
+### MINDENOM=1 — first 5 training rows
+
+```r
+# df[1:5, attrs] has V14 in {0, 0, 1, 1, 0} and V15 in {0, 0, 0, 0, 0}.
+# t1 root is V14 (<=0.5 → node 2, >0.5 → node 5); node 2 splits on V15.
+cta_assign_endpoints(t1, newdata = df[1:5, attrs])
+#   row_id endpoint_node_id endpoint_id
+# 1      1                3           1
+# 2      2                3           1
+# 3      3                5           3
+# 4      4                5           3
+# 5      5                3           1
+```
+
+Rows 1, 2, 5 (V14 ≤ 0.5 and V15 ≤ 0.5) land at endpoint 1 (node 3).
+Rows 3 and 4 (V14 > 0.5) land at endpoint 3 (node 5).
+Row 5 has V17 = −9 but that attribute is not used in the t1 tree; the
+V17 missingness does not affect assignment.
+
+### MINDENOM=30 — path-local NA when root attribute is missing
+
+The MINDENOM=30 stump roots at V17.  Rows with V17 = −9 cannot be traversed
+and receive `NA` endpoints.
+
+```r
+# First 3 rows have V17 in {1, 0, 0}; next 3 have V17 = -9.
+demo_rows <- c(which(df$V17 != -9)[1:3], which(df$V17 == -9)[1:3])
+
+cta_assign_endpoints(t30, newdata = df[demo_rows, attrs])
+#   row_id endpoint_node_id endpoint_id
+# 1      1                3           2
+# 2      2                2           1
+# 3      3                2           1
+# 4      4               NA          NA
+# 5      5               NA          NA
+# 6      6               NA          NA
+```
+
+Rows 4–6 have V17 = −9 and are excluded with `NA` — canonical path-local
+missingness.  These 69 obs with V17 = −9 are why MINDENOM=30 classifies
+n = 186, not n = 255.
+
+---
+
+## 5.2. Observation-Level Weights
+
+`cta_observation_weights()` calls `cta_assign_endpoints()` internally, joins
+the resulting `endpoint_id` and `actual_class` to the endpoint × class weights
+from `cta_propensity_weights()`, and returns one row per observation.
+Observations that receive `NA` endpoint (path-local missing on root) carry
+`NA` weights and `assigned = FALSE`.
+
+### MINDENOM=1 — first 5 training rows
+
+```r
+cta_observation_weights(t1, newdata = df[1:5, attrs], y = y[1:5])[,
+  c("row_id","actual_class","endpoint_id",
+    "propensity_weight","adjusted_propensity_weight","assigned")]
+#   row_id actual_class endpoint_id propensity_weight adjusted_propensity_weight
+# 1      1            0           1         0.9092667                  0.9092667
+# 2      2            0           1         0.9092667                  0.9092667
+# 3      3            0           3         1.2343891                  1.2343891
+# 4      4            1           3         0.6614379                  0.6614379
+# 5      5            0           1         0.9092667                  0.9092667
+#   assigned
+# 1     TRUE
+# 2     TRUE
+# 3     TRUE
+# 4     TRUE
+# 5     TRUE
+```
+
+Each observation receives the endpoint × actual-class propensity weight for
+its endpoint.  Rows 1, 2, 5 (actual class 0, endpoint 1) all receive
+weight ≈ 0.909.  Row 4 (actual class 1, endpoint 3) receives weight ≈ 0.661.
+`adjusted` is `FALSE` for all rows here because no endpoint is perfectly
+predicted at MINDENOM=1.
+
+### MINDENOM=30 — path-local NA propagates to weights
+
+```r
+cta_observation_weights(t30, newdata = df[demo_rows, attrs],
+                         y = y[demo_rows])[,
+  c("row_id","actual_class","endpoint_id","propensity_weight","assigned")]
+#   row_id actual_class endpoint_id propensity_weight assigned
+# 1      1            0           2         1.1740987     TRUE
+# 2      2            0           1         0.9413925     TRUE
+# 3      3            0           1         0.9413925     TRUE
+# 4      4            0          NA                NA    FALSE
+# 5      5            1          NA                NA    FALSE
+# 6      6            1          NA                NA    FALSE
+```
+
+Rows 4–6 (V17 = −9) cannot be assigned to an endpoint; their weights are
+`NA` and `assigned = FALSE`.
+
+---
+
 ## 6. Confusion Table
 
 The confusion table covers the full selected (pruned) tree applied to all
