@@ -63,8 +63,10 @@ fit$mean_pac          # ~95.3
 
 ### Classification Tree Analysis and MDSA reporting
 
-`oda_cta_fit()` supports binary-class CTA with ENUMERATE, LOO STABLE, PRUNE,
-and MINDENOM endpoint constraints. Predictions use `predict(tree, newdata)`.
+`cta_fit()` is the public entry point for binary-class CTA with ENUMERATE,
+LOO STABLE, PRUNE, and MINDENOM endpoint constraints.
+Predictions use `predict(tree, newdata)`.
+(`oda_cta_fit()` is the internal engine name retained for backward compatibility.)
 
 ```r
 library(odacore)
@@ -149,12 +151,29 @@ LOO validity is a post-selection check, not a tie-break criterion.
 
 ## Running tests
 
+Tests are gated by `ODACORE_TEST_TIER` (see `tests/testthat/helper-test-tier.R`).
+The default (unset) runs CRAN-safe tests only.
+
+```bash
+# CRAN-safe / default package check (no env var required):
+Rscript --vanilla -e "devtools::check(vignettes=FALSE)"
+
+# Fast developer loop (skips all slow canon fixtures):
+ODACORE_TEST_TIER=fast Rscript --vanilla -e "devtools::test(reporter='progress')"
+
+# CTA/MDSA/reporting/graphics production gate (required before those commits):
+ODACORE_TEST_TIER=smoke Rscript --vanilla -e "devtools::test(reporter='progress')"
+
+# Full canon / release gate (required before release tags or canon parity work):
+ODACORE_TEST_TIER=full Rscript --vanilla -e "devtools::test(reporter='progress')"
+```
+
+Targeted filter examples:
+
 ```r
-devtools::test()                          # all tests
 devtools::test(filter = "iris")           # iris multiclass gold
-devtools::test(filter = "fixture-cta")    # CTA_DEMO gold fixture
+devtools::test(filter = "fixture-cta")    # CTA_DEMO gold fixture (smoke tier)
 devtools::test(filter = "tie-breaking")   # SAMPLEREP isolation
-devtools::check()                         # full R CMD check
 ```
 
 ## CI

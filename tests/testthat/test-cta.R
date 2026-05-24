@@ -201,6 +201,28 @@ test_that("verbose does not change model output", {
   expect_equal(r_q$rule$cut_value,  r_v$rule$cut_value)
 })
 
+test_that("cta_fit() is a valid public wrapper: same class and root as oda_cta_fit()", {
+  # Verify the public cta_fit() wrapper produces the same cta_tree structure
+  # as calling oda_cta_fit() directly on identical inputs.
+  X <- data.frame(x1 = 1:8, x2 = c(0L,0L,1L,0L,1L,1L,0L,1L))
+  y <- c(1L,1L,1L,1L,2L,2L,2L,2L)
+  args <- list(X = X, y = y, priors_on = TRUE, mindenom = 1L,
+               mc_iter = 300L, mc_seed = 7L, loo = "off",
+               attr_names = c("x1","x2"))
+  t1 <- do.call(cta_fit,      args)
+  t2 <- do.call(oda_cta_fit,  args)
+  expect_s3_class(t1, "cta_tree")
+  expect_s3_class(t2, "cta_tree")
+  r1 <- t1$nodes[[t1$root_id]]
+  r2 <- t2$nodes[[t2$root_id]]
+  expect_equal(r1$attribute,      r2$attribute)
+  expect_equal(r1$rule$cut_value, r2$rule$cut_value)
+  expect_equal(r1$n_obs,          r2$n_obs)
+  # Reporting functions accept both
+  tbl1 <- cta_node_table(t1)
+  expect_true(is.data.frame(tbl1) && nrow(tbl1) >= 1L)
+})
+
 test_that("multi-attribute: most informative attribute selected at root", {
   # x1 perfectly separates, x2 is noise
   set.seed(42)

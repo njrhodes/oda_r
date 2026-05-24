@@ -46,7 +46,7 @@ w     <- df$V2
 
 ```r
 fit_myeloma <- function(mindenom) {
-  oda_cta_fit(
+  cta_fit(
     X           = df[, attrs],
     y           = y,
     w           = w,
@@ -76,8 +76,8 @@ Key fixture characteristics:
 - `miss_codes = -9` — value −9 is treated as missing on any attribute.
   Path-local missingness is canonical: an observation is excluded (returned
   as `NA`) when its split attribute is missing on its actual traversal path.
-- 255 classified observations at MINDENOM=1 (44 obs missing on V17 path are
-  excluded at MINDENOM=30/56 root).
+- 255 classified observations at MINDENOM=1 (69 obs with V17 = −9 are
+  excluded at MINDENOM=30/56 root, which splits on V17).
 
 ---
 
@@ -139,7 +139,8 @@ cta_endpoint_counts(t30)
 # 4           2                3  V17>0.5                   1     1    21     430.31
 ```
 
-Classified n = 186 (44 obs with V17 = −9 are path-locally excluded).
+Classified n = 186 (69 obs with V17 = −9 are path-locally excluded;
+255 − 186 = 69).
 
 ### MINDENOM=56 — no-tree terminal
 
@@ -445,7 +446,8 @@ cta_confusion_table(t30)
 # 4      1         1  21
 ```
 
-Total classified n = 186 (44 obs with V17 = −9 excluded path-locally).
+Total classified n = 186 (69 obs with V17 = −9 excluded path-locally;
+255 − 186 = 69).
 [[101, 34], [30, 21]]. OVERALL ESS = 15.99%; WEIGHTED ESS = 16.51%.
 
 The confusion table is stored as `training_confusion` on the `cta_tree`

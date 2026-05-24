@@ -9,8 +9,9 @@ fully worked numeric example see `docs/myeloma-cta-translation.md`.
 
 ## Lean-fit principle
 
-`oda_cta_fit()` stores only what is needed to reproduce predictions and
-compute reporting artifacts on demand:
+`cta_fit()` (and the internal `oda_cta_fit()` engine it delegates to) stores
+only what is needed to reproduce predictions and compute reporting artifacts
+on demand:
 
 - Tree nodes (split rules, child pointers, `n_obs`)
 - `training_confusion` — C×C matrix from the training pass
@@ -33,7 +34,8 @@ is never mutated by any reporting function.
 ## Pipeline overview
 
 ```
-oda_cta_fit(X, y, w, ...)
+cta_fit(X, y, w, ...)              # public entry point
+  |  [delegates to oda_cta_fit()]   # internal engine
   |
   +-- cta_endpoint_summary()       endpoint structure and denominators
   |
@@ -50,8 +52,13 @@ oda_cta_fit(X, y, w, ...)
   +-- cta_confusion_table()        actual × predicted confusion matrix
   |
   +-- [cta_descendant_family()]
+  |     |
+  |     +-- cta_family_table()     MINDENOM family summary with D-statistic
+  |
+  +-- [output layer — derived, no refit, no training X/y]
         |
-        +-- cta_family_table()     MINDENOM family summary with D-statistic
+        +-- cta_plot_data()        tree diagram data (nodes/edges/endpoints)
+        +-- plot.cta_tree()        native base-R tree diagram
 ```
 
 Most reporting functions operate on stored tree/family summaries and leaf
@@ -73,6 +80,8 @@ final-tree training confusion.
 | `cta_observation_weights()` | observation | Joins `cta_assign_endpoints()` output with `cta_propensity_weights()` on `(endpoint_id, actual_class)`; returns endpoint-level weight assigned to each observation | No |
 | `cta_confusion_table()` | actual × predicted class | Confusion matrix with per-class sensitivity, specificity, PAC, and ESS from tree predictions | No |
 | `cta_family_table()` | family member / MINDENOM | MINDENOM family summary: ESS, D-statistic, strata count, min-terminal-denom, and minimum-D selection flag | No |
+| `cta_plot_data()` | node / edge / endpoint | Derived tree diagram data: node geometry, edge labels, endpoint enrichment (target proportion, rank, color, label) when `target_class` is supplied | No |
+| `plot.cta_tree()` | — (side effect: plot) | Native base-R tree diagram; structural or target-enriched mode; returns `invisible(pd)` | No |
 
 ---
 
@@ -151,22 +160,46 @@ confusion table recovery, and the lean-fit invariant check.
 - **No downstream outcome model integration.** The observation-level weights
   from `cta_observation_weights()` are ready to pass to a weighted outcome
   model, but no wrapper or example for that step exists yet.
-- **No package vignette.** `docs/myeloma-cta-translation.md` serves as the
-  worked example; a formal `vignettes/` entry is not yet written.
+- **No formal package vignette yet.** `docs/myeloma-cta-translation.md` serves
+  as the worked example. Vignette conversion is planned for Slice 3; each
+  vignette must be CRAN-safe by default (no slow MC/LOO/fixture fits at
+  build time).
 
 ---
 
 ## Next planned direction
 
-The immediate next work is documentation synchronization and applied
-translation hardening:
+The first production version of the translation stack (through `cta_plot_data()`
+and `plot.cta_tree()`) is complete. Ongoing and planned work:
 
-- Keep `docs/myeloma-cta-translation.md` aligned with the completed stack,
-  including `cta_assign_endpoints()` and `cta_observation_weights()`.
-- Add a small README pointer to this page in a separate README-only slice.
-- Preserve the lean-fit invariant while extending examples.
-- Defer balance diagnostics, downstream outcome modeling, and weighted
-  propensity-weight variants until explicitly designed and canon-reviewed.
+**Vignette conversion (Slice 3):**
+Convert in-repo analysis Rmd files to formal package vignettes. Every vignette
+must use public APIs only. Any fit that invokes MC (`mc_iter`), LOO, or real
+fixture data must use precomputed output or be guarded with `eval = FALSE` to
+remain CRAN-safe by default. No slow canon fits should run during
+`devtools::check()` or `R CMD build`.
 
-Balance diagnostics may be useful future utilities, but they are not part of
-the current canon-backed CTA/MDSA propensity-weight translation path.
+**Graphics production polish (Phase 2I — remaining):**
+- `plot.cta_family()` for MDSA descendant family comparison.
+- Optional ggplot/grid renderer, ellipse/circle split nodes, endpoint
+  rectangles, arrow-style edges, dynamic sizing, performance caption, legend.
+- Optional Mermaid text export for Quarto/GitHub rendering.
+  Mermaid is an export format, not the internal R graphics engine.
+
+**Deferred design work (not yet canon-backed):**
+- **Directional hypothesis support** — relevant to ODA/CTA rule reporting but
+  specification is open. Tracked as issue #6; do not implement until canon
+  target is written.
+- **Balance diagnostics** — future work based on the ODA/CTA discrimination
+  framing: after matching or weighting, pre-intervention covariates should
+  have weak or non-significant ability to discriminate assignment/study groups.
+  SMD-style summaries may be useful complements but are not the canon center.
+  Canon review against the Linden/Yarnold JEP covariate-balance paper in
+  `docs/theory/` is required before implementation.
+- **Weighted propensity-weight variant** — `cta_propensity_weights()` uses raw
+  observation counts exclusively. A `weighted = TRUE` path using `n_weighted`
+  and weighted marginals remains deferred design.
+- **Downstream outcome models** — propensity weights are ready to pass to a
+  weighted outcome model; no wrapper or example for that step is provided yet.
+
+The lean-fit invariant must be preserved throughout all future additions.

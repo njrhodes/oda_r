@@ -9,7 +9,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **UniODA** (`oda_univariate_core`): univariate binary-class ODA for ordered, categorical, and binary attributes.
 - **MultiODA** (`oda_multiclass_unioda_core`): univariate multiclass ODA for ordered and categorical attributes.
 - **`oda_fit`**: unified dispatcher — calls UniODA when C=2, MultiODA when C≥3. This is the entry point CTA nodes should use.
-- **`oda_cta_fit`** (`cta_core.R`): CTA engine — implemented; all canon fixtures passing.
+- **`cta_fit`** (`oda_fit.R`): public CTA entry point — thin wrapper around the internal engine; preferred public name.
+- **`oda_cta_fit`** (`cta_core.R`): CTA engine (internal name; retained for backward compatibility; prefer `cta_fit()` in user-facing code).
 
 Covered fixtures are tested against MegaODA.exe / CTA.exe outputs. Extension behavior must be explicitly marked and must not disturb covered parity. Roadmap details are in `docs/ODACORE_VISION.md`; engine canon is in `docs/ODA_CANON.md`, `docs/CTA_CANON.md`, and `docs/CTA_ORDERED_CUT_AUDIT.md`.
 

@@ -48,11 +48,16 @@ fields; it knows nothing about the internal structure of either ODA engine.
 
 ### Public API
 
-**Entry points:**
-- `oda_fit(x, y, w, ...)` — primary dispatcher
-- `oda_univariate_core(...)` — binary ODA engine directly
-- `oda_multiclass_unioda_core(...)` — multiclass ODA engine directly
-- `oda_cta_fit(X, y, w, ...)` — CTA tree
+**Entry points (public API):**
+- `oda_fit(x, y, w, ...)` — primary ODA dispatcher (binary and multiclass)
+- `cta_fit(X, y, w, ...)` — public CTA tree constructor
+
+**Internal / compatibility names:**
+- `oda_cta_fit(X, y, w, ...)` — CTA engine (internal name; `cta_fit()` is
+  the preferred public entry point; `oda_cta_fit()` retained for backward
+  compatibility)
+- `oda_univariate_core(...)` — binary ODA engine (direct internal access)
+- `oda_multiclass_unioda_core(...)` — multiclass ODA engine (direct internal access)
 
 **Prediction / inspection:**
 - `predict.cta_tree(object, newdata, missing_action = c("majority", "na"))`
@@ -78,6 +83,16 @@ fields; it knows nothing about the internal structure of either ODA engine.
 - `cta_descendant_family(X, y, w, ..., start_mindenom, max_steps)`
 - `cta_family_table(family)`
 
+**Reliability:**
+- `novo_boot_ci(confusion, nboot, seed, ...)` — fixed-confusion NOVOmetric
+  bootstrap CI on a C×C confusion matrix. Resamples classification outcomes
+  from the stored confusion; does not refit ODA/CTA and does not estimate
+  model-selection uncertainty.
+
+**CTA graphics (output/interpretation layer):**
+- `cta_plot_data(tree, target_class, ...)` — derived tree diagram data
+- `plot.cta_tree(x, target_class, ...)` — native base-R tree diagram
+
 ### Return value contract
 
 - `$confusion` — always raw integer counts (rows = actual, cols = predicted)
@@ -97,10 +112,13 @@ fields; it knows nothing about the internal structure of either ODA engine.
 | myeloma    | 30       | CTA (WEIGHT V2)    | ✓ green  | V17 stump, WESS 16.51%, n=186     |
 | myeloma    | 56       | CTA (WEIGHT V2)    | ✓ green  | No tree (all child sizes < 56)    |
 
-**Full test suite: 765/765 passing.**
+**Validation status as of f0328e2:**
+- Fast suite: 941 pass / 163 skip / 0 fail / 0 warn
+- Targeted smoke: 173 pass / 0 skip / 0 fail / 0 warn
+- `devtools::check()`: 0 errors / 0 warnings / 1 known Windows clock NOTE
+  (environment timing issue, not a package defect)
 
-**devtools::check(): 0 errors / 0 warnings / 1 note** (network timestamp
-check — environment issue, not a package issue).
+See `CLAUDE.md` for current validation commands and tier definitions.
 
 ### Key CTA implementation details
 
@@ -539,21 +557,29 @@ reason.
 **Important:** Must be built after MDSA and model comparison tools. Do not
 invent a greedy shortcut inconsistent with MPE.
 
-#### Phase 2I — Visualization and end-user reporting artifacts
+#### Phase 2I — Visualization and end-user reporting artifacts ✓ (first production version — commit f0328e2)
 
-**Goal:** Plan a user-facing visualization/reporting layer for CTA, MDSA
-families, and special-use CTA workflows.
+**Completed:**
+- `cta_plot_data(tree, target_class, ...)` — derives tree diagram data from
+  stored leaf counts and node topology. Returns `$nodes`, `$edges`,
+  `$endpoints`, `$target_class_used`. When `target_class` is supplied, nodes
+  gain `target_n`, `denominator`, `target_proportion`, `target_rank`,
+  `endpoint_fill_color`, `stage`, `endpoint_label`, and `has_endpoint`
+  columns. No refitting; no training X/y storage; no invented statistics.
+  Colors encode relative target-class proportion only — they do not imply
+  clinical thresholds or categories.
+- `plot.cta_tree(x, target_class, class_labels, endpoint_palette, ...)` —
+  native base-R tree diagram. Structural mode (no `target_class`): split
+  nodes are ellipses, terminal endpoints are rectangles. Target-enriched mode
+  (`target_class` supplied): endpoint fill color encodes `target_proportion`
+  via a customizable color palette (`endpoint_palette`). Returns
+  `invisible(pd)` for programmatic reuse of plot-data.
+- Both functions are on-demand output/interpretation layer — same lean-fit
+  principle as the rest of the translation stack.
 
-**Primary internal representation:**
+**Remaining in Phase 2I (not yet implemented):**
 
-`cta_plot_data(tree, ...)` returns nodes, edges, labels, endpoint metrics, and
-styles in data-frame/list form. This is the internal R representation used by
-future plotting/export functions.
-
-**Possible output layers:**
-
-1. Native R plotting: future `plot.cta_tree()` after selecting a plotting
-   backend; future `plot.cta_family()` for MDSA descendant family comparison.
+1. Native R plotting: future `plot.cta_family()` for MDSA descendant family comparison.
 
 2. Optional text export: future `cta_mermaid(tree, ...)` may export Mermaid
    flowchart text for Quarto/GitHub/Markdown. Mermaid is an export format,
@@ -719,7 +745,7 @@ regression fixture / not suitable).
 2F  Degeneracy status taxonomy                       ← woven across 2A–2E
 2G  Model comparison                                 ← needs 2A + 2E
 2H  auto_SDA                                         ← needs 2E + 2G
-2I  Visualization and reporting artifacts            ← needs 2B endpoint contract
+2I  Visualization and reporting artifacts ✓ (first production — f0328e2)
 2J  Vignette/example backlog and ports               ← examples after APIs
 ```
 

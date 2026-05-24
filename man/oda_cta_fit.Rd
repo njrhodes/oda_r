@@ -1,7 +1,10 @@
 \name{oda_cta_fit}
 \alias{oda_cta_fit}
-\title{Fit a Classification Tree Analysis (CTA) model}
+\title{Fit a Classification Tree Analysis (CTA) model (internal engine)}
 \description{
+Internal CTA engine name retained for backward compatibility.
+\strong{Users should prefer \code{\link{cta_fit}()} as the public entry point.}
+
 Builds a classification tree by recursively applying ODA at each node.
 At each split, all attributes are evaluated and the attribute with the
 highest ESS passing the significance threshold is selected. Matches
