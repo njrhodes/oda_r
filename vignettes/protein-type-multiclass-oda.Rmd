@@ -65,12 +65,26 @@ Amino acid type is a four-category nominal variable; ODA scans it with the
 categorical flag, consistent with the MegaODA reference analysis. Leave-one-out
 (LOO) jackknife is not conducted for multicategorical class variables.
 
-```{r fit}
+```{r fit-canonical, eval=FALSE}
+# Canonical reference run (mc_iter = 25000L; not evaluated in CRAN vignette)
 fit <- oda_fit(
   x         = amino_acid_type,
   y         = biological_type,
   attr_type = "categorical",
   mc_iter   = 25000L,
+  loo       = "off"
+)
+```
+
+```{r fit}
+# CRAN-safe run: mc_iter = 500L for vignette rendering speed.
+# Training rule, ESS, and confusion matrix are identical to the canonical run.
+fit <- oda_fit(
+  x         = amino_acid_type,
+  y         = biological_type,
+  attr_type = "categorical",
+  mc_iter   = 500L,
+  mc_seed   = 42L,
   loo       = "off"
 )
 ```
@@ -128,9 +142,9 @@ cat("  Type 4:", round(pv[4], 1), "%\n")
   exceeds chance.
 - **ESS = 50.96%** indicates a relatively strong effect.^[Yarnold, P.R., &
   Soltysik, R.C. (2005). *Optimal Data Analysis: A Guidebook with Software for
-  Windows.* Washington, D.C.: APA Books.] All four PAC values exceed 50%,
-  confirming that no class is classified below the coin-flip threshold for a
-  four-class model (50%).
+  Windows.* Washington, D.C.: APA Books.] All four PAC values exceed the
+  four-class chance benchmark of 25%; they also exceed 50%, indicating
+  majority-accurate classification within each class.
 - **PV:** When the model predicts type 1 it is correct ~79.0% of the time; type
   2, ~56.2%; type 3, ~52.3%; type 4, ~66.2%. All predictive values exceed
   chance.
@@ -150,6 +164,15 @@ The nondirectional MC p-value is shown in the `summary` output above.
 against MegaODA.exe output in the package test suite
 (`tests/testthat/test-fixture-vignettes.R`, Example 3).
 
-**Directional p-value.** The original analysis specified a *directional*
-hypothesis (convergent validity). Directional ODA is not yet implemented
-(issue \#6). When available, the directional p-value will be smaller.
+**MC p-value calibration.** The MC p shown here reflects `mc_iter = 500L`
+in this CRAN vignette. Use the canonical run with `mc_iter = 25000L` (chunk
+`fit-canonical`, `eval=FALSE`) for publication-quality results.
+
+**Directional analysis.** The original analysis specified a *directional*
+hypothesis (convergent validity: amino acid type codes equal biological type
+codes). This is a multiclass categorical directional hypothesis (MPE Chapter 4
+TABLE/DIRECTIONAL). MPE Chapter 2 binary ordered directional ODA is implemented
+via `direction = c("greater", "less")` in `oda_fit()` and `oda_univariate_core()`.
+Multiclass and categorical/table DIRECTIONAL is Phase 6C (not yet implemented);
+the current nondirectional MC p-value is conservative relative to the
+directional alternative.

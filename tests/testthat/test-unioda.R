@@ -430,6 +430,61 @@ test_that("Phase 6B: direction='less' stores and uses 'greater' Fisher alternati
   expect_equal(fit$loo$alternative, "greater",        label = "6B less: alternative is greater")
 })
 
+# ---- direction "both" alias -------------------------------------------------
+
+test_that("direction='both' is a canonical synonym for direction='off'", {
+  # "both" is the new canonical default (non-directional); "off" is retained
+  # as a backward-compatible synonym. Both must produce identical results.
+  x <- c(35, 45, 55, 65, 75, 85, 95, 99)
+  y <- c(0L, 0L, 1L, 0L, 0L, 1L, 1L, 1L)
+
+  fit_both    <- oda_univariate_core(x, y, direction = "both",
+                                     priors_on = FALSE, mcarlo = FALSE, loo = "off")
+  fit_off     <- oda_univariate_core(x, y, direction = "off",
+                                     priors_on = FALSE, mcarlo = FALSE, loo = "off")
+  fit_default <- oda_univariate_core(x, y,
+                                     priors_on = FALSE, mcarlo = FALSE, loo = "off")
+
+  expect_equal(fit_both$rule$cut_value, fit_off$rule$cut_value,
+               label = "both == off: cut_value")
+  expect_equal(fit_both$rule$direction, fit_off$rule$direction,
+               label = "both == off: rule direction")
+  expect_equal(fit_both$rule$cut_value, fit_default$rule$cut_value,
+               label = "both == default: cut_value")
+  expect_equal(fit_both$ess,            fit_off$ess,
+               label = "both == off: ess")
+})
+
+test_that("direction='both' alias works through oda_fit() dispatcher", {
+  # Confirm the alias is honoured at the public entry point, not just internally.
+  x <- c(1L, 2L, 3L, 4L, 5L, 6L, 7L, 8L)
+  y <- c(0L, 0L, 0L, 0L, 1L, 1L, 1L, 1L)
+
+  fit_both <- oda_fit(x, y, direction = "both",  mcarlo = FALSE, loo = "off")
+  fit_off  <- oda_fit(x, y, direction = "off",   mcarlo = FALSE, loo = "off")
+  fit_def  <- oda_fit(x, y,                       mcarlo = FALSE, loo = "off")
+
+  expect_true(fit_both$ok,                               label = "oda_fit both: ok")
+  expect_equal(fit_both$rule$cut_value, fit_off$rule$cut_value,
+               label = "oda_fit both == off: cut_value")
+  expect_equal(fit_both$rule$cut_value, fit_def$rule$cut_value,
+               label = "oda_fit both == default: cut_value")
+})
+
+test_that("direction invalid value is rejected by match.arg", {
+  x <- c(1L, 2L, 3L, 4L, 5L, 6L, 7L, 8L)
+  y <- c(0L, 0L, 0L, 0L, 1L, 1L, 1L, 1L)
+
+  expect_error(
+    oda_univariate_core(x, y, direction = "wrong", mcarlo = FALSE, loo = "off"),
+    label = "invalid direction: match.arg error"
+  )
+  expect_error(
+    oda_fit(x, y, direction = "wrong", mcarlo = FALSE, loo = "off"),
+    label = "oda_fit invalid direction: match.arg error"
+  )
+})
+
 # ---- Engineering guard: all-unique categorical LOO --------------------------
 
 test_that("all-unique categorical x: LOO not supported (binary class)", {

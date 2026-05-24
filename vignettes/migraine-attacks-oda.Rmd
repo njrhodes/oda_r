@@ -74,15 +74,31 @@ table(attacks, treatment,
 ## Fit the ODA model
 
 Number of attacks is an ordered integer; ODA scans it as an ordered attribute
-(no categorical flag), consistent with the MegaODA reference analysis.
-Leave-one-out (LOO) jackknife validity analysis is included.
+(no categorical flag), consistent with the MegaODA reference analysis. No
+directional hypothesis was specified *a priori*, so the default nondirectional
+search (`direction = "both"`) is used. Leave-one-out (LOO) jackknife validity
+analysis is included.
 
-```{r fit}
+```{r fit-canonical, eval=FALSE}
+# Canonical reference run (mc_iter = 25000L; not evaluated in CRAN vignette)
 fit <- oda_fit(
   x         = attacks,
   y         = treatment,
   attr_type = "ordered",
   mc_iter   = 25000L,
+  loo       = "on"
+)
+```
+
+```{r fit}
+# CRAN-safe run: mc_iter = 500L for vignette rendering speed.
+# Training rule, ESS, and confusion matrix are identical to the canonical run.
+fit <- oda_fit(
+  x         = attacks,
+  y         = treatment,
+  attr_type = "ordered",
+  mc_iter   = 500L,
+  mc_seed   = 42L,
   loo       = "on"
 )
 ```
@@ -158,10 +174,16 @@ above.
 against MegaODA.exe output in the package test suite
 (`tests/testthat/test-fixture-vignettes.R`, Example 4).
 
-**MC p-value calibration.** The nondirectional MC p shown here may differ from
-MegaODA's reported value (p ≈ 0.086). This is a known discrepancy under
-investigation (issue \#5: MC STOP calibration audit). Training ESS and
-confusion matrix are unaffected.
+**MC p-value calibration.** The MC p shown here may differ from MegaODA's
+reported value (p ≈ 0.086) and reflects `mc_iter = 500L` in this CRAN
+vignette. Use the canonical run with `mc_iter = 25000L` (chunk
+`fit-canonical`, `eval=FALSE`) for publication-quality results. This is a
+known discrepancy under investigation (issue \#5: MC STOP calibration audit).
+Training ESS and confusion matrix are unaffected.
 
-**Directional p-value.** The original analysis did not specify a directional
-hypothesis *a priori*. Directional ODA is not yet implemented (issue \#6).
+**Directional analysis.** The original analysis did not specify a directional
+hypothesis *a priori*; the nondirectional default (`direction = "both"`) is
+therefore appropriate. If a directional ordered hypothesis had been specified
+in advance (e.g., more attacks predicts Treatment 2), `direction = "greater"`
+or `direction = "less"` could be used to enforce MPE Chapter 2 binary ordered
+directional ODA and obtain a one-tailed p-value.

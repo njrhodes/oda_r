@@ -64,14 +64,30 @@ table(adjustment, motivation,
 
 Adjustment type is a four-category nominal variable; ODA scans it with the
 categorical flag, consistent with the MegaODA reference analysis. Leave-one-out
-(LOO) jackknife validity analysis is included.
+(LOO) jackknife validity analysis is included. For categorical attributes the
+`direction` parameter does not apply; the directional hypothesis is evaluated
+by comparing the fitted rule to the hypothesized partition (see below).
 
-```{r fit}
+```{r fit-canonical, eval=FALSE}
+# Canonical reference run (mc_iter = 25000L; not evaluated in CRAN vignette)
 fit <- oda_fit(
   x         = adjustment,
   y         = motivation,
   attr_type = "categorical",
   mc_iter   = 25000L,
+  loo       = "on"
+)
+```
+
+```{r fit}
+# CRAN-safe run: mc_iter = 500L for vignette rendering speed.
+# Training rule, ESS, and confusion matrix are identical to the canonical run.
+fit <- oda_fit(
+  x         = adjustment,
+  y         = motivation,
+  attr_type = "categorical",
+  mc_iter   = 500L,
+  mc_seed   = 42L,
   loo       = "on"
 )
 ```
@@ -128,8 +144,7 @@ cat("PV Community  (1):", round(pv_comm  * 100, 1), "%\n")
 
 ## Monte Carlo and LOO validity
 
-The nondirectional MC p-value and LOO result are shown in the `summary` output
-above.
+The MC p-value and LOO result are shown in the `summary` output above.
 
 - **LOO stability:** The leave-one-out ESS equals the training ESS (56.30%),
   indicating the rule is completely stable — no single observation materially
@@ -137,7 +152,8 @@ above.
 - **LOO Fisher exact p < .001:** Statistical significance confirmed in holdout
   analysis.
 - **MC p-value:** The printed `p(MC)` is a nondirectional Fisher-randomization
-  p-value. Interpret by decision threshold (e.g., p < 0.05).
+  p-value (categorical attribute). Interpret by decision threshold (e.g., p <
+  0.05).
 
 ## Notes on reproducibility and current scope
 
@@ -145,11 +161,18 @@ above.
 against MegaODA.exe output in the package test suite
 (`tests/testthat/test-fixture-vignettes.R`, Example 2).
 
-**MC p-value calibration.** The nondirectional MC p shown here may differ from
-MegaODA's reported p = 0.000000 (exact zero). This is a known discrepancy under
-investigation (issue \#5: MC STOP calibration audit). Training ESS and confusion
-matrix are unaffected.
+**MC p-value calibration.** The MC p shown here may differ from MegaODA's
+reported p = 0.000000 (exact zero) and reflects `mc_iter = 500L` in this
+CRAN vignette. Use the canonical run with `mc_iter = 25000L` (chunk
+`fit-canonical`, `eval=FALSE`) for publication-quality results. This is a
+known discrepancy under investigation (issue \#5: MC STOP calibration audit).
+Training ESS and confusion matrix are unaffected.
 
-**Directional p-value.** The original analysis specified a *directional*
-hypothesis. Directional ODA is not yet implemented (issue \#6). When available,
-the directional p-value will be smaller.
+**Directional analysis.** The directional hypothesis — that Ridges and Shifting
+predict Community motivation and Relocation and Intensification predict
+Individual motivation — is a nominal-partition hypothesis. ODA's categorical
+engine finds the globally optimal partition; the rule above matches the
+hypothesis exactly, confirming it. MPE Chapter 4 categorical/table DIRECTIONAL
+testing (where a specific partition is constrained *a priori* and the p-value
+is one-tailed) is Phase 6C (not yet implemented). The current nondirectional
+MC p-value is conservative relative to the directional alternative.

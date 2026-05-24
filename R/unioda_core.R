@@ -242,7 +242,8 @@ oda_apply_primary_secondary <- function(cand_df, primary, secondary, y, w,
 #' @param seed  Optional RNG seed.
 #' @param ess_obs  Observed ESS (must be supplied).
 #' @param direction  Directional constraint forwarded from oda_univariate_core():
-#'   "off", "greater", or "less". Each permutation refit uses the same constraint.
+#'   "both" (canonical non-directional default), "off" (synonym for "both"),
+#'   "greater", or "less". Each permutation refit uses the same constraint.
 #' @return List with p_mc, ge_count, iter_used, ess_obs.
 oda_mc_p_value <- function(
     x, y,
@@ -260,10 +261,11 @@ oda_mc_p_value <- function(
     mc_adjust    = FALSE,
     seed         = NULL,
     ess_obs      = NULL,
-    direction    = c("off", "greater", "less")
+    direction    = c("both", "off", "greater", "less")
 ) {
   chance_model <- match.arg(chance_model)
   direction    <- match.arg(direction)
+  if (direction == "both") direction <- "off"  # canonical synonym
   y <- as.integer(y)
   n <- length(y)
   if (is.null(w)) w <- rep(1, n) else w <- as.numeric(w)
@@ -495,11 +497,12 @@ oda_loo_for_rule <- function(
     mc_stopup  = NA_real_,
     mc_adjust  = FALSE,
     mc_seed    = NULL,
-    direction  = c("off", "greater", "less")
+    direction  = c("both", "off", "greater", "less")
 ) {
   chance_model <- match.arg(chance_model)
   attr_type    <- match.arg(attr_type)
   direction    <- match.arg(direction)
+  if (direction == "both") direction <- "off"  # canonical synonym
 
   y <- as.integer(y)
   n <- length(y)
@@ -665,13 +668,16 @@ oda_loo_for_rule <- function(
 #' @param mc_adjust  Legacy parameter (unused).
 #' @param mc_seed  RNG seed for MC.
 #' @param chance_model  "class" (1/C) or "attribute" (1/k_attr).
-#' @param direction Directional hypothesis: "off" (default, non-directional),
-#'   "greater" (Chapter 2 greater-than direction: x > cut predicts class 1;
-#'   MegaODA Appendix A \code{DIRECTION < 0 1}; internal "0->1"), or
-#'   "less" (Chapter 2 less-than direction: x <= cut predicts class 1;
-#'   MegaODA Appendix A \code{DIRECTION > 0 1}; internal "1->0").
+#' @param direction Directional hypothesis (MPE Chapter 2 scope for ordered/binary):
+#'   \code{"both"} (default, non-directional; evaluates both "0->1" and "1->0") or
+#'   its backward-compatible synonym \code{"off"}, \code{"greater"} (Chapter 2
+#'   greater-than direction: x > cut predicts class 1; MegaODA Appendix A
+#'   \code{DIRECTION < 0 1}; internal "0->1"), or \code{"less"} (Chapter 2
+#'   less-than direction: x <= cut predicts class 1; MegaODA Appendix A
+#'   \code{DIRECTION > 0 1}; internal "1->0").
 #'   Ordered and binary attributes only. Categorical returns ok=FALSE with
 #'   reason "direction_not_supported_for_categorical".
+#'   MPE Chapter 4 categorical/table DIRECTIONAL is Phase 6C (not yet implemented).
 #' @return Named list with ok, rule, confusion, ess, pac, p_mc, loo, tie_block.
 oda_univariate_core <- function(
     x,
@@ -695,13 +701,14 @@ oda_univariate_core <- function(
     chance_model = c("class","attribute"),
     eval_order   = c("mc_then_loo", "loo_then_mc"),
     mindenom     = 1L,
-    direction    = c("off", "greater", "less")
+    direction    = c("both", "off", "greater", "less")
 ) {
   chance_model <- match.arg(chance_model)
   loo          <- match.arg(loo)
   eval_order   <- match.arg(eval_order)
   mindenom     <- max(1L, as.integer(mindenom))
   direction    <- match.arg(direction)
+  if (direction == "both") direction <- "off"  # canonical synonym
 
   # Resolve missing_code alias → miss_codes
   if (!is.null(missing_code)) {

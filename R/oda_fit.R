@@ -41,14 +41,20 @@
 #' @param mc_stopup Confidence for upper-tail early stop (percent). Default 20.
 #' @param mc_seed Optional RNG seed for reproducibility.
 #' @param loo LOO mode: "off", "on" (multiclass), "stable", or "pvalue" (binary).
-#' @param direction Directional hypothesis: "off" (non-directional, default),
-#'   "greater" (Chapter 2 greater-than direction: x > cut predicts class 1;
-#'   corresponds to MegaODA Appendix A \code{DIRECTION < 0 1}; internal "0->1"),
-#'   or "less" (Chapter 2 less-than direction: x <= cut predicts class 1;
-#'   corresponds to MegaODA Appendix A \code{DIRECTION > 0 1}; internal "1->0").
-#'   Applies to binary class problems with ordered or binary attributes only.
-#'   Categorical attributes and multiclass problems do not support direction in
-#'   Phase 6A; multiclass direction is silently ignored with a warning.
+#' @param direction Directional hypothesis for binary ordered/binary ODA
+#'   (MPE Chapter 2 scope). \code{"both"} (default, non-directional; evaluates
+#'   both "0->1" and "1->0" directions) or its backward-compatible synonym
+#'   \code{"off"}, \code{"greater"} (Chapter 2 greater-than direction: high
+#'   attribute values predict class 1; MegaODA Appendix A
+#'   \code{DIRECTION < 0 1}; internal rule direction "0->1"), or \code{"less"}
+#'   (Chapter 2 less-than direction: low attribute values predict class 1;
+#'   MegaODA Appendix A \code{DIRECTION > 0 1}; internal rule direction
+#'   "1->0").
+#'   Ordered and binary attributes only. Categorical attributes return
+#'   \code{ok = FALSE} with \code{reason = "direction_not_supported_for_categorical"}.
+#'   Multiclass problems ignore \code{direction} with a warning.
+#'   MPE Chapter 4 categorical/table DIRECTIONAL is not yet implemented
+#'   (Phase 6C, tracked separately).
 #' @param boundary_mode Boundary convention for multiclass ordered rules.
 #' @return Named list with ok, rule, ess, pac, p_mc, loo, n_eff, attr_type, engine.
 #' @export
@@ -72,12 +78,13 @@ oda_fit <- function(
     boundary_mode = c("megaoda_halfopen","right_closed"),
     eval_order   = c("mc_then_loo", "loo_then_mc"),
     mindenom     = 1L,
-    direction    = c("off", "greater", "less")
+    direction    = c("both", "off", "greater", "less")
 ) {
   attr_type     <- match.arg(attr_type)
   boundary_mode <- match.arg(boundary_mode)
   eval_order    <- match.arg(eval_order)
   direction     <- match.arg(direction)
+  if (direction == "both") direction <- "off"  # canonical synonym
 
   # Validate weights before any routing
   .validate_case_weights(w, length(x))
@@ -154,7 +161,9 @@ oda_fit <- function(
 
   # Multiclass engine (C >= 3)
   if (direction != "off")
-    warning("direction is not supported for multiclass problems and will be ignored")
+    warning("direction is currently supported for binary ordered ODA only ",
+            "(MPE Chapter 2 scope); it will be ignored for multiclass problems. ",
+            "Multiclass directional semantics are Phase 6C (not yet implemented).")
   loo_multi <- if (loo == "off") "off" else "on"
   fit <- oda_multiclass_unioda_core(
     x = x, y = y, w = w,

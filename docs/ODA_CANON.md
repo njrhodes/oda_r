@@ -116,6 +116,36 @@ Modes:
 
 For CTA, LOO applies to every attribute used in the tree, not only to the final tree confusion.
 
+## DIRECTION (MPE Chapter 2 binary ordered)
+
+Canonical MegaODA Appendix A command shape:
+
+```text
+DIRECTION < 0 1   -- high values predict class 1 ("greater" / "0->1")
+DIRECTION > 0 1   -- low values predict class 1  ("less"  / "1->0")
+```
+
+R `direction` parameter values and mapping:
+
+| `direction`  | Meaning                                              | Internal      |
+|--------------|------------------------------------------------------|---------------|
+| `"both"`     | Non-directional (canonical default; both sides)      | `"off"`       |
+| `"off"`      | Backward-compatible synonym for `"both"`             | `"off"`       |
+| `"greater"`  | High attribute values predict class 1 (Chapter 2 >) | `"0->1"`      |
+| `"less"`     | Low attribute values predict class 1 (Chapter 2 <)  | `"1->0"`      |
+
+Implementation scope (Phase 6A/6B — complete):
+- Candidate filter: only directions matching the constraint are evaluated.
+- MC permutation: directional constraint applied identically in each permutation refit.
+- LOO fold refits: directional constraint applied identically in each fold refit.
+- LOO Fisher `alternative`: `"two.sided"` for `"both"`/`"off"`; `"greater"` for directional.
+
+Categorical attributes: directional analysis is not supported (MPE Chapter 4
+TABLE/DIRECTIONAL semantics). Requesting a directional fit on a categorical attribute
+returns `ok = FALSE` with `reason = "direction_not_supported_for_categorical"`.
+
+MPE Chapter 4 categorical/table DIRECTIONAL is Phase 6C (not yet implemented).
+
 ## Public Wrapper Policy
 
 Public users should generally call:

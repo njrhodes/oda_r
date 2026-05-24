@@ -52,14 +52,34 @@ table(vote, party,
 
 Party affiliation is binary (0/1); ODA scans it as an ordered attribute
 (no categorical flag), which is consistent with the MegaODA reference
-analysis. Leave-one-out (LOO) jackknife validity analysis is included.
+analysis. Because the analysis specifies a directional hypothesis *a priori*
+(Democrats favor the Act, i.e. higher party values predict vote = Pro),
+`direction = "greater"` enforces MPE Chapter 2 directional ordered ODA.
+Leave-one-out (LOO) jackknife validity analysis is included.
 
-```{r fit}
+```{r fit-canonical, eval=FALSE}
+# Canonical reference run (mc_iter = 25000L; not evaluated in CRAN vignette)
 fit <- oda_fit(
   x         = party,
   y         = vote,
   attr_type = "ordered",
+  direction = "greater",
   mc_iter   = 25000L,
+  loo       = "on"
+)
+```
+
+```{r fit}
+# CRAN-safe run: mc_iter = 500L for vignette rendering speed.
+# Training rule, ESS, and confusion matrix are identical to the canonical run.
+# The MC p-value reflects fewer permutations; use the canonical run for publication.
+fit <- oda_fit(
+  x         = party,
+  y         = vote,
+  attr_type = "ordered",
+  direction = "greater",
+  mc_iter   = 500L,
+  mc_seed   = 42L,
   loo       = "on"
 )
 ```
@@ -118,17 +138,19 @@ cat("PV Pro (1):", round(pv_pro * 100, 1), "%\n")
 
 ## Monte Carlo and LOO validity
 
-The nondirectional MC p-value and LOO result are shown in the `summary` output
+The directional MC p-value and LOO result are shown in the `summary` output
 above.
 
 - **LOO stability:** The leave-one-out ESS equals the training ESS exactly
   (44.09%), indicating the rule is completely stable — no single observation
   materially alters the model.
 - **LOO Fisher exact p < .001:** Statistical significance confirmed in
-  holdout analysis.
-- **MC p-value:** The printed `p(MC)` is a nondirectional Fisher-randomization
-  p-value. Interpret by decision threshold (e.g., p < 0.05), not as an exact
-  match to the MegaODA reference value (see Notes).
+  holdout analysis; the one-sided Fisher test is appropriate for the
+  directional hypothesis.
+- **MC p-value:** The printed `p(MC)` is a directional Fisher-randomization
+  p-value (one-tailed), consistent with the *a priori* hypothesis that Democrats
+  vote Pro. The directional p-value is at most half the nondirectional p-value.
+  Interpret by decision threshold (e.g., p < 0.05).
 
 ## Notes on reproducibility and current scope
 
@@ -136,11 +158,15 @@ above.
 against MegaODA.exe output in the package test suite
 (`tests/testthat/test-fixture-vignettes.R`, Example 1).
 
-**MC p-value calibration.** The nondirectional MC p shown here may differ from
-MegaODA's reported p = 0.000000 (exact zero). This is a known discrepancy under
-investigation (issue \#5: MC STOP calibration audit). Training ESS and
-confusion matrix are unaffected.
+**MC p-value calibration.** The MC p shown here may differ from MegaODA's
+reported p = 0.000000 (exact zero) and reflects `mc_iter = 500L` in this
+CRAN vignette. Use the canonical run with `mc_iter = 25000L` (chunk
+`fit-canonical`, `eval=FALSE`) for publication-quality results. This is a
+known discrepancy under investigation (issue \#5: MC STOP calibration audit).
+Training ESS and confusion matrix are unaffected.
 
-**Directional p-value.** The original analysis specified a *directional*
-hypothesis (one-tailed, a priori). Directional ODA is not yet implemented
-(issue \#6). When available, the directional p-value will be smaller.
+**Directional analysis.** This vignette uses `direction = "greater"` (MPE
+Chapter 2 binary ordered directional ODA). The directional constraint restricts
+the MC permutation and LOO searches to the hypothesized direction only, yielding
+a one-tailed p-value consistent with the *a priori* hypothesis. MPE Chapter 4
+categorical/table DIRECTIONAL is Phase 6C (not yet implemented).
