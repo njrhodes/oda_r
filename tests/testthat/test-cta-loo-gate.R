@@ -69,6 +69,7 @@
 # ---- root selection ---------------------------------------------------------
 
 test_that("loo-gate: root is Stable, not LOO-unstable Trap", {
+  skip_if_not_smoke("cta-loo-gate")
   tree <- .loo_gate_fit()
   root <- tree$nodes[[tree$root_id]]
   expect_false(isTRUE(root$leaf))
@@ -76,18 +77,21 @@ test_that("loo-gate: root is Stable, not LOO-unstable Trap", {
 })
 
 test_that("loo-gate: root cut value is 0.5 (matches CTA.exe V3>0.5)", {
+  skip_if_not_smoke("cta-loo-gate")
   tree <- .loo_gate_fit()
   root <- tree$nodes[[tree$root_id]]
   expect_equal(root$rule$cut_value, 0.5, tolerance = 1e-9)
 })
 
 test_that("loo-gate: root ESS ~42.86% (matches CTA.exe)", {
+  skip_if_not_smoke("cta-loo-gate")
   tree <- .loo_gate_fit()
   root <- tree$nodes[[tree$root_id]]
   expect_equal(round(root$ess, 2), 42.86)
 })
 
 test_that("loo-gate: root LOO status is STABLE", {
+  skip_if_not_smoke("cta-loo-gate")
   tree <- .loo_gate_fit()
   root <- tree$nodes[[tree$root_id]]
   expect_equal(root$loo_status, "STABLE")
@@ -96,12 +100,14 @@ test_that("loo-gate: root LOO status is STABLE", {
 # ---- tree structure (CTA.exe: "Selected None" = no further splits) ----------
 
 test_that("loo-gate: only 1 split node — no further splits below root", {
+  skip_if_not_smoke("cta-loo-gate")
   tree <- .loo_gate_fit()
   tbl  <- cta_node_table(tree)
   expect_equal(sum(!tbl$leaf), 1L)
 })
 
 test_that("loo-gate: root n_obs = 43", {
+  skip_if_not_smoke("cta-loo-gate")
   tree <- .loo_gate_fit()
   root <- tree$nodes[[tree$root_id]]
   expect_equal(root$n_obs, 43L)

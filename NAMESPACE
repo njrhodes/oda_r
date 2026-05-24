@@ -58,6 +58,7 @@ export(novo_boot_ci)
 S3method(print, novo_boot_ci)
 
 # ----- Imports -----
+importFrom(grDevices, colorRampPalette)
 importFrom(stats, fisher.test, predict, qbeta, quantile, runif, setNames)
 importFrom(utils, combn, head, modifyList)
 importFrom(graphics, par, plot.new, plot.window, title, segments, rect, text)

@@ -111,6 +111,13 @@ cta_observation_weights(t1, newdata = df[1:5, attrs], y = y[1:5])[,
 conf <- matrix(c(146, 40,
                   36, 33), nrow = 2, byrow = TRUE)  # actual x predicted
 novo_boot_ci(conf, nboot = 5000L, seed = 42L)
+
+# Tree plot — structural
+plot(t1)
+
+# Target-class enriched plot (endpoint fill color encodes relative
+# target-class proportion; does not imply clinical thresholds)
+plot(t1, target_class = 1L, class_labels = c("0" = "Alive", "1" = "Deceased"))
 ```
 
 See `docs/CTA_TRANSLATION_STACK.md` for the full reporting pipeline and

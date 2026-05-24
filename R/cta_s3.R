@@ -1462,6 +1462,41 @@ cta_observation_weights <- function(
 }
 
 # =============================================================================
+# Internal helpers for cta_plot_data() / plot.cta_tree()
+# =============================================================================
+
+# Map a class integer to a display label string.
+# class_labels: NULL → "class=C"; named vector → matched by name;
+# positional vector → index cls+1.
+.class_label <- function(cls, class_labels) {
+  if (is.null(class_labels)) return(paste0("class=", cls))
+  nm <- names(class_labels)
+  if (!is.null(nm)) {
+    idx <- match(as.character(cls), nm)
+    if (!is.na(idx)) return(class_labels[[idx]])
+  } else {
+    idx <- as.integer(cls) + 1L
+    if (idx >= 1L && idx <= length(class_labels)) return(class_labels[[idx]])
+  }
+  paste0("class=", cls)
+}
+
+# Validate and normalise endpoint_palette to a function(n) -> character(n).
+# NULL   → default gradient (warm pink → pale yellow → soft green).
+# fn     → used as-is.
+# vector → interpolated via colorRampPalette.
+.build_palette_fn <- function(endpoint_palette) {
+  if (is.null(endpoint_palette))
+    return(grDevices::colorRampPalette(c("#ffebee", "#fffde7", "#e8f5e9")))
+  if (is.function(endpoint_palette))
+    return(endpoint_palette)
+  if (is.character(endpoint_palette))
+    return(grDevices::colorRampPalette(endpoint_palette))
+  stop("endpoint_palette must be NULL, a function, or a character vector",
+       call. = FALSE)
+}
+
+# =============================================================================
 # cta_plot_data() — pure layout-data contract for tree visualisation
 # =============================================================================
 
@@ -1471,32 +1506,72 @@ cta_observation_weights <- function(
 #' No graphics are produced.  Use this as input to \code{\link{plot.cta_tree}}
 #' or to custom rendering code.
 #'
-#' Layout algorithm: leaves receive sequential integer x-positions in
-#' depth-first (left-to-right) order; internal nodes are centred over their
-#' children.  \code{y = -depth} so the root sits at the top.
+#' \strong{Layout:} leaves receive sequential integer x-positions in
+#' depth-first (left-to-right) traversal order; internal nodes are centred
+#' over their children.  \code{y = -depth} so the root sits at the top.
+#'
+#' \strong{Target-class enrichment:} when \code{target_class} is supplied,
+#' each terminal leaf is joined to \code{\link{cta_staging_table}} and
+#' annotated with target-class counts, proportions, and a continuous display
+#' color derived from the endpoint's rank among all endpoints by ascending
+#' target-class proportion.  Colors encode relative position within this
+#' tree's endpoint distribution and do \emph{not} imply clinical thresholds
+#' or categories.
 #'
 #' @param tree A \code{cta_tree} from \code{\link{oda_cta_fit}}.
-#' @return A list with elements:
+#' @param target_class Integer (or \code{NULL}); the class label treated as
+#'   the target when enriching endpoint annotations.  \code{NULL} (default)
+#'   returns the structural layout only.  For binary trees with
+#'   \code{target_class = NULL} the enrichment is skipped entirely — no
+#'   endpoint columns are added.
+#' @param class_labels Optional character vector of display names for class
+#'   labels.  Supply as a \emph{named} vector, e.g.
+#'   \code{c("0" = "Alive", "1" = "Deceased")}, or as a positional vector
+#'   (index \eqn{k+1} maps to class \eqn{k}).  \code{NULL} (default) uses
+#'   \code{"class=C"} formatting.
+#' @param digits Integer number of decimal places for percentage formatting
+#'   in \code{endpoint_label}.  Default \code{1}.
+#' @param endpoint_palette Palette for endpoint fill colors, used only when
+#'   \code{target_class} is supplied.  Accepts \code{NULL} (default gradient),
+#'   a palette \code{function(n)} returning \code{n} color strings, or a
+#'   character vector of colors interpolated via
+#'   \code{\link[grDevices]{colorRampPalette}}.
+#' @return When \code{target_class = NULL}: a list with elements
+#'   \code{nodes}, \code{edges}, \code{no_tree}, \code{has_weights}.
+#'   When \code{target_class} is supplied: the same list plus an
+#'   \code{endpoints} data.frame and \code{target_class_used} integer.
 #' \describe{
-#'   \item{\code{nodes}}{A \code{data.frame} with one row per node and
-#'     columns \code{node_id} (integer), \code{parent_id} (integer),
-#'     \code{depth} (integer), \code{x} (numeric), \code{y} (numeric),
-#'     \code{leaf} (logical), \code{attribute} (character; \code{NA} for
-#'     leaves), \code{n_obs} (integer), \code{majority_class} (integer),
-#'     \code{ess} (numeric; \code{NA} for leaves), \code{label} (character
-#'     multi-line display text).}
+#'   \item{\code{nodes}}{A \code{data.frame} with one row per node.
+#'     Always-present columns: \code{node_id} (integer), \code{parent_id}
+#'     (integer), \code{depth} (integer), \code{x} (numeric), \code{y}
+#'     (numeric), \code{leaf} (logical), \code{attribute} (character; NA
+#'     for leaves), \code{n_obs} (integer), \code{majority_class} (integer),
+#'     \code{ess} (numeric; NA for leaves), \code{label} (character display
+#'     text).  Additional columns when \code{target_class} supplied (NA on
+#'     split nodes): \code{endpoint_id} (integer), \code{stage} (integer),
+#'     \code{target_class} (integer), \code{target_n} (numeric),
+#'     \code{denominator} (numeric), \code{target_proportion} (numeric),
+#'     \code{target_rank} (integer; ascending rank of proportion, ties
+#'     broken by \code{ties.method = "first"}), \code{endpoint_fill_color}
+#'     (character hex color), \code{predicted_label} (character),
+#'     \code{target_label} (character), \code{endpoint_label} (character
+#'     multi-line display text for this endpoint).}
 #'   \item{\code{edges}}{A \code{data.frame} with one row per parent-to-child
-#'     edge and columns \code{from_node_id} (integer), \code{to_node_id}
-#'     (integer), \code{x0}, \code{y0}, \code{x1}, \code{y1} (numeric
-#'     centre-to-centre coordinates), \code{label} (character branch
-#'     condition, e.g. \code{"V14<=0.5"}).}
+#'     edge: \code{from_node_id}, \code{to_node_id} (integer),
+#'     \code{x0}, \code{y0}, \code{x1}, \code{y1} (numeric), \code{label}
+#'     (character branch condition, e.g. \code{"V14<=0.5"}).}
+#'   \item{\code{endpoints}}{(target_class only) Staging table joined with
+#'     leaf layout coordinates.  One row per endpoint, ordered by stage.}
+#'   \item{\code{target_class_used}}{(target_class only) The integer
+#'     target_class argument used.}
 #'   \item{\code{no_tree}}{Logical; \code{TRUE} for leaf-only fits.}
-#'   \item{\code{has_weights}}{Logical; \code{TRUE} when case weights are
-#'     active.}
+#'   \item{\code{has_weights}}{Logical; \code{TRUE} when case weights active.}
 #' }
-#' @seealso \code{\link{plot.cta_tree}}, \code{\link{oda_cta_fit}}
+#' @seealso \code{\link{plot.cta_tree}}, \code{\link{cta_staging_table}},
+#'   \code{\link{oda_cta_fit}}
 #' @export
-cta_plot_data <- function(tree) {
+cta_plot_data <- function(tree, target_class = NULL, class_labels = NULL,
+                          digits = 1, endpoint_palette = NULL) {
   stopifnot(inherits(tree, "cta_tree"))
 
   no_tree     <- isTRUE(tree$no_tree)
@@ -1677,6 +1752,126 @@ cta_plot_data <- function(tree) {
     stringsAsFactors = FALSE
   )
 
+  # ------------------------------------------------------------------
+  # Target-class enrichment (only when target_class is supplied)
+  # ------------------------------------------------------------------
+  if (!is.null(target_class)) {
+    target_class_int <- as.integer(target_class)
+    st   <- cta_staging_table(tree, target_class = target_class_int)
+    tgt_label <- .class_label(target_class_int, class_labels)
+    n_ep <- nrow(st)
+
+    if (n_ep > 0L) {
+      # Palette: build from user spec, then assign n_ep colors ordered by rank
+      pal_fn <- .build_palette_fn(endpoint_palette)
+      colors <- pal_fn(n_ep)
+      if (length(colors) < n_ep) colors <- rep_len(colors, n_ep)
+
+      # Rank endpoints by ascending target_proportion; ties.method="first"
+      # (deterministic: resolved by enumeration order of staging table rows,
+      # which are ordered by node_id through cta_endpoint_summary).
+      st$target_rank         <- as.integer(rank(st$target_proportion,
+                                                  ties.method = "first"))
+      st$endpoint_fill_color <- colors[st$target_rank]
+      st$predicted_label     <- vapply(st$terminal_prediction,
+                                       function(mc) .class_label(mc, class_labels),
+                                       character(1L))
+      st$target_label        <- tgt_label
+
+      # x/y layout coords for the endpoints data.frame
+      xy        <- nodes_df[, c("node_id", "x", "y")]
+      st$x      <- xy$x[match(st$endpoint_node_id, xy$node_id)]
+      st$y      <- xy$y[match(st$endpoint_node_id, xy$node_id)]
+      st$node_id <- st$endpoint_node_id
+
+      ep_cols <- c("endpoint_id", "endpoint_node_id", "path", "stage",
+                   "node_id", "target_class", "target_n", "denominator",
+                   "target_proportion", "target_rank", "terminal_prediction",
+                   "predicted_label", "target_label", "endpoint_fill_color",
+                   "x", "y")
+      endpoints_df <- st[order(st$stage), ep_cols]
+      rownames(endpoints_df) <- NULL
+
+      # Join target fields to nodes by node_id == endpoint_node_id
+      li <- match(nodes_df$node_id, st$endpoint_node_id)
+
+      nodes_df$endpoint_id         <- st$endpoint_id[li]
+      nodes_df$stage               <- st$stage[li]
+
+      tc_vec <- rep(NA_integer_, n)
+      tc_vec[!is.na(li)] <- target_class_int
+      nodes_df$target_class <- tc_vec
+
+      nodes_df$target_n            <- st$target_n[li]
+      nodes_df$denominator         <- st$denominator[li]
+      nodes_df$target_proportion   <- st$target_proportion[li]
+      nodes_df$target_rank         <- as.integer(st$target_rank[li])
+      nodes_df$endpoint_fill_color <- st$endpoint_fill_color[li]
+
+      nodes_df$predicted_label <- vapply(nodes_df$majority_class,
+                                         function(mc) .class_label(mc, class_labels),
+                                         character(1L))
+      tl_vec <- rep(NA_character_, n)
+      tl_vec[!is.na(li)] <- tgt_label
+      nodes_df$target_label <- tl_vec
+
+      # Assemble endpoint_label for leaf endpoints; NA for split nodes
+      has_ep  <- !is.na(li) & nodes_df$leaf
+      ep_lbl  <- rep(NA_character_, n)
+      if (any(has_ep)) {
+        ep_lbl[has_ep] <- sprintf(
+          "%s\n%s%%, n=%d/%d\npred: %s\nStage %d",
+          tgt_label,
+          formatC(nodes_df$target_proportion[has_ep] * 100,
+                  digits = digits, format = "f"),
+          as.integer(round(nodes_df$target_n[has_ep])),
+          as.integer(round(nodes_df$denominator[has_ep])),
+          nodes_df$predicted_label[has_ep],
+          as.integer(nodes_df$stage[has_ep])
+        )
+      }
+      nodes_df$endpoint_label  <- ep_lbl
+      nodes_df$label[has_ep]   <- ep_lbl[has_ep]
+
+    } else {
+      # Guard: valid tree should always have endpoints; add NA columns
+      na_int <- rep(NA_integer_, n)
+      na_dbl <- rep(NA_real_,    n)
+      na_chr <- rep(NA_character_, n)
+      nodes_df$endpoint_id         <- na_int
+      nodes_df$stage               <- na_int
+      nodes_df$target_class        <- na_int
+      nodes_df$target_n            <- na_dbl
+      nodes_df$denominator         <- na_dbl
+      nodes_df$target_proportion   <- na_dbl
+      nodes_df$target_rank         <- na_int
+      nodes_df$endpoint_fill_color <- na_chr
+      nodes_df$predicted_label     <- na_chr
+      nodes_df$target_label        <- na_chr
+      nodes_df$endpoint_label      <- na_chr
+      endpoints_df <- data.frame(
+        endpoint_id = integer(0), endpoint_node_id = integer(0),
+        path = character(0), stage = integer(0), node_id = integer(0),
+        target_class = integer(0), target_n = numeric(0),
+        denominator = numeric(0), target_proportion = numeric(0),
+        target_rank = integer(0), terminal_prediction = integer(0),
+        predicted_label = character(0), target_label = character(0),
+        endpoint_fill_color = character(0),
+        x = numeric(0), y = numeric(0),
+        stringsAsFactors = FALSE
+      )
+    }
+
+    return(list(
+      nodes             = nodes_df,
+      edges             = edges_df,
+      endpoints         = endpoints_df,
+      no_tree           = no_tree,
+      has_weights       = has_weights,
+      target_class_used = target_class_int
+    ))
+  }
+
   list(nodes = nodes_df, edges = edges_df,
        no_tree = no_tree, has_weights = has_weights)
 }
@@ -1688,37 +1883,85 @@ cta_plot_data <- function(tree) {
 #' Plot a fitted CTA tree
 #'
 #' Produces a base-R tree diagram.  Calls \code{\link{cta_plot_data}} for
-#' layout; uses only base graphics — no external dependencies.
+#' layout; uses only base graphics — no external package dependencies.
 #'
 #' Split (internal) nodes show the split attribute, node-level ESS or WESS,
-#' and observation count.  Leaf (terminal) nodes show the majority-class
-#' prediction and observation count.  Edge labels show the branch condition
-#' (e.g. \code{"V14<=0.5"}).
+#' and observation count.  Without \code{target_class}, leaf nodes show the
+#' majority-class prediction and observation count.  With \code{target_class},
+#' leaf nodes show the target-class count, percentage, predicted class, and
+#' stage from \code{\link{cta_staging_table}}.  Edge labels show the branch
+#' condition (e.g. \code{"V14<=0.5"}).
+#'
+#' \strong{Color note:} when \code{target_class} is supplied, endpoint fill
+#' colors are assigned by ascending rank of each endpoint's target-class
+#' proportion within this tree.  Colors encode relative position in the
+#' endpoint distribution and do \emph{not} imply clinical thresholds or
+#' categories.  Supply a custom palette via \code{endpoint_palette} to change
+#' the color encoding.
 #'
 #' @param x A \code{cta_tree} from \code{\link{oda_cta_fit}}.
+#' @param target_class Integer target class for endpoint annotation; passed
+#'   to \code{\link{cta_plot_data}}.  \code{NULL} (default) produces a
+#'   structural plot without endpoint enrichment.
+#' @param class_labels Optional display names; passed to
+#'   \code{\link{cta_plot_data}}.
+#' @param digits Decimal places for percentage labels; passed to
+#'   \code{\link{cta_plot_data}}.  Default \code{1}.
 #' @param main Character plot title.  Default \code{"CTA Tree"}.
-#' @param node_col_split Fill colour for split nodes.
-#'   Default \code{"#D9EAF7"} (light blue).
-#' @param node_col_leaf Fill colour for leaf nodes.
-#'   Default \code{"#D9F7E6"} (light green).
+#' @param show_counts Logical; include \code{n=a/b} counts in endpoint labels
+#'   when \code{target_class} is supplied.  Default \code{TRUE}.
+#' @param show_stage Logical; include \code{Stage s} line in endpoint labels
+#'   when \code{target_class} is supplied.  Default \code{TRUE}.
+#' @param endpoint_palette Palette for endpoint fill colors when
+#'   \code{target_class} is supplied; passed to \code{\link{cta_plot_data}}.
+#'   \code{NULL} uses the default gradient. Accepts a palette function or a
+#'   character vector of colors.
+#' @param endpoint_fill Default fill colour for leaf nodes when
+#'   \code{target_class} is \code{NULL}.  Default \code{"#D9F7E6"}.
+#' @param split_fill Fill colour for split (internal) nodes.
+#'   Default \code{"#D9EAF7"}.
+#' @param node_col_split Legacy alias for \code{split_fill}; overrides it
+#'   when non-\code{NULL}.
+#' @param node_col_leaf Legacy alias for \code{endpoint_fill}; overrides it
+#'   when non-\code{NULL}.
 #' @param edge_col Colour for edge lines.  Default \code{"grey40"}.
 #' @param cex Text expansion factor for node labels.  Default \code{0.75}.
 #' @param ... Unused; included for S3 compatibility.
-#' @return \code{invisible(x)}.
-#' @seealso \code{\link{cta_plot_data}}, \code{\link{oda_cta_fit}}
+#' @return \code{invisible(pd)}, where \code{pd} is the \code{\link{cta_plot_data}}
+#'   list used to render the plot.  The caller can inspect layout coordinates
+#'   and endpoint annotations from the returned object.
+#' @seealso \code{\link{cta_plot_data}}, \code{\link{cta_staging_table}},
+#'   \code{\link{oda_cta_fit}}
 #' @export
-plot.cta_tree <- function(x, main = "CTA Tree",
-                          node_col_split = "#D9EAF7",
-                          node_col_leaf  = "#D9F7E6",
-                          edge_col       = "grey40",
-                          cex            = 0.75, ...) {
-  pd <- cta_plot_data(x)
+plot.cta_tree <- function(x,
+                          target_class     = NULL,
+                          class_labels     = NULL,
+                          digits           = 1,
+                          main             = "CTA Tree",
+                          show_counts      = TRUE,
+                          show_stage       = TRUE,
+                          endpoint_palette = NULL,
+                          endpoint_fill    = "#D9F7E6",
+                          split_fill       = "#D9EAF7",
+                          node_col_split   = NULL,
+                          node_col_leaf    = NULL,
+                          edge_col         = "grey40",
+                          cex              = 0.75, ...) {
+  # Legacy color-arg compat: non-NULL node_col_* overrides the new names
+  split_fill_used   <- node_col_split %||% split_fill
+  leaf_fill_default <- node_col_leaf  %||% endpoint_fill
+
+  pd <- cta_plot_data(x, target_class = target_class,
+                      class_labels = class_labels, digits = digits,
+                      endpoint_palette = endpoint_palette)
+
+  has_target <- !is.null(pd$target_class_used)
 
   if (pd$no_tree || nrow(pd$nodes) == 0L) {
     graphics::plot.new()
     graphics::title(main = main)
     graphics::text(0.5, 0.5, "no tree (leaf only)", cex = 1.2, col = "grey50")
-    return(invisible(x))
+    return(invisible(pd))
   }
 
   nd <- pd$nodes
@@ -1726,16 +1969,13 @@ plot.cta_tree <- function(x, main = "CTA Tree",
 
   xr  <- range(nd$x, na.rm = TRUE)
   yr  <- range(nd$y, na.rm = TRUE)
-  # Ensure non-degenerate ranges (single leaf, stump, etc.)
   if (diff(xr) < 1) xr <- xr + c(-0.5, 0.5)
   if (diff(yr) < 1) yr <- yr + c(-0.5, 0.5)
   xpad <- diff(xr) * 0.10 + 0.5
   ypad <- diff(yr) * 0.12 + 0.4
 
-  # Box half-dimensions in data coordinates.
-  # hw: half of node box width; hh: half of node box height.
   hw <- 0.40
-  hh <- 0.28
+  hh <- if (has_target) 0.38 else 0.28
 
   op <- graphics::par(mar = c(1, 1, 3, 1))
   on.exit(graphics::par(op), add = TRUE)
@@ -1750,13 +1990,11 @@ plot.cta_tree <- function(x, main = "CTA Tree",
   # Edges — drawn before boxes so boxes sit on top
   if (nrow(ed) > 0L) {
     for (i in seq_len(nrow(ed))) {
-      # Connect bottom of parent box to top of child box
       graphics::segments(
         ed$x0[i], ed$y0[i] - hh,
         ed$x1[i], ed$y1[i] + hh,
         col = edge_col, lwd = 1.2
       )
-      # Edge label at midpoint
       mx <- (ed$x0[i] + ed$x1[i]) / 2
       my <- (ed$y0[i] - hh + ed$y1[i] + hh) / 2
       graphics::text(mx, my, labels = ed$label[i],
@@ -1769,11 +2007,43 @@ plot.cta_tree <- function(x, main = "CTA Tree",
     cx <- nd$x[i]
     cy <- nd$y[i]
     if (is.na(cx) || is.na(cy)) next
-    fc <- if (nd$leaf[i]) node_col_leaf else node_col_split
+
+    if (nd$leaf[i]) {
+      # Fill: use endpoint_fill_color when target enrichment is active
+      fc <- if (has_target && !is.na(nd$endpoint_fill_color[i]))
+              nd$endpoint_fill_color[i]
+            else
+              leaf_fill_default
+
+      # Label: reassemble from component columns to honor show_counts/show_stage
+      display_lbl <- if (has_target && !is.na(nd$target_proportion[i])) {
+        pct_str <- formatC(nd$target_proportion[i] * 100,
+                           digits = digits, format = "f")
+        parts <- c(
+          nd$target_label[i],
+          if (isTRUE(show_counts))
+            sprintf("%s%%, n=%d/%d", pct_str,
+                    as.integer(round(nd$target_n[i])),
+                    as.integer(round(nd$denominator[i])))
+          else
+            paste0(pct_str, "%"),
+          paste0("pred: ", nd$predicted_label[i])
+        )
+        if (isTRUE(show_stage) && !is.na(nd$stage[i]))
+          parts <- c(parts, paste0("Stage ", as.integer(nd$stage[i])))
+        paste(parts, collapse = "\n")
+      } else {
+        nd$label[i]
+      }
+    } else {
+      fc          <- split_fill_used
+      display_lbl <- nd$label[i]
+    }
+
     graphics::rect(cx - hw, cy - hh, cx + hw, cy + hh,
                    col = fc, border = "grey30", lwd = 0.8)
-    graphics::text(cx, cy, labels = nd$label[i], cex = cex, adj = c(0.5, 0.5))
+    graphics::text(cx, cy, labels = display_lbl, cex = cex, adj = c(0.5, 0.5))
   }
 
-  invisible(x)
+  invisible(pd)
 }

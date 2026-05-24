@@ -26,7 +26,7 @@ make_no_tree <- function() {
 }
 
 # =============================================================================
-# cta_plot_data() — structural contract
+# cta_plot_data() — structural contract (target_class = NULL)
 # =============================================================================
 
 test_that("cta_plot_data returns a list with correct names", {
@@ -198,7 +198,7 @@ test_that("stump has exactly 3 nodes and 2 edges", {
 })
 
 # =============================================================================
-# plot.cta_tree() — smoke tests (no errors, returns invisible)
+# plot.cta_tree() — smoke tests (no errors, returns invisible pd list)
 # =============================================================================
 
 test_that("plot.cta_tree does not error on a valid tree", {
@@ -210,14 +210,15 @@ test_that("plot.cta_tree does not error on a valid tree", {
   grDevices::dev.off()
 })
 
-test_that("plot.cta_tree returns invisible(x)", {
+test_that("plot.cta_tree returns invisible cta_plot_data list", {
   tree <- make_tree()
   tmp  <- tempfile(fileext = ".png")
   on.exit(unlink(tmp), add = TRUE)
   grDevices::png(tmp, width = 600, height = 400)
   result <- plot(tree)
   grDevices::dev.off()
-  expect_identical(result, tree)
+  expect_type(result, "list")
+  expect_true(all(c("nodes", "edges", "no_tree", "has_weights") %in% names(result)))
 })
 
 test_that("plot.cta_tree does not error on no-tree fit", {
@@ -236,4 +237,252 @@ test_that("plot.cta_tree accepts main argument", {
   grDevices::png(tmp, width = 600, height = 400)
   expect_no_error(plot(tree, main = "Custom Title"))
   grDevices::dev.off()
+})
+
+# =============================================================================
+# cta_plot_data() v2 — target-class enrichment fast-tier tests
+# =============================================================================
+
+test_that("cta_plot_data with target_class adds enrichment columns to nodes", {
+  tree <- make_tree()
+  pd   <- cta_plot_data(tree, target_class = 1L)
+  nd   <- pd$nodes
+  enrichment_cols <- c("endpoint_id", "stage", "target_class", "target_n",
+                        "denominator", "target_proportion", "target_rank",
+                        "endpoint_fill_color", "predicted_label",
+                        "target_label", "endpoint_label")
+  expect_true(all(enrichment_cols %in% names(nd)))
+})
+
+test_that("cta_plot_data with target_class returns endpoints data.frame", {
+  tree <- make_tree()
+  pd   <- cta_plot_data(tree, target_class = 1L)
+  expect_true("endpoints" %in% names(pd))
+  expect_s3_class(pd$endpoints, "data.frame")
+})
+
+test_that("cta_plot_data with target_class sets target_class_used", {
+  tree <- make_tree()
+  pd   <- cta_plot_data(tree, target_class = 1L)
+  expect_equal(pd$target_class_used, 1L)
+})
+
+test_that("endpoint_fill_color is character hex on leaf nodes", {
+  tree <- make_tree()
+  pd   <- cta_plot_data(tree, target_class = 1L)
+  nd   <- pd$nodes
+  leaf_colors <- nd$endpoint_fill_color[nd$leaf]
+  expect_type(leaf_colors, "character")
+  expect_true(all(grepl("^#[0-9A-Fa-f]{6}$", leaf_colors)))
+})
+
+test_that("target_rank is integer and assigns each leaf a unique rank", {
+  tree <- make_tree()
+  pd   <- cta_plot_data(tree, target_class = 1L)
+  nd   <- pd$nodes
+  leaf_ranks <- nd$target_rank[nd$leaf]
+  expect_type(leaf_ranks, "integer")
+  n_ep <- sum(nd$leaf)
+  expect_setequal(leaf_ranks, seq_len(n_ep))
+})
+
+test_that("target_proportion is numeric and in [0, 1] on leaves", {
+  tree <- make_tree()
+  pd   <- cta_plot_data(tree, target_class = 1L)
+  nd   <- pd$nodes
+  props <- nd$target_proportion[nd$leaf]
+  expect_type(props, "double")
+  expect_true(all(props >= 0 & props <= 1))
+})
+
+test_that("no column named fill_key exists in nodes", {
+  tree <- make_tree()
+  pd   <- cta_plot_data(tree, target_class = 1L)
+  expect_false("fill_key" %in% names(pd$nodes))
+})
+
+test_that("class_labels named vector is respected in predicted_label", {
+  tree <- make_tree()
+  pd   <- cta_plot_data(tree, target_class = 1L,
+                         class_labels = c("0" = "Manual", "1" = "Auto"))
+  nd   <- pd$nodes
+  pred_labels <- nd$predicted_label[nd$leaf & !is.na(nd$predicted_label)]
+  expect_true(all(pred_labels %in% c("Manual", "Auto")))
+})
+
+test_that("palette function(n) is accepted without error", {
+  tree  <- make_tree()
+  my_pal <- function(n) grDevices::colorRampPalette(c("#000000", "#ffffff"))(n)
+  expect_no_error(cta_plot_data(tree, target_class = 1L, endpoint_palette = my_pal))
+})
+
+test_that("palette character vector changes endpoint_fill_color", {
+  tree      <- make_tree()
+  pd_def    <- cta_plot_data(tree, target_class = 1L)
+  pd_custom <- cta_plot_data(tree, target_class = 1L,
+                              endpoint_palette = c("#000000", "#ffffff"))
+  nd_def    <- pd_def$nodes[pd_def$nodes$leaf, ]
+  nd_cust   <- pd_custom$nodes[pd_custom$nodes$leaf, ]
+  # Custom palette must differ from default on at least one leaf
+  expect_false(all(nd_def$endpoint_fill_color == nd_cust$endpoint_fill_color))
+})
+
+test_that("no-tree fit with target_class does not error", {
+  tree <- make_no_tree()
+  expect_no_error(cta_plot_data(tree, target_class = 1L))
+})
+
+test_that("legacy node_col_split/node_col_leaf args accepted without error", {
+  tree <- make_tree()
+  tmp  <- tempfile(fileext = ".png")
+  on.exit(unlink(tmp), add = TRUE)
+  grDevices::png(tmp, width = 600, height = 400)
+  expect_no_error(
+    plot(tree, node_col_split = "#aabbcc", node_col_leaf = "#ddeeff")
+  )
+  grDevices::dev.off()
+})
+
+test_that("plot.cta_tree with target_class returns pd with target_class_used", {
+  tree <- make_tree()
+  tmp  <- tempfile(fileext = ".png")
+  on.exit(unlink(tmp), add = TRUE)
+  grDevices::png(tmp, width = 700, height = 500)
+  result <- plot(tree, target_class = 1L)
+  grDevices::dev.off()
+  expect_equal(result$target_class_used, 1L)
+})
+
+# =============================================================================
+# cta_plot_data() v2 — myeloma slow-tier tests
+# =============================================================================
+
+# ---- Myeloma fixture helpers ------------------------------------------------
+
+.plot_myeloma_fixture_path <- function(f) {
+  tryCatch(testthat::test_path(file.path("fixtures", "myeloma", f)),
+           error = function(e) "")
+}
+
+.plot_myeloma_fixtures_ok <- function() {
+  p <- .plot_myeloma_fixture_path("data.txt")
+  nzchar(p) && file.exists(p)
+}
+
+.plot_myeloma_attrs <- c("V4","V9","V11","V12","V14","V15","V16","V17","V18","V19")
+
+.plot_myeloma_fit <- local({
+  fit <- NULL
+  function() {
+    if (is.null(fit)) {
+      if (!.plot_myeloma_fixtures_ok()) return(NULL)
+      f  <- .plot_myeloma_fixture_path("data.txt")
+      d  <- read.table(f, header = FALSE)
+      names(d) <- paste0("V", seq_len(ncol(d)))
+      d  <- d[d$V2 != 0, ]
+      fit <<- suppressMessages(
+        oda_cta_fit(
+          X           = d[, .plot_myeloma_attrs],
+          y           = d$V1,
+          w           = d$V2,
+          priors_on   = TRUE,
+          miss_codes  = -9,
+          alpha_split = 0.05,
+          mindenom    = 1L,
+          prune_alpha = 0.05,
+          max_depth   = 20L,
+          ess_min     = 0,
+          mc_iter     = 5000L,
+          mc_target   = 0.05,
+          mc_stop     = 99.9,
+          mc_stopup   = 99.9,
+          mc_seed     = NULL,
+          loo         = "stable",
+          attr_names  = .plot_myeloma_attrs
+        )
+      )
+    }
+    fit
+  }
+})
+
+test_that("myeloma plot: cta_plot_data with target_class=1 returns 3 endpoints", {
+  skip_if_slow_tests_disabled("cta-plot-myeloma")
+  if (!.plot_myeloma_fixtures_ok()) skip("myeloma fixture files missing")
+  tree <- .plot_myeloma_fit()
+  if (is.null(tree)) skip("myeloma fit returned NULL")
+  pd <- cta_plot_data(tree, target_class = 1L)
+  expect_equal(nrow(pd$endpoints), 3L)
+})
+
+test_that("myeloma plot: endpoint proportions match staging table", {
+  skip_if_slow_tests_disabled("cta-plot-myeloma")
+  if (!.plot_myeloma_fixtures_ok()) skip("myeloma fixture files missing")
+  tree <- .plot_myeloma_fit()
+  if (is.null(tree)) skip("myeloma fit returned NULL")
+  pd <- cta_plot_data(tree, target_class = 1L)
+  props <- sort(pd$endpoints$target_proportion)
+  st    <- cta_staging_table(tree, target_class = 1L)
+  st_props <- sort(st$target_proportion)
+  expect_equal(props, st_props)
+})
+
+test_that("myeloma plot: endpoint stages are 1, 2, 3", {
+  skip_if_slow_tests_disabled("cta-plot-myeloma")
+  if (!.plot_myeloma_fixtures_ok()) skip("myeloma fixture files missing")
+  tree <- .plot_myeloma_fit()
+  if (is.null(tree)) skip("myeloma fit returned NULL")
+  pd <- cta_plot_data(tree, target_class = 1L)
+  expect_setequal(pd$endpoints$stage, 1:3)
+})
+
+test_that("myeloma plot: endpoint_label contains percentage string", {
+  skip_if_slow_tests_disabled("cta-plot-myeloma")
+  if (!.plot_myeloma_fixtures_ok()) skip("myeloma fixture files missing")
+  tree <- .plot_myeloma_fit()
+  if (is.null(tree)) skip("myeloma fit returned NULL")
+  pd    <- cta_plot_data(tree, target_class = 1L)
+  nd    <- pd$nodes
+  ep_lbls <- nd$endpoint_label[nd$leaf & !is.na(nd$endpoint_label)]
+  expect_true(all(grepl("%", ep_lbls)))
+})
+
+test_that("myeloma plot: all endpoint_fill_color values are distinct hex strings", {
+  skip_if_slow_tests_disabled("cta-plot-myeloma")
+  if (!.plot_myeloma_fixtures_ok()) skip("myeloma fixture files missing")
+  tree <- .plot_myeloma_fit()
+  if (is.null(tree)) skip("myeloma fit returned NULL")
+  pd     <- cta_plot_data(tree, target_class = 1L)
+  ep     <- pd$endpoints
+  colors <- ep$endpoint_fill_color
+  expect_true(all(grepl("^#[0-9A-Fa-f]{6}$", colors)))
+  expect_equal(length(unique(colors)), nrow(ep))
+})
+
+test_that("myeloma plot: plot.cta_tree with target_class=1 does not error", {
+  skip_if_slow_tests_disabled("cta-plot-myeloma")
+  if (!.plot_myeloma_fixtures_ok()) skip("myeloma fixture files missing")
+  tree <- .plot_myeloma_fit()
+  if (is.null(tree)) skip("myeloma fit returned NULL")
+  tmp <- tempfile(fileext = ".png")
+  on.exit(unlink(tmp), add = TRUE)
+  grDevices::png(tmp, width = 800, height = 600)
+  expect_no_error(
+    plot(tree, target_class = 1L,
+         class_labels = c("0" = "Alive", "1" = "Deceased"))
+  )
+  grDevices::dev.off()
+})
+
+test_that("myeloma plot: custom palette changes endpoint colors", {
+  skip_if_slow_tests_disabled("cta-plot-myeloma")
+  if (!.plot_myeloma_fixtures_ok()) skip("myeloma fixture files missing")
+  tree <- .plot_myeloma_fit()
+  if (is.null(tree)) skip("myeloma fit returned NULL")
+  pd_def    <- cta_plot_data(tree, target_class = 1L)
+  pd_custom <- cta_plot_data(tree, target_class = 1L,
+                              endpoint_palette = c("#ffffff", "#c62828"))
+  def_cols    <- sort(pd_def$endpoints$endpoint_fill_color)
+  custom_cols <- sort(pd_custom$endpoints$endpoint_fill_color)
+  expect_false(all(def_cols == custom_cols))
 })

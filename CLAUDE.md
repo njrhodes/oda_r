@@ -16,49 +16,55 @@ Covered fixtures are tested against MegaODA.exe / CTA.exe outputs. Extension beh
 ## Commands
 
 ```r
-devtools::test()                          # run all tests
-devtools::test(filter = "iris")           # run a single test file (e.g., test-iris.R)
-devtools::test(filter = "tie-breaking")   # run test-tie-breaking.R
-devtools::check()                         # full R CMD check
-devtools::document()                      # regenerate docs from roxygen (NAMESPACE is hand-maintained)
-devtools::install(".")                    # install locally
+devtools::document()   # regenerate docs from roxygen (NAMESPACE is hand-maintained)
+devtools::install(".") # install locally
 ```
 
 ### Test tiers
 
-Tests are gated by the `ODACORE_TEST_TIER` environment variable (see `tests/testthat/helper-test-tier.R`). When set to `"fast"`, slow canon-fixture tests are skipped. When unset or any other value, all tests run.
+Tests are gated by the `ODACORE_TEST_TIER` environment variable (`tests/testthat/helper-test-tier.R`).
+
+| Tier | When to use |
+|------|-------------|
+| unset / `cran` | CRAN-safe unit/contract tests only — default when env var is unset |
+| `fast` | Fast dev loop — same slow-skip behavior as cran |
+| `smoke` | Production gate before any CTA/MDSA/reporting/graphics commit |
+| `full` | Release gate before release tags or deep canon parity work |
 
 ```bash
-# Fast tier — skips all canon-fixture tests (dev loop)
+# CRAN-safe / default check (no env var — runs only CRAN-safe tests):
+Rscript --vanilla -e "devtools::check(vignettes=FALSE)"
+
+# Fast developer loop (skip all slow canon fixtures):
 ODACORE_TEST_TIER=fast Rscript --vanilla -e "devtools::test(reporter='progress')"
 
-# Full suite — all tests including fixtures (~3–5 min)
-Rscript --vanilla -e "devtools::test(reporter='progress')"
+# CTA/MDSA/reporting/graphics production smoke (required before every commit):
+ODACORE_TEST_TIER=smoke Rscript --vanilla -e "devtools::test(reporter='progress')"
+
+# Full canon / release gate (required before release tags):
+ODACORE_TEST_TIER=full Rscript --vanilla -e "devtools::test(reporter='progress')"
 ```
+
+**Do not run `ODACORE_TEST_TIER=full` by default.** Use it only before release tags or when
+explicit canon parity work requires it.
 
 ### Production-smoke gate
 
-**Required before pushing any CTA, MDSA, or reporting changes.**
-`ODACORE_TEST_TIER=fast` is NOT sufficient for CTA/MDSA/reporting production validation — it skips all myeloma and CTA canon fixtures. The production-smoke gate must be run without the fast-tier env var.
+**Required before pushing any CTA, MDSA, reporting, or graphics changes.**
+`ODACORE_TEST_TIER=fast` (or unset/cran) skips all myeloma and CTA canon fixtures and is
+NOT sufficient for production validation.
 
 **Important:** `devtools::test(filter=...)` matches **test file names**, not skip-reason strings.
-`"cta-family"` and `"cta-myeloma-chain"` are skip-reason labels passed to `skip_if_slow_tests_disabled()`,
-not file names. The slow tests they gate live inside `test-cta.R` (matched by `filter='cta'`).
+`"cta-family"` and `"cta-myeloma-chain"` are skip-reason labels, not file names. The slow tests
+they gate live inside `test-cta.R` (matched by `filter='cta'`).
 
 ```bash
-# Step 1 — Required myeloma production smoke:
-# Covers LOO STABLE selection, path-local missingness, confusion semantics,
-# stump/valid_tree structure (test-fixture-myeloma-cta.R + test-cta-confusion-table.R).
-Rscript --vanilla -e "devtools::test(filter='fixture-myeloma-cta|cta-confusion-table', reporter='progress')"
+# Targeted smoke (myeloma + confusion + CTA + graphics):
+ODACORE_TEST_TIER=smoke Rscript --vanilla -e \
+  "devtools::test(filter='fixture-myeloma-cta|cta-confusion-table|cta|cta-plot|cta-loo-gate|cta-ordered-scan', reporter='progress')"
 
-# Step 2 — Required CTA family/chain check:
-# filter='cta' is broad CTA coverage (matches test-cta.R and related CTA files).
-# This is the correct way to run the cta-family and cta-myeloma-chain gated tests,
-# since those are skip-reason labels, not file names.
-Rscript --vanilla -e "devtools::test(filter='cta', reporter='progress')"
-
-# Steps 1+2 combined — full broad CTA production smoke:
-Rscript --vanilla -e "devtools::test(filter='fixture-myeloma-cta|cta-confusion-table|cta', reporter='progress')"
+# Full broad smoke (all files):
+ODACORE_TEST_TIER=smoke Rscript --vanilla -e "devtools::test(reporter='progress')"
 ```
 
 ## Architecture
