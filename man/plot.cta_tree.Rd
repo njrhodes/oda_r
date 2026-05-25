@@ -2,11 +2,13 @@
 \alias{plot.cta_tree}
 \title{Plot a fitted CTA tree}
 \description{
-Produces a base-R tree diagram.  Calls \code{\link{cta_plot_data}} for
+Native base-R CTA visualization.  Calls \code{\link{cta_plot_data}} for
 layout; uses only base graphics — no external package dependencies.
 
-Split (internal) nodes show the split attribute, node-level ESS or WESS,
-and observation count.  Without \code{target_class}, leaf nodes show the
+Split (internal) nodes are drawn as \strong{ellipses}; terminal endpoint
+nodes are drawn as \strong{rectangles}; edges are \strong{directed arrows}.
+Split nodes show the split attribute, node-level ESS or WESS, and
+observation count.  Without \code{target_class}, leaf nodes show the
 majority-class prediction and observation count.  With \code{target_class},
 leaf nodes show the target-class count, percentage, predicted class, and
 stage from \code{\link{cta_staging_table}}.  Edge labels show the branch
@@ -17,7 +19,11 @@ colors are assigned by ascending rank of each endpoint's target-class
 proportion within this tree.  Colors encode relative position in the
 endpoint distribution and do \emph{not} imply clinical thresholds or
 categories.  Supply a custom palette via \code{endpoint_palette} to change
-the color encoding.
+the color encoding.  Use \code{show_caption = TRUE} to render an explicit
+note on the plot.
+
+\code{\link{cta_plot_data}} is the renderer-independent data contract.
+This function (\code{plot.cta_tree}) is the current native base-R renderer.
 }
 \usage{
 \method{plot}{cta_tree}(x,
@@ -25,7 +31,10 @@ the color encoding.
      main = "CTA Tree", show_counts = TRUE, show_stage = TRUE,
      endpoint_palette = NULL, endpoint_fill = "#D9F7E6",
      split_fill = "#D9EAF7", node_col_split = NULL,
-     node_col_leaf = NULL, edge_col = "grey40", cex = 0.75, \dots)
+     node_col_leaf = NULL, edge_col = "grey40",
+     border_col = "grey30", text_col = "black",
+     arrow_col = NULL, show_caption = FALSE,
+     cex = 0.75, \dots)
 }
 \arguments{
   \item{x}{A \code{cta_tree} from \code{\link{oda_cta_fit}}.}
@@ -46,16 +55,24 @@ the color encoding.
     \code{target_class} is supplied; passed to \code{\link{cta_plot_data}}.
     \code{NULL} uses the default gradient.  Accepts a palette
     \code{function(n)} or a character vector of colors.}
-  \item{endpoint_fill}{Default fill colour for leaf nodes when
+  \item{endpoint_fill}{Default fill colour for leaf (terminal) nodes when
     \code{target_class} is \code{NULL}.  Default \code{"#D9F7E6"}
     (light green).}
-  \item{split_fill}{Fill colour for split (internal) nodes.
+  \item{split_fill}{Fill colour for split (internal) ellipse nodes.
     Default \code{"#D9EAF7"} (light blue).}
   \item{node_col_split}{Legacy alias for \code{split_fill}; overrides it
     when non-\code{NULL}.}
   \item{node_col_leaf}{Legacy alias for \code{endpoint_fill}; overrides it
     when non-\code{NULL}.}
-  \item{edge_col}{Colour for edge lines.  Default \code{"grey40"}.}
+  \item{edge_col}{Colour for directed edge arrows.  Default \code{"grey40"}.}
+  \item{border_col}{Border colour for all nodes.  Default \code{"grey30"}.}
+  \item{text_col}{Text colour for node labels.  Default \code{"black"}.}
+  \item{arrow_col}{Arrow colour for directed edges.  \code{NULL} (default)
+    uses \code{edge_col}.}
+  \item{show_caption}{Logical; if \code{TRUE} and \code{target_class} is
+    supplied, adds a bottom caption: \emph{"Endpoint fill: relative
+    target-class proportion within this tree. Not a clinical threshold."}
+    Default \code{FALSE}.}
   \item{cex}{Text expansion factor for node labels.  Default \code{0.75}.}
   \item{\dots}{Unused; included for S3 compatibility.}
 }

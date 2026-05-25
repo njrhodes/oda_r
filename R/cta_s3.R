@@ -1924,7 +1924,15 @@ cta_plot_data <- function(tree, target_class = NULL, class_labels = NULL,
 #'   when non-\code{NULL}.
 #' @param node_col_leaf Legacy alias for \code{endpoint_fill}; overrides it
 #'   when non-\code{NULL}.
-#' @param edge_col Colour for edge lines.  Default \code{"grey40"}.
+#' @param edge_col Colour for edge lines and arrowheads.  Default \code{"grey40"}.
+#' @param border_col Border colour for all nodes.  Default \code{"grey30"}.
+#' @param text_col Text colour for node labels.  Default \code{"black"}.
+#' @param arrow_col Arrowhead and line colour for directed edges.  \code{NULL}
+#'   (default) uses \code{edge_col}.
+#' @param show_caption Logical; if \code{TRUE} and \code{target_class} is
+#'   supplied, adds a bottom caption: \emph{"Endpoint fill: relative
+#'   target-class proportion within this tree. Not a clinical threshold."}
+#'   Default \code{FALSE}.
 #' @param cex Text expansion factor for node labels.  Default \code{0.75}.
 #' @param ... Unused; included for S3 compatibility.
 #' @return \code{invisible(pd)}, where \code{pd} is the \code{\link{cta_plot_data}}
@@ -1946,10 +1954,15 @@ plot.cta_tree <- function(x,
                           node_col_split   = NULL,
                           node_col_leaf    = NULL,
                           edge_col         = "grey40",
+                          border_col       = "grey30",
+                          text_col         = "black",
+                          arrow_col        = NULL,
+                          show_caption     = FALSE,
                           cex              = 0.75, ...) {
   # Legacy color-arg compat: non-NULL node_col_* overrides the new names
   split_fill_used   <- node_col_split %||% split_fill
   leaf_fill_default <- node_col_leaf  %||% endpoint_fill
+  arrow_col_used    <- arrow_col %||% edge_col
 
   pd <- cta_plot_data(x, target_class = target_class,
                       class_labels = class_labels, digits = digits,
@@ -1971,13 +1984,19 @@ plot.cta_tree <- function(x,
   yr  <- range(nd$y, na.rm = TRUE)
   if (diff(xr) < 1) xr <- xr + c(-0.5, 0.5)
   if (diff(yr) < 1) yr <- yr + c(-0.5, 0.5)
-  xpad <- diff(xr) * 0.10 + 0.5
-  ypad <- diff(yr) * 0.12 + 0.4
+  xpad <- diff(xr) * 0.12 + 0.6
+  ypad <- diff(yr) * 0.14 + 0.5
 
   hw <- 0.40
-  hh <- if (has_target) 0.38 else 0.28
+  hh <- if (has_target) 0.40 else 0.30
 
-  op <- graphics::par(mar = c(1, 1, 3, 1))
+  # Ellipse polygon vertices for split (internal) nodes.
+  .ellipse_xy <- function(cx, cy, a = hw, b = hh, n = 72L) {
+    theta <- seq(0, 2 * pi, length.out = n)
+    list(x = cx + a * cos(theta), y = cy + b * sin(theta))
+  }
+
+  op <- graphics::par(mar = c(2, 1, 3, 1))
   on.exit(graphics::par(op), add = TRUE)
 
   graphics::plot.new()
@@ -1987,13 +2006,14 @@ plot.cta_tree <- function(x,
   )
   graphics::title(main = main, cex.main = 1)
 
-  # Edges — drawn before boxes so boxes sit on top
+  # Directed arrows — drawn before nodes so shapes sit on top
   if (nrow(ed) > 0L) {
     for (i in seq_len(nrow(ed))) {
-      graphics::segments(
+      graphics::arrows(
         ed$x0[i], ed$y0[i] - hh,
         ed$x1[i], ed$y1[i] + hh,
-        col = edge_col, lwd = 1.2
+        length = 0.08, angle = 20,
+        col = arrow_col_used, lwd = 1.2
       )
       mx <- (ed$x0[i] + ed$x1[i]) / 2
       my <- (ed$y0[i] - hh + ed$y1[i] + hh) / 2
@@ -2002,20 +2022,19 @@ plot.cta_tree <- function(x,
     }
   }
 
-  # Node boxes + labels
+  # Nodes: ellipses for split nodes, rectangles for terminal leaves
   for (i in seq_len(nrow(nd))) {
     cx <- nd$x[i]
     cy <- nd$y[i]
     if (is.na(cx) || is.na(cy)) next
 
     if (nd$leaf[i]) {
-      # Fill: use endpoint_fill_color when target enrichment is active
+      # Terminal endpoint: rectangle
       fc <- if (has_target && !is.na(nd$endpoint_fill_color[i]))
               nd$endpoint_fill_color[i]
             else
               leaf_fill_default
 
-      # Label: reassemble from component columns to honor show_counts/show_stage
       display_lbl <- if (has_target && !is.na(nd$target_proportion[i])) {
         pct_str <- formatC(nd$target_proportion[i] * 100,
                            digits = digits, format = "f")
@@ -2035,14 +2054,31 @@ plot.cta_tree <- function(x,
       } else {
         nd$label[i]
       }
+
+      graphics::rect(cx - hw, cy - hh, cx + hw, cy + hh,
+                     col = fc, border = border_col, lwd = 0.8)
+
     } else {
+      # Split (internal) node: ellipse
       fc          <- split_fill_used
       display_lbl <- nd$label[i]
+
+      ep <- .ellipse_xy(cx, cy)
+      graphics::polygon(ep$x, ep$y,
+                        col = fc, border = border_col, lwd = 0.8)
     }
 
-    graphics::rect(cx - hw, cy - hh, cx + hw, cy + hh,
-                   col = fc, border = "grey30", lwd = 0.8)
-    graphics::text(cx, cy, labels = display_lbl, cex = cex, adj = c(0.5, 0.5))
+    graphics::text(cx, cy, labels = display_lbl,
+                   cex = cex, adj = c(0.5, 0.5), col = text_col)
+  }
+
+  # Optional caption explaining endpoint color semantics
+  if (isTRUE(show_caption) && has_target) {
+    graphics::mtext(
+      paste0("Endpoint fill: relative target-class proportion within this tree.",
+             " Not a clinical threshold."),
+      side = 1, line = 0.8, cex = cex * 0.72, col = "grey40"
+    )
   }
 
   invisible(pd)

@@ -486,3 +486,52 @@ test_that("myeloma plot: custom palette changes endpoint colors", {
   custom_cols <- sort(pd_custom$endpoints$endpoint_fill_color)
   expect_false(all(def_cols == custom_cols))
 })
+
+# =============================================================================
+# plot.cta_tree() v2 — new parameter smoke tests (border_col, text_col,
+# arrow_col, show_caption)
+# =============================================================================
+
+test_that("plot.cta_tree accepts border_col and text_col without error", {
+  tree <- make_tree()
+  tmp  <- tempfile(fileext = ".png")
+  on.exit(unlink(tmp), add = TRUE)
+  grDevices::png(tmp, width = 600, height = 400)
+  expect_no_error(
+    plot(tree, border_col = "#333333", text_col = "#111111")
+  )
+  grDevices::dev.off()
+})
+
+test_that("plot.cta_tree accepts arrow_col without error", {
+  tree <- make_tree()
+  tmp  <- tempfile(fileext = ".png")
+  on.exit(unlink(tmp), add = TRUE)
+  grDevices::png(tmp, width = 600, height = 400)
+  expect_no_error(
+    plot(tree, arrow_col = "#c62828")
+  )
+  grDevices::dev.off()
+})
+
+test_that("show_caption = TRUE with target_class does not error", {
+  tree <- make_tree()
+  tmp  <- tempfile(fileext = ".png")
+  on.exit(unlink(tmp), add = TRUE)
+  grDevices::png(tmp, width = 700, height = 500)
+  expect_no_error(
+    plot(tree, target_class = 1L, show_caption = TRUE)
+  )
+  grDevices::dev.off()
+})
+
+test_that("show_caption = TRUE without target_class does not error", {
+  tree <- make_tree()
+  tmp  <- tempfile(fileext = ".png")
+  on.exit(unlink(tmp), add = TRUE)
+  grDevices::png(tmp, width = 600, height = 400)
+  expect_no_error(
+    plot(tree, show_caption = TRUE)
+  )
+  grDevices::dev.off()
+})
