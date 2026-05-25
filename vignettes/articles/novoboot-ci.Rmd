@@ -1,0 +1,37 @@
+---
+title: "Fixed-Confusion NOVOmetric Bootstrap CIs"
+output: rmarkdown::html_vignette
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>")
+```
+
+**Purpose:** Explain `novo_boot_ci()` and the fixed-confusion NOVOmetric
+bootstrap. The model is treated as fixed; only sampling variation in the
+confusion matrix is modelled. Cover what this CI does and does not capture (no
+model-selection uncertainty; no refit uncertainty), the `nboot` parameter, and
+how to interpret the lower and upper ESS bounds.
+
+**Source material:**
+- `README.md` — `novo_boot_ci()` example
+- `docs/ODACORE_VISION.md` — NOVOboot section
+
+**Eval policy:** Live with nboot = 500 for CRAN speed. Canonical nboot = 5000
+result shown as a verbatim output block (not live-computed).
+
+---
+
+*This article is not yet expanded. Placeholder sections are listed below.*
+
+## Fixed-confusion bootstrap: concept and scope
+
+## `novo_boot_ci()` call structure
+
+## Worked example: myeloma MINDENOM=1 confusion
+
+## Interpreting the CI: ESS lower and upper bounds
+
+## What this CI does not capture
+
+## Canonical nboot = 5000 results

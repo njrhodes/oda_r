@@ -1,0 +1,47 @@
+---
+title: "CTA Tree Diagrams"
+output: rmarkdown::html_vignette
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>")
+```
+
+**Purpose:** Show how to visualise CTA trees using the current native base-R
+renderer. Explain `cta_plot_data()` as the renderer-independent data contract
+and `plot.cta_tree()` as the current renderer. Demonstrate structural mode and
+target-enriched mode. Note what endpoint colours encode (relative target-class
+proportion within the tree only) and what they do not imply. Describe planned
+future ggplot/grid renderer.
+
+**Source material:**
+- `docs/ODACORE_VISION.md` — graphics section
+- `docs/CTA_TRANSLATION_STACK.md` — `cta_plot_data()` / `plot.cta_tree()` entries
+
+**Eval policy:** CTA_DEMO structural plot is live (small dataset, mc_iter = 500).
+Myeloma target-enriched plot is live on precomputed fit loaded from
+`inst/extdata/articles/myeloma_fits.rds`. Both plots render inline via base-R;
+no separate figure artifacts needed.
+
+**Precomputed artifacts needed:** `inst/extdata/articles/myeloma_fits.rds`
+(not yet generated — Slice 3E).
+
+---
+
+*This article is not yet expanded. Placeholder sections are listed below.*
+
+## `cta_plot_data()`: the renderer-independent data contract
+
+## `plot.cta_tree()`: native base-R renderer
+
+## Structural mode (no `target_class`)
+
+## Target-enriched mode (`target_class`)
+
+### What endpoint colours encode
+
+### What endpoint colours do not imply
+
+## Endpoint label content
+
+## Current limitations and future renderer (v3)

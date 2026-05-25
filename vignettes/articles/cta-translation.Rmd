@@ -1,0 +1,45 @@
+---
+title: "Endpoint Translation and Staging"
+output: rmarkdown::html_vignette
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>")
+```
+
+**Purpose:** Show the full CTA translation pipeline on the myeloma MINDENOM=1
+tree. Cover `cta_endpoint_summary()`, `cta_endpoint_counts()`,
+`cta_staging_table()`, `cta_propensity_weights()`, `cta_assign_endpoints()`,
+and `cta_observation_weights()`. Emphasise the lean-fit invariant: nothing
+beyond tree nodes and `training_confusion` is stored at fit time; all
+translation artifacts are computed on explicit call.
+
+**Source material:**
+- `docs/CTA_TRANSLATION_STACK.md` — pipeline navigation and function map
+- `docs/myeloma-cta-translation.md` — worked numeric example
+
+**Eval policy:** Load precomputed myeloma MINDENOM=1 fit from
+`inst/extdata/articles/myeloma_fits.rds`. All translation function calls are
+live (fast; no refitting). Canonical output values cross-referenced against
+`docs/myeloma-cta-translation.md`.
+
+**Precomputed artifacts needed:** `inst/extdata/articles/myeloma_fits.rds`
+(not yet generated — Slice 3E).
+
+---
+
+*This article is not yet expanded. Placeholder sections are listed below.*
+
+## The lean-fit invariant
+
+## `cta_endpoint_summary()`: tree structure and denominators
+
+## `cta_endpoint_counts()`: raw and weighted counts per endpoint
+
+## `cta_staging_table()`: target-class proportions, odds, and flags
+
+## `cta_assign_endpoints()`: row-level endpoint traversal
+
+## `cta_observation_weights()`: row-level propensity weight assignment
+
+## `cta_propensity_weights()`: stabilised endpoint-level weights

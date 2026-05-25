@@ -1,0 +1,105 @@
+---
+title: "Getting started with odacore"
+author: "odacore"
+date: "`r Sys.Date()`"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Getting started with odacore}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>")
+```
+
+`odacore` is a pure-R implementation of the MegaODA / CTA classification
+engine. It provides three main tools:
+
+- **`oda_fit()`** — Optimal Data Analysis (ODA): univariate binary or
+  multiclass classification with a single attribute.
+- **`cta_fit()`** — Classification Tree Analysis (CTA): recursive ODA-node
+  trees with ENUMERATE, LOO STABLE, and MINDENOM endpoint constraints.
+- **Translation and graphics** — endpoint staging, propensity weights, tree
+  plots, and NOVOmetric bootstrap CIs via `cta_staging_table()`,
+  `cta_propensity_weights()`, `novo_boot_ci()`, and `plot.cta_tree()`.
+
+## Binary ODA
+
+`oda_fit()` finds the single cutpoint that maximises Mean PAC (percentage of
+accurate classifications, averaged across classes with inverse-frequency
+weighting when `priors_on = TRUE`). ESS (Effect Strength for Sensitivity)
+measures how far Mean PAC exceeds the chance benchmark of 50%.
+
+```{r oda-binary}
+library(odacore)
+
+x <- c(1, 2, 3, 4, 5, 6, 7, 8)
+y <- c(0L, 0L, 0L, 0L, 1L, 1L, 1L, 1L)
+
+fit <- oda_fit(x, y, mcarlo = FALSE)
+print(fit)
+```
+
+The fitted rule, per-class PAC, Mean PAC, and ESS are available directly:
+
+```{r oda-fields}
+fit$rule$cut_value    # cutpoint
+fit$rule$direction    # which side maps to class 1
+fit$ess               # ESS (%)
+```
+
+## Classification Tree Analysis
+
+`cta_fit()` grows a binary classification tree in which each split node is an
+ODA model. `mindenom` sets the minimum leaf size; `mc_iter` controls the Monte
+Carlo permutation test used to screen candidate splits; `loo = "stable"` keeps
+only splits whose leave-one-out ESS matches the training ESS.
+
+The example below uses a small synthetic dataset. For publication analyses use
+at least `mc_iter = 5000L`.
+
+```{r cta-small}
+X <- data.frame(
+  x1 = c(1, 2, 3, 4, 5, 6, 7, 8),
+  x2 = c(0L, 0L, 1L, 0L, 1L, 1L, 0L, 1L)
+)
+y <- c(1L, 1L, 1L, 1L, 2L, 2L, 2L, 2L)
+
+tree <- cta_fit(X, y,
+  priors_on  = TRUE,
+  mindenom   = 2L,
+  mc_iter    = 500L,
+  mc_seed    = 42L,
+  loo        = "off",
+  attr_names = c("x1", "x2")
+)
+print(tree)
+```
+
+```{r cta-plot, fig.width = 5, fig.height = 3.5}
+plot(tree)
+```
+
+## Further reading
+
+The article series (available on the pkgdown site) provides full worked
+examples for each component of the package:
+
+| Article | Content |
+|---------|---------|
+| ODA basics | `oda_fit()` in depth: rule, PAC, ESS, LOO |
+| Directional ODA | Chapter 2 (`direction="greater"/"less"`) and Chapter 4 (`direction_map`, `direction="ascending"`) |
+| Multiclass ODA | C ≥ 3 class variables; PAC per class; K-class chance benchmark |
+| CTA basics | `cta_fit()`: MINDENOM, LOO STABLE, ENUMERATE, pruning |
+| Myeloma CTA | MINDENOM family (1 → 30 → 56); canonical computed outputs |
+| CTA translation | `cta_staging_table()`, `cta_propensity_weights()`, endpoint reporting |
+| MDSA family | `cta_descendant_family()`, `cta_family_table()`, minimum-D selection |
+| CTA graphics | `cta_plot_data()` data contract; `plot.cta_tree()` structural and target-enriched diagrams |
+| NOVOboot CI | `novo_boot_ci()`: fixed-confusion NOVOmetric bootstrap |
+| Validation tiers | CRAN / fast / smoke / full tiers; canon parity; package scope |
+
+The four example-driven CRAN vignettes — *Binary ODA: Migraine Attacks*,
+*Binary Ordered Directional ODA: The Refugee Act*, *Binary Categorical
+Directional ODA: Gully Erosion*, and *Multiclass Categorical Directional ODA:
+Protein Type* — are also available via `browseVignettes("odacore")`.

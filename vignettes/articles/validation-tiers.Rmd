@@ -1,0 +1,45 @@
+---
+title: "Test Tiers, Canon Parity, and Package Scope"
+output: rmarkdown::html_vignette
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>")
+```
+
+**Purpose:** Explain the four test tiers (CRAN / fast / smoke / full), what
+"canonical parity" means (R output matches MegaODA.exe / CTA.exe on covered
+fixtures), which fixtures are currently green, and what remains future scope.
+
+**Eval policy:** Entirely narrative. No fits, no computations.
+
+---
+
+*This article is not yet expanded. Placeholder sections are listed below.*
+
+## Test tiers
+
+| Tier | Variable | When to use |
+|------|----------|-------------|
+| CRAN (default) | unset | CRAN submission and default `devtools::check()` |
+| fast | `ODACORE_TEST_TIER=fast` | Development loop; same as CRAN but explicit |
+| smoke | `ODACORE_TEST_TIER=smoke` | Required before CTA / MDSA / graphics commits |
+| full | `ODACORE_TEST_TIER=full` | Release gate and deep canon parity work only |
+
+## Canonical parity: what it means
+
+## Currently green fixtures
+
+## Current scope: binary CTA only
+
+## Future scope
+
+### `predict.oda_fit()` / `summary.oda_fit()` — implemented
+
+### Balance diagnostics — deferred
+
+### Multiclass CTA — not yet scoped
+
+### Full SDA / auto_SDA — not yet scoped
+
+### Political affiliation example — data unavailable

@@ -1,0 +1,34 @@
+---
+title: "ODA basics with oda_fit()"
+output: rmarkdown::html_vignette
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>")
+```
+
+**Purpose:** Introduce `oda_fit()` for binary-class ODA. Cover the attribute,
+class variable, cutpoint, rule direction, PAC per class, Mean PAC, ESS, LOO
+validity, and the chance benchmark. Use a worked example to show how to read
+and interpret output fields.
+
+**Source material:** `vignettes/migraine-attacks-oda.Rmd` (expand and
+annotate); MPE MegaODA training examples 1–4
+(`tests/testthat/fixtures/vignettes/data/`).
+
+**Eval policy:** Live, CRAN-safe. Small `mc_iter` (≤ 500) for all evaluated
+chunks. Canonical mc_iter = 25000 results stated as text, not live-computed.
+
+---
+
+*This article is not yet expanded. Placeholder sections are listed below.*
+
+## The ODA problem
+
+## Fitting with `oda_fit()`
+
+## Reading the output: rule, PAC, ESS
+
+## Leave-one-out (LOO) validity
+
+## Notes on MC p-value calibration

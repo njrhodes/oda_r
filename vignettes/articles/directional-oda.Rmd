@@ -1,0 +1,48 @@
+---
+title: "Directional ODA: Chapter 2 and Chapter 4"
+output: rmarkdown::html_vignette
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>")
+```
+
+**Purpose:** Explain MPE Chapter 2 and Chapter 4 DIRECTIONAL ODA. Chapter 2
+covers binary ordered directional hypotheses (`direction = "greater"` or
+`"less"`). Chapter 4 covers (a) categorical fixed-partition hypotheses via an
+explicit `direction_map`, and (b) categorical k=C identity-map hypotheses via
+`direction = "ascending"/"descending"`. Show how directional constraints affect
+the MC p-value without changing the training rule or ESS.
+
+**Source material:**
+- `vignettes/refugee-act-oda.Rmd` — Chapter 2 binary ordered
+  (`direction = "greater"`)
+- `vignettes/gully-adjustment-oda.Rmd` — Chapter 4 fixed-partition
+  (`direction_map`)
+- `vignettes/protein-type-multiclass-oda.Rmd` — Chapter 4 k=C identity map
+  (`direction = "ascending"`)
+
+**Eval policy:** Live, CRAN-safe. All three examples use mc_iter = 500 in
+evaluated chunks. Canonical mc_iter = 25000 results stated as text.
+
+---
+
+*This article is not yet expanded. Placeholder sections are listed below.*
+
+## Why directional hypotheses?
+
+## Chapter 2: binary ordered directional (`direction = "greater"/"less"`)
+
+### The Refugee Act example
+
+## Chapter 4: categorical fixed-partition (`direction_map`)
+
+### The gully erosion example
+
+## Chapter 4: categorical identity map (`direction = "ascending"`)
+
+### The protein type example
+
+## Guard cases: what raises an error vs. a warning
+
+## When NOT to use directional: nondirectional default

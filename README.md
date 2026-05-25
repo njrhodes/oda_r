@@ -5,7 +5,7 @@ Pure-R reimplementation of the MegaODA / CTA classification engine.
 - **UniODA** (`oda_univariate_core`) — binary-class ODA for ordered, categorical, and binary attributes
 - **MultiODA** (`oda_multiclass_unioda_core`) — multiclass ODA for ordered and categorical attributes
 - **`oda_fit`** — unified dispatcher: calls UniODA when C = 2, MultiODA when C ≥ 3
-- **CTA** (`oda_cta_fit`) — Classification Tree Analysis with ENUMERATE, LOO STABLE, pruning, and fixture-driven CTA.exe parity tests
+- **CTA** (`cta_fit`) — Classification Tree Analysis with ENUMERATE, LOO STABLE, pruning, and fixture-driven CTA.exe parity tests
 
 Core UniODA/MultiODA behavior and covered CTA fixtures are validated against MegaODA.exe / CTA.exe golden outputs.
 
@@ -134,7 +134,7 @@ R/
 ├── multioda_core.R  — Multiclass engine: oda_multiclass_unioda_core()
 ├── oda_fit.R        — Unified dispatcher: oda_fit() routes on C
 ├── oda_s3.R         — ODA S3 methods: predict/print/summary
-├── cta_core.R       — Classification tree: oda_cta_fit()
+├── cta_core.R       — Classification tree: cta_fit() / oda_cta_fit() (internal)
 ├── cta_s3.R         — CTA S3 + translation layer: staging/propensity/endpoints
 └── cta_family.R     — MDSA family: cta_descendant_family(), cta_family_table()
 ```

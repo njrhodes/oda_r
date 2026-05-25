@@ -1,0 +1,44 @@
+---
+title: "MDSA: Descendant Families and Minimum-D Selection"
+output: rmarkdown::html_vignette
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>")
+```
+
+**Purpose:** Introduce MDSA (Model/Descriptor/Scenario Analysis) via
+`cta_descendant_family()`. Show how increasing MINDENOM produces a sequence of
+progressively simpler trees. Explain the D statistic, `cta_family_table()`,
+and minimum-D selection. Use the myeloma family (MINDENOM 1 → 30 → 56) as the
+canonical example.
+
+**Source material:**
+- `docs/ODACORE_VISION.md` — MDSA section
+- `docs/CTA_TRANSLATION_STACK.md` — family table and D statistic
+- `docs/myeloma-cta-translation.md` — myeloma family table values
+
+**Eval policy:** Load precomputed myeloma family object from
+`inst/extdata/articles/myeloma_family.rds`. `cta_family_table()` and
+`summary.cta_family()` calls are live on the precomputed object.
+
+**Precomputed artifacts needed:** `inst/extdata/articles/myeloma_family.rds`
+(not yet generated — Slice 3E).
+
+---
+
+*This article is not yet expanded. Placeholder sections are listed below.*
+
+## What is MDSA?
+
+## `cta_descendant_family()`: the MINDENOM sequence
+
+## The D statistic: complexity vs. accuracy
+
+## `cta_family_table()`: comparing family members
+
+## Minimum-D selection
+
+## The myeloma family: MINDENOM 1 → 30 → 56
+
+## Terminal state: no tree at MINDENOM = 56

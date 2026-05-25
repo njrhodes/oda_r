@@ -1,0 +1,43 @@
+---
+title: "CTA basics with cta_fit()"
+output: rmarkdown::html_vignette
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>")
+```
+
+**Purpose:** Introduce `cta_fit()` for binary-class Classification Tree
+Analysis. Cover the recursive ODA-node structure, MINDENOM endpoint
+constraints, ENUMERATE root selection, LOO STABLE candidate screening, pruning,
+and path-local missingness. Use a small live example and reference the CTA_DEMO
+fixture.
+
+**Source material:**
+- `docs/CTA_CANON.md` — canonical CTA behavior specification
+- `tests/testthat/fixtures/cta_demo/` — CTA_DEMO fixture (uniform weights)
+- `man/cta_fit.Rd` — function documentation
+
+**Eval policy:** Small synthetic or CTA_DEMO example live with mc_iter = 500.
+CTA_DEMO canonical ESS = 52.63% (root V2, cut = 4.5) stated as text; not
+live-computed at mc_iter = 25000.
+
+---
+
+*This article is not yet expanded. Placeholder sections are listed below.*
+
+## CTA as sequential ODA
+
+## `cta_fit()` arguments
+
+## MINDENOM: controlling endpoint size
+
+## ENUMERATE: root candidate selection
+
+## LOO STABLE: generalizability gate
+
+## Pruning: backward complexity reduction
+
+## `predict.cta_tree()`: path-local missingness
+
+## `plot.cta_tree()`: structural diagram

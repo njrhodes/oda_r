@@ -1,0 +1,133 @@
+url: https://njrhodes.github.io/oda_rcore/
+
+template:
+  bootstrap: 5
+
+navbar:
+  structure:
+    left:  [intro, reference, articles, changelog]
+    right: [search, github]
+  components:
+    github:
+      icon: fab fa-github
+      href: https://github.com/njrhodes/oda_rcore
+
+home:
+  sidebar:
+    structure: [links, license, community, citation, authors, dev]
+
+# ---------------------------------------------------------------------------
+# Reference
+# ---------------------------------------------------------------------------
+reference:
+  - title: "ODA — fitting and prediction"
+    desc: >
+      Unified dispatcher, binary-class engine, multiclass engine, rule
+      application, and performance metrics.
+    contents:
+      - oda_fit
+      - oda_univariate_core
+      - oda_multiclass_unioda_core
+      - oda_rule_predict
+      - oda_rule_predict_multiclass
+
+  - title: "ODA — S3 methods and accessors"
+    desc: >
+      S3 methods for `oda_fit` objects; accessor functions for predictions,
+      confusion, metrics, and D statistic.
+    contents:
+      - predict.oda_fit
+      - print.oda_fit
+      - summary.oda_fit
+      - oda_predictions
+      - oda_confusion
+      - oda_metrics
+      - oda_d_stat
+
+  - title: "ODA — confusion and performance helpers"
+    contents:
+      - oda_confusion_binary
+      - oda_confusion_multiclass
+      - oda_mean_pac
+      - oda_ess_from_meanpac
+      - oda_ess_from_mean
+
+  - title: "CTA — fitting and prediction"
+    desc: >
+      Classification Tree Analysis: public entry point, internal engine,
+      prediction, MDSA family fitting.
+    contents:
+      - cta_fit
+      - oda_cta_fit
+      - predict.cta_tree
+      - cta_descendant_family
+
+  - title: "CTA — tree structure"
+    contents:
+      - cta_node_table
+      - cta_strata
+      - cta_endpoint_denominators
+      - cta_min_terminal_denom
+      - cta_d_stat
+
+  - title: "CTA — reporting and translation"
+    desc: >
+      On-demand translation functions for endpoints, staging, propensity
+      weights, observation weights, and confusion tables. All computed on
+      explicit call; nothing extra is stored at fit time.
+    contents:
+      - cta_endpoint_summary
+      - cta_endpoint_counts
+      - cta_endpoint_table
+      - cta_staging_table
+      - cta_propensity_weights
+      - cta_assign_endpoints
+      - cta_observation_weights
+      - cta_confusion_table
+
+  - title: "MDSA — family summary"
+    contents:
+      - cta_family_table
+
+  - title: "Graphics"
+    desc: >
+      `cta_plot_data()` produces the renderer-independent tree diagram data
+      contract. `plot.cta_tree()` is the current native base-R renderer.
+    contents:
+      - cta_plot_data
+      - plot.cta_tree
+
+  - title: "NOVOboot"
+    desc: Fixed-confusion NOVOmetric bootstrap confidence intervals.
+    contents:
+      - novo_boot_ci
+
+# ---------------------------------------------------------------------------
+# Articles
+# ---------------------------------------------------------------------------
+articles:
+  - title: "Part I — ODA Foundations"
+    navbar: ODA Foundations
+    contents:
+      - articles/oda-basics
+      - articles/directional-oda
+      - articles/multiclass-oda
+
+  - title: "Part II — CTA"
+    navbar: CTA
+    contents:
+      - articles/cta-basics
+      - articles/myeloma-cta
+
+  - title: "Part III — Translation, MDSA, and Graphics"
+    navbar: Translation & MDSA
+    contents:
+      - articles/cta-translation
+      - articles/mdsa-family
+      - articles/cta-graphics
+
+  - title: "Part IV — Validation and Boundaries"
+    navbar: Validation
+    contents:
+      - articles/novoboot-ci
+      - articles/validation-tiers

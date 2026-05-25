@@ -1,0 +1,41 @@
+---
+title: "Multiclass ODA (C >= 3) with oda_fit()"
+output: rmarkdown::html_vignette
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>")
+```
+
+**Purpose:** Introduce multiclass ODA (`oda_fit()` with C ≥ 3 classes). Cover
+the K-class chance benchmark (100/K, not 50%), Mean PAC, ESS, per-class PAC,
+ordered multiclass cut values and segment-class assignments, and categorical
+multiclass. Use the iris and protein examples.
+
+**Source material:**
+- `tests/testthat/test-iris.R` — iris Petal.Length K=3 gold values
+- `vignettes/protein-type-multiclass-oda.Rmd` — K=4 categorical example
+
+**Eval policy:** iris live (mcarlo = FALSE, instant). Protein live with
+mc_iter = 500, mc_seed = 42. Canonical iris and protein MC results stated as
+text.
+
+---
+
+*This article is not yet expanded. Placeholder sections are listed below.*
+
+## Multiclass ODA: C ≥ 3
+
+## The K-class chance benchmark
+
+## Ordered multiclass: cut values and segment-class assignments
+
+### iris example
+
+## Categorical multiclass: level-class mapping
+
+### protein type example
+
+## Interpreting per-class PAC at K > 2
+
+## Notes on LOO for multiclass
