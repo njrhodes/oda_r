@@ -230,6 +230,9 @@ oda_metrics_candidate <- function(NP_obj, NP_raw, NA_raw, x_rep,
 #' @param cut_value_mode  "midpoint", "lower", or "upper".
 #' @param debug_return_ties  Return all primary-tied candidates for diagnostics.
 #' @param debug_max_ties  Cap on number of ties stored.
+#' @param direction  Directional constraint (MPE Chapter 4 ordered DIRECTIONAL).
+#'   "ascending" forces segment s to map to class s; "descending" forces class
+#'   C+1-s. Default "off" (nondirectional; all assignments evaluated).
 #' @return List with ok, cuts_idx, cut_values, seg_cls_idx, primary_obj,
 #'   secondary_obj, best_enum_id, ties, classes.
 oda_best_ordered_multiclass_partition <- function(
@@ -240,7 +243,8 @@ oda_best_ordered_multiclass_partition <- function(
     secondary       = NULL,
     cut_value_mode  = c("midpoint","lower","upper"),
     debug_return_ties = FALSE,
-    debug_max_ties  = 200L
+    debug_max_ties  = 200L,
+    direction       = "off"
 ) {
   cut_value_mode <- match.arg(cut_value_mode)
 
@@ -405,7 +409,14 @@ oda_best_ordered_multiclass_partition <- function(
         }
         return()
       }
-      for (cl in cand[[s]]) { current[s] <<- cl; recurse(s + 1L) }
+      if (direction %in% c("ascending", "descending")) {
+        # Constrain segment-to-class assignment (MPE Chapter 4 DIRECTIONAL)
+        cl <- if (direction == "ascending") s else C + 1L - s
+        current[s] <<- cl
+        recurse(s + 1L)
+      } else {
+        for (cl in cand[[s]]) { current[s] <<- cl; recurse(s + 1L) }
+      }
     }
 
     recurse(1L)
@@ -491,7 +502,8 @@ oda_mc_p_value_multiclass <- function(
     x, y, w, attr_type, priors_on, degen, K_segments,
     mc_iter   = 25000L, mc_target = 0.05,
     mc_stop   = 99.9,   mc_stopup = 20,
-    mc_adjust = FALSE,  seed = NULL, observed_mean_pac
+    mc_adjust = FALSE,  seed = NULL, observed_mean_pac,
+    direction = "off", direction_map = NULL
 ) {
   if (!is.null(seed)) set.seed(seed)
   n           <- length(y)
@@ -510,7 +522,8 @@ oda_mc_p_value_multiclass <- function(
       miss_codes = NULL,       K_segments = K_segments,
       mcarlo = FALSE,          loo = "off",
       mc_iter = 0L, mc_target = mc_target, mc_stop = mc_stop,
-      mc_stopup = mc_stopup,   mc_adjust = mc_adjust, mc_seed = NULL
+      mc_stopup = mc_stopup,   mc_adjust = mc_adjust, mc_seed = NULL,
+      direction = direction,   direction_map = direction_map
     )
 
     # Compare on the training-objective scale (mean PAC, percent units) so that
@@ -835,7 +848,9 @@ oda_multiclass_unioda_core <- function(
     mc_seed          = NULL,
     loo              = c("off","on"),
     boundary_mode    = c("megaoda_halfopen","right_closed"),
-    loo_opts         = list()
+    loo_opts         = list(),
+    direction        = "off",
+    direction_map    = NULL
 ) {
   attr_type     <- match.arg(attr_type)
   loo           <- match.arg(loo)
@@ -876,6 +891,13 @@ oda_multiclass_unioda_core <- function(
     map <- setNames(seq_along(u), as.character(u))
     y   <- as.integer(map[as.character(y)])
     u   <- seq_along(u)
+    # Recode direction_map values through same map
+    if (!is.null(direction_map)) {
+      direction_map <- stats::setNames(
+        as.integer(map[as.character(direction_map)]),
+        names(direction_map)
+      )
+    }
   }
   C <- length(u)
   if (C < 3L)
@@ -914,7 +936,8 @@ oda_multiclass_unioda_core <- function(
       K = K, priors_on_eff = priors_on_eff, degen = degen,
       primary = NULL, secondary = NULL,
       cut_value_mode = loo_opts$cut_value_mode,
-      debug_return_ties = isTRUE(loo_opts$return_folds), debug_max_ties = 200L
+      debug_return_ties = isTRUE(loo_opts$return_folds), debug_max_ties = 200L,
+      direction = direction
     )
 
     if (!isTRUE(sel$ok))
@@ -961,7 +984,8 @@ oda_multiclass_unioda_core <- function(
         priors_on = priors_on_eff, degen = degen, K_segments = K,
         mc_iter = mc_iter, mc_target = mc_target, mc_stop = mc_stop,
         mc_stopup = mc_stopup, mc_adjust = mc_adjust, seed = mc_seed,
-        observed_mean_pac = out$mean_pac)
+        observed_mean_pac = out$mean_pac,
+        direction = direction, direction_map = NULL)
       out$p_mc    <- mc$p_mc
       out$mc_info <- mc
     }
@@ -998,70 +1022,98 @@ oda_multiclass_unioda_core <- function(
       counts_raw[li, ci] <- counts_raw[li, ci] + w_case[i]
     }
 
-    NA_raw     <- colSums(counts_raw)
-    best_primary <- -Inf; best_overall <- -Inf; best_mean <- -Inf
-    best_map   <- NULL;   best_srep    <- Inf
-
-    use_exhaustive <- (L <= 9L)
-    if (use_exhaustive) {
-      all_maps <- as.matrix(expand.grid(rep(list(seq_len(C)), L)))
-      for (r in seq_len(nrow(all_maps))) {
-        map_r <- as.integer(all_maps[r, ])
-        if (!isTRUE(degen) && length(unique(map_r)) < C) next
-
-        NP_obj <- matrix(0, C, C); NP_raw <- matrix(0, C, C)
-        for (l in seq_len(L)) {
-          pc <- map_r[l]
-          NP_obj[, pc] <- NP_obj[, pc] + counts_obj[l, ]
-          NP_raw[, pc] <- NP_raw[, pc] + counts_raw[l, ]
-        }
-
-        TP_obj     <- diag(NP_obj); NA_o <- rowSums(NP_obj)
-        mp_obj     <- mean(ifelse(NA_o > 0, TP_obj / NA_o, NA_real_), na.rm = TRUE)
-        tot_obj    <- sum(NP_obj)
-        ov_obj     <- if (tot_obj > 0) sum(TP_obj) / tot_obj else NA_real_
-        if (!is.finite(mp_obj)) mp_obj <- -Inf
-        if (!is.finite(ov_obj)) ov_obj <- -Inf
-
-        prim <- if (isTRUE(priors_on_eff)) ov_obj else mp_obj
-        sec  <- if (isTRUE(priors_on_eff)) mp_obj else ov_obj
-
-        NP_raw_pred <- colSums(NP_raw)
-        dp <- sum(NP_raw_pred); da <- sum(NA_raw)
-        sr <- if (dp <= 0 || da <= 0) Inf else
-          sum(abs((NP_raw_pred / dp) - (NA_raw / da)))
-
-        better <- FALSE
-        if      (prim > best_primary + 1e-12) better <- TRUE
-        else if (abs(prim - best_primary) <= 1e-12) {
-          cur_sec <- if (isTRUE(priors_on_eff)) best_mean else best_overall
-          if      (sec > cur_sec + 1e-12) better <- TRUE
-          else if (abs(sec - cur_sec) <= 1e-12 && sr < best_srep - 1e-12) better <- TRUE
-        }
-
-        if (better) {
-          best_primary <- prim; best_overall <- ov_obj
-          best_mean    <- mp_obj; best_map <- map_r; best_srep <- sr
-        }
-      }
+    # --- MPE Chapter 4 DIRECTIONAL: auto-create direction_map when L == C ---
+    if (direction %in% c("ascending", "descending") && is.null(direction_map)) {
+      if (L != C)
+        stop("direction = '", direction, "' for categorical multiclass requires ",
+             "L == C (one attribute level per class) or an explicit direction_map. ",
+             "L = ", L, ", C = ", C, ". Supply direction_map for a fixed-partition ",
+             "DIRECTIONAL hypothesis.", call. = FALSE)
+      direction_map <- stats::setNames(
+        if (direction == "ascending") seq_len(C) else rev(seq_len(C)),
+        levs
+      )
     }
 
-    level_class <- if (!is.null(best_map)) best_map else {
-      lc <- apply(counts_obj, 1, which.max)
-      if (!isTRUE(degen) && length(unique(lc)) < C && L >= C) {
-        present <- sort(unique(lc)); missing <- setdiff(seq_len(C), present)
-        for (mc_cl in missing) {
-          losses <- vapply(seq_len(L), function(l) {
-            cur <- lc[l]; if (cur == mc_cl) return(Inf)
-            counts_obj[l, cur] - counts_obj[l, mc_cl]
-          }, numeric(1))
-          l_star <- which.min(losses)
-          if (length(l_star) && is.finite(losses[l_star])) lc[l_star] <- mc_cl
+    # --- Determine level_class: fixed map or optimal search ---
+    if (!is.null(direction_map)) {
+      # Fixed-partition directional: validate and extract level_class directly
+      dm_names <- as.character(names(direction_map))
+      dm_vals  <- as.integer(direction_map)
+      if (!setequal(dm_names, levs))
+        return(list(ok = FALSE, reason = "direction_map_levels_mismatch", type = "leaf"))
+      if (!all(dm_vals %in% seq_len(C)))
+        return(list(ok = FALSE, reason = "direction_map_values_not_class_labels", type = "leaf"))
+      level_class <- dm_vals[match(levs, dm_names)]
+      if (!isTRUE(degen) && length(unique(level_class)) < C)
+        return(list(ok = FALSE, reason = "degenerate_solution_disallowed", type = "leaf"))
+    } else {
+      # Nondirectional: exhaustive or greedy search
+      NA_raw     <- colSums(counts_raw)
+      best_primary <- -Inf; best_overall <- -Inf; best_mean <- -Inf
+      best_map   <- NULL;   best_srep    <- Inf
+
+      use_exhaustive <- (L <= 9L)
+      if (use_exhaustive) {
+        all_maps <- as.matrix(expand.grid(rep(list(seq_len(C)), L)))
+        for (r in seq_len(nrow(all_maps))) {
+          map_r <- as.integer(all_maps[r, ])
+          if (!isTRUE(degen) && length(unique(map_r)) < C) next
+
+          NP_obj <- matrix(0, C, C); NP_raw <- matrix(0, C, C)
+          for (l in seq_len(L)) {
+            pc <- map_r[l]
+            NP_obj[, pc] <- NP_obj[, pc] + counts_obj[l, ]
+            NP_raw[, pc] <- NP_raw[, pc] + counts_raw[l, ]
+          }
+
+          TP_obj     <- diag(NP_obj); NA_o <- rowSums(NP_obj)
+          mp_obj     <- mean(ifelse(NA_o > 0, TP_obj / NA_o, NA_real_), na.rm = TRUE)
+          tot_obj    <- sum(NP_obj)
+          ov_obj     <- if (tot_obj > 0) sum(TP_obj) / tot_obj else NA_real_
+          if (!is.finite(mp_obj)) mp_obj <- -Inf
+          if (!is.finite(ov_obj)) ov_obj <- -Inf
+
+          prim <- if (isTRUE(priors_on_eff)) ov_obj else mp_obj
+          sec  <- if (isTRUE(priors_on_eff)) mp_obj else ov_obj
+
+          NP_raw_pred <- colSums(NP_raw)
+          dp <- sum(NP_raw_pred); da <- sum(NA_raw)
+          sr <- if (dp <= 0 || da <= 0) Inf else
+            sum(abs((NP_raw_pred / dp) - (NA_raw / da)))
+
+          better <- FALSE
+          if      (prim > best_primary + 1e-12) better <- TRUE
+          else if (abs(prim - best_primary) <= 1e-12) {
+            cur_sec <- if (isTRUE(priors_on_eff)) best_mean else best_overall
+            if      (sec > cur_sec + 1e-12) better <- TRUE
+            else if (abs(sec - cur_sec) <= 1e-12 && sr < best_srep - 1e-12) better <- TRUE
+          }
+
+          if (better) {
+            best_primary <- prim; best_overall <- ov_obj
+            best_mean    <- mp_obj; best_map <- map_r; best_srep <- sr
+          }
         }
       }
-      if (!isTRUE(degen) && length(unique(lc)) < C)
-        return(list(ok=FALSE, reason="degenerate_solution_disallowed", type="leaf"))
-      lc
+
+      level_class <- if (!is.null(best_map)) best_map else {
+        lc <- apply(counts_obj, 1, which.max)
+        if (!isTRUE(degen) && length(unique(lc)) < C && L >= C) {
+          present <- sort(unique(lc)); missing <- setdiff(seq_len(C), present)
+          for (mc_cl in missing) {
+            losses <- vapply(seq_len(L), function(l) {
+              cur <- lc[l]; if (cur == mc_cl) return(Inf)
+              counts_obj[l, cur] - counts_obj[l, mc_cl]
+            }, numeric(1))
+            l_star <- which.min(losses)
+            if (length(l_star) && is.finite(losses[l_star])) lc[l_star] <- mc_cl
+          }
+        }
+        if (!isTRUE(degen) && length(unique(lc)) < C)
+          return(list(ok=FALSE, reason="degenerate_solution_disallowed", type="leaf"))
+        lc
+      }
     }
 
     overall_class <- which.max(colSums(counts_obj))
@@ -1101,7 +1153,8 @@ oda_multiclass_unioda_core <- function(
         priors_on = priors_on_eff, degen = degen, K_segments = 1L,
         mc_iter = mc_iter, mc_target = mc_target, mc_stop = mc_stop,
         mc_stopup = mc_stopup, mc_adjust = mc_adjust, seed = mc_seed,
-        observed_mean_pac = out$mean_pac)
+        observed_mean_pac = out$mean_pac,
+        direction = direction, direction_map = direction_map)
       out$p_mc    <- mc$p_mc
       out$mc_info <- mc
     }

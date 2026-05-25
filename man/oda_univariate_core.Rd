@@ -18,7 +18,8 @@ oda_univariate_core(x, y, w = NULL,
   mc_seed = NULL, chance_model = c("class","attribute"),
   eval_order = c("mc_then_loo","loo_then_mc"),
   mindenom = 1L,
-  direction = c("both","off","greater","less"))
+  direction = c("both","off","greater","less"),
+  direction_map = NULL)
 }
 \arguments{
   \item{x}{Attribute values.}
@@ -51,20 +52,19 @@ oda_univariate_core(x, y, w = NULL,
   \item{mindenom}{Minimum raw observation count required in each child node
     for a candidate cut to be evaluated. Default 1 (no enforcement).}
   \item{direction}{Directional hypothesis (MPE Chapter 2 scope):
-    \code{"both"} (default, non-directional; evaluates both \code{"0->1"}
-    and \code{"1->0"} candidates) or its backward-compatible synonym
-    \code{"off"}, \code{"greater"} (Chapter 2 greater-than direction:
-    x > cut predicts class 1; MegaODA Appendix A \code{DIRECTION < 0 1};
-    restricts to internal \code{"0->1"}), or \code{"less"} (Chapter 2
-    less-than direction: x <= cut predicts class 1; MegaODA Appendix A
-    \code{DIRECTION > 0 1}; restricts to internal \code{"1->0"}).
-    Ordered and binary attributes only. Categorical attributes with
-    \code{direction} not \code{"both"} or \code{"off"} return
-    \code{ok = FALSE} with
-    \code{reason = "direction_not_supported_for_categorical"}.
-    The same constraint is applied in MC permutation refits and LOO fold
-    refits. MPE Chapter 4 categorical/table DIRECTIONAL is Phase 6C
-    (not yet implemented).}
+    \code{"both"} (default) or its synonym \code{"off"}, \code{"greater"}
+    (high x predicts class 1; Chapter 2 \code{DIRECTION < 0 1}), or
+    \code{"less"} (low x predicts class 1; Chapter 2 \code{DIRECTION > 0 1}).
+    Ordered and binary attributes only. When \code{direction_map} is
+    supplied, categorical DIRECTIONAL is also supported via a fixed mapping;
+    passing \code{direction} in \code{"greater"/"less"} with a categorical
+    attribute and no \code{direction_map} returns \code{ok = FALSE}.}
+  \item{direction_map}{Named integer vector for categorical fixed-partition
+    DIRECTIONAL (MPE Chapter 4). Names are attribute levels (character);
+    values are 0/1 coded class labels. All attribute levels must be covered.
+    When supplied for a categorical attribute, the specified partition is
+    evaluated without searching alternatives; LOO predictions are trivially
+    stable. Default \code{NULL}.}
 }
 \value{
 Named list. Key fields: \code{ok}, \code{rule}, \code{confusion} (list

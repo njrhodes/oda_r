@@ -49,7 +49,7 @@ fields; it knows nothing about the internal structure of either ODA engine.
 ### Public API
 
 **Entry points (public API):**
-- `oda_fit(x, y, w, ..., direction = c("both","off","greater","less"))` — primary ODA dispatcher (binary and multiclass); MPE Chapter 2 binary ordered DIRECTIONAL implemented (Phase 6A/6B); MPE Chapter 4 categorical/table DIRECTIONAL is Phase 6C (deferred)
+- `oda_fit(x, y, w, ..., direction = c("both","off","greater","less","ascending","descending"), direction_map = NULL)` — primary ODA dispatcher (binary and multiclass); MPE Chapter 2 binary ordered DIRECTIONAL (Phase 6A/6B) and MPE Chapter 4 categorical/table DIRECTIONAL (Phase 6C) both implemented: `direction = "ascending"/"descending"` for multiclass ordered and categorical k=C identity-map DIRECTIONAL; `direction_map` for categorical fixed-partition DIRECTIONAL
 - `cta_fit(X, y, w, ...)` — public CTA tree constructor
 
 **Internal / compatibility names:**

@@ -15,7 +15,8 @@ oda_multiclass_unioda_core(x, y, w = NULL,
   mc_stop = 99.9, mc_stopup = 20, mc_adjust = FALSE, mc_seed = NULL,
   loo = c("off","on"),
   boundary_mode = c("megaoda_halfopen","right_closed"),
-  loo_opts = list())
+  loo_opts = list(),
+  direction = "off", direction_map = NULL)
 }
 \arguments{
   \item{x}{Attribute values (numeric or factor).}
@@ -32,6 +33,14 @@ oda_multiclass_unioda_core(x, y, w = NULL,
   \item{loo}{\code{"off"} or \code{"on"}.}
   \item{boundary_mode}{Boundary convention for ordered cut values.}
   \item{loo_opts}{Named list of LOO options passed to the LOO engine.}
+  \item{direction}{Directional constraint (MPE Chapter 4). \code{"ascending"}
+    forces segment s to class s for ordered multiclass; auto-creates identity
+    \code{direction_map} for categorical when L == C. \code{"descending"} uses
+    reverse assignment. Default \code{"off"} (nondirectional).}
+  \item{direction_map}{Named integer vector for categorical fixed-partition
+    DIRECTIONAL. Names are attribute levels; values are class labels 1..C.
+    When supplied, bypasses the partition search and evaluates only the
+    specified mapping. Default \code{NULL}.}
 }
 \value{
 Named list. Key fields: \code{ok}, \code{rule} (with \code{cut_values}

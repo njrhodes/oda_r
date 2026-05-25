@@ -18,7 +18,9 @@ oda_mc_p_value_multiclass(
   mc_stopup = 20,
   mc_adjust = FALSE,
   seed = NULL,
-  observed_mean_pac
+  observed_mean_pac,
+  direction = "off",
+  direction_map = NULL
 )
 }
 \description{

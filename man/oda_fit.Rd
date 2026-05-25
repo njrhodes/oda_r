@@ -18,7 +18,8 @@ oda_fit(x, y, w = NULL,
         boundary_mode = c("megaoda_halfopen","right_closed"),
         eval_order = c("mc_then_loo","loo_then_mc"),
         mindenom = 1L,
-        direction = c("both","off","greater","less"))
+        direction = c("both","off","greater","less","ascending","descending"),
+        direction_map = NULL)
 }
 \arguments{
   \item{x}{Attribute values (numeric, factor, character, or logical).}
@@ -61,21 +62,23 @@ oda_fit(x, y, w = NULL,
     MC iterations.}
   \item{mindenom}{Minimum raw observation count required in each child node
     for a candidate cut to be evaluated. Default 1 (no enforcement).}
-  \item{direction}{Directional hypothesis for binary ordered/binary ODA
-    (MPE Chapter 2 scope). \code{"both"} (default, non-directional; evaluates
-    both \code{"0->1"} and \code{"1->0"} directions) or its backward-compatible
-    synonym \code{"off"}, \code{"greater"} (Chapter 2 greater-than direction:
-    high attribute values predict class 1; MegaODA Appendix A
-    \code{DIRECTION < 0 1}; internal rule direction \code{"0->1"}), or
-    \code{"less"} (Chapter 2 less-than direction: low attribute values predict
-    class 1; MegaODA Appendix A \code{DIRECTION > 0 1}; internal rule direction
-    \code{"1->0"}).
-    Ordered and binary attributes only. Categorical attributes return
-    \code{ok = FALSE} with
-    \code{reason = "direction_not_supported_for_categorical"}.
-    Multiclass problems ignore \code{direction} with a warning.
-    MPE Chapter 4 categorical/table DIRECTIONAL is not yet implemented
-    (Phase 6C, tracked separately).}
+  \item{direction}{Directional hypothesis control.
+    \code{"both"} (default, non-directional) or its synonym \code{"off"}.
+    \code{"greater"} / \code{"less"}: MPE Chapter 2 binary ordered DIRECTIONAL
+    (high / low attribute values predict class 1; binary class only — error on
+    multiclass).
+    \code{"ascending"} / \code{"descending"}: MPE Chapter 4 DIRECTIONAL for
+    multiclass ordered (segment s maps to class s or C+1-s) or multiclass
+    categorical with L == C (auto-creates identity or reverse mapping). Error on
+    binary class (use \code{"greater"} / \code{"less"} for binary ordered).}
+  \item{direction_map}{Named integer vector for categorical fixed-partition
+    DIRECTIONAL (MPE Chapter 4). Names are attribute levels (character); values
+    are predicted class labels. All attribute levels must be covered exactly once
+    with at least two distinct target classes. When supplied, ODA evaluates only
+    the specified mapping and skips the partition search. For binary class, values
+    should be the original class labels (recoded to 0/1 internally). For
+    multiclass, values should be 1..C class labels. Compatible with
+    \code{direction = "both"} (default). Default \code{NULL}.}
 }
 \value{
 A named list with components:

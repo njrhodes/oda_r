@@ -41,20 +41,31 @@
 #' @param mc_stopup Confidence for upper-tail early stop (percent). Default 20.
 #' @param mc_seed Optional RNG seed for reproducibility.
 #' @param loo LOO mode: "off", "on" (multiclass), "stable", or "pvalue" (binary).
-#' @param direction Directional hypothesis for binary ordered/binary ODA
-#'   (MPE Chapter 2 scope). \code{"both"} (default, non-directional; evaluates
-#'   both "0->1" and "1->0" directions) or its backward-compatible synonym
-#'   \code{"off"}, \code{"greater"} (Chapter 2 greater-than direction: high
-#'   attribute values predict class 1; MegaODA Appendix A
-#'   \code{DIRECTION < 0 1}; internal rule direction "0->1"), or \code{"less"}
-#'   (Chapter 2 less-than direction: low attribute values predict class 1;
-#'   MegaODA Appendix A \code{DIRECTION > 0 1}; internal rule direction
-#'   "1->0").
-#'   Ordered and binary attributes only. Categorical attributes return
-#'   \code{ok = FALSE} with \code{reason = "direction_not_supported_for_categorical"}.
-#'   Multiclass problems ignore \code{direction} with a warning.
-#'   MPE Chapter 4 categorical/table DIRECTIONAL is not yet implemented
-#'   (Phase 6C, tracked separately).
+#' @param direction Directional hypothesis control.
+#'   \describe{
+#'     \item{\code{"both"} (default)}{Non-directional; evaluates all directions.
+#'       Backward-compatible synonym: \code{"off"}.}
+#'     \item{\code{"greater"}, \code{"less"}}{MPE Chapter 2 binary ordered
+#'       directional ODA. \code{"greater"}: high attribute values predict
+#'       class 1 (MegaODA \code{DIRECTION < 0 1}). \code{"less"}: low values
+#'       predict class 1 (MegaODA \code{DIRECTION > 0 1}). Binary/ordered
+#'       attributes only; error on multiclass.}
+#'     \item{\code{"ascending"}, \code{"descending"}}{MPE Chapter 4 ordered
+#'       or categorical identity-map DIRECTIONAL. For multiclass ordered:
+#'       constrains the segment-to-class assignment to be monotone ascending
+#'       (segment s \eqn{\to} class s) or descending. For multiclass categorical
+#'       with L == C: auto-creates identity or reverse \code{direction_map}.
+#'       Error on binary class (use \code{"greater"}/\code{"less"} instead).}
+#'   }
+#' @param direction_map Named integer (or numeric) vector for fixed-partition
+#'   categorical DIRECTIONAL (MPE Chapter 4). Names are attribute levels
+#'   (as character); values are predicted class labels. All levels must be
+#'   covered exactly once with at least two distinct target classes. When
+#'   supplied, ODA evaluates only the specified mapping and skips the
+#'   partition search. For binary class, values should be the original class
+#'   labels (recoded automatically to 0/1 internally). For multiclass, values
+#'   should be class labels 1..C. Compatible with \code{direction = "both"}
+#'   (the default); do not combine with \code{"greater"} or \code{"less"}.
 #' @param boundary_mode Boundary convention for multiclass ordered rules.
 #' @return Named list with ok, rule, ess, pac, p_mc, loo, n_eff, attr_type, engine.
 #' @export
@@ -78,7 +89,8 @@ oda_fit <- function(
     boundary_mode = c("megaoda_halfopen","right_closed"),
     eval_order   = c("mc_then_loo", "loo_then_mc"),
     mindenom     = 1L,
-    direction    = c("both", "off", "greater", "less")
+    direction    = c("both", "off", "greater", "less", "ascending", "descending"),
+    direction_map = NULL
 ) {
   attr_type     <- match.arg(attr_type)
   boundary_mode <- match.arg(boundary_mode)
@@ -112,12 +124,28 @@ oda_fit <- function(
       class = c("oda_fit_failed", "oda_fit")))
 
   if (C == 2L) {
+    # ascending/descending are Chapter 4 multiclass; error for binary
+    if (direction %in% c("ascending", "descending"))
+      stop("direction = '", direction, "' is for multiclass ordered ODA ",
+           "(MPE Chapter 4). For binary ordered ODA use direction = 'greater' ",
+           "or 'less' (MPE Chapter 2).", call. = FALSE)
+
     # Binary engine requires y in {0, 1}. Recode from arbitrary {a, b} → {0, 1}
     # so the caller's label space (e.g. {1,2}) is transparent to unioda_core.
     bin_labels <- sort(unique(as.integer(clean$y)))   # e.g. c(1L, 2L)
     y_coded    <- ifelse(as.integer(y) == bin_labels[1L], 0L, 1L)
     # Propagate NAs (miss_codes handled inside clean; raw NAs stay NA)
     y_coded[is.na(y)] <- NA_integer_
+
+    # Recode direction_map values from original label space to coded {0L, 1L}
+    dm_coded <- NULL
+    if (!is.null(direction_map)) {
+      dm_vals  <- as.integer(direction_map)
+      dm_coded <- stats::setNames(
+        ifelse(dm_vals == bin_labels[1L], 0L, 1L),
+        names(direction_map)
+      )
+    }
 
     loo_binary <- switch(as.character(loo),
       "off"    = "off",
@@ -128,19 +156,20 @@ oda_fit <- function(
     )
     fit <- oda_univariate_core(
       x = x, y = y_coded, w = w,
-      attr_type    = attr_type,
-      priors_on    = priors_on,
-      miss_codes   = miss_codes,
-      loo          = loo_binary,
-      mcarlo       = isTRUE(mcarlo),
-      mc_iter      = as.integer(mc_iter),
-      mc_target    = mc_target,
-      mc_stop      = mc_stop,
-      mc_stopup    = mc_stopup,
-      mc_seed      = mc_seed,
-      eval_order   = eval_order,
-      mindenom     = mindenom,
-      direction    = direction
+      attr_type     = attr_type,
+      priors_on     = priors_on,
+      miss_codes    = miss_codes,
+      loo           = loo_binary,
+      mcarlo        = isTRUE(mcarlo),
+      mc_iter       = as.integer(mc_iter),
+      mc_target     = mc_target,
+      mc_stop       = mc_stop,
+      mc_stopup     = mc_stopup,
+      mc_seed       = mc_seed,
+      eval_order    = eval_order,
+      mindenom      = mindenom,
+      direction     = direction,
+      direction_map = dm_coded
     )
 
     # Remap rule and confusion back to original label space.
@@ -160,10 +189,15 @@ oda_fit <- function(
   }
 
   # Multiclass engine (C >= 3)
-  if (direction != "off")
-    warning("direction is currently supported for binary ordered ODA only ",
-            "(MPE Chapter 2 scope); it will be ignored for multiclass problems. ",
-            "Multiclass directional semantics are Phase 6C (not yet implemented).")
+  # "greater"/"less" are Chapter 2 binary-only; warn and ignore
+  if (direction %in% c("greater", "less"))
+    warning("direction = '", direction, "' (MPE Chapter 2) is for binary ordered ODA ",
+            "only and will be ignored for multiclass problems. ",
+            "For multiclass directional ODA use direction = 'ascending' or 'descending', ",
+            "or supply a direction_map.", call. = FALSE)
+  # "ascending"/"descending" are valid for multiclass — pass through
+  direction_multi <- if (direction %in% c("ascending", "descending")) direction else "off"
+
   loo_multi <- if (loo == "off") "off" else "on"
   fit <- oda_multiclass_unioda_core(
     x = x, y = y, w = w,
@@ -179,7 +213,9 @@ oda_fit <- function(
     mc_stopup     = mc_stopup,
     mc_seed       = mc_seed,
     loo           = loo_multi,
-    boundary_mode = boundary_mode
+    boundary_mode = boundary_mode,
+    direction     = direction_multi,
+    direction_map = direction_map
   )
   fit$engine        <- "multiclass"
   fit$priors_on     <- priors_on

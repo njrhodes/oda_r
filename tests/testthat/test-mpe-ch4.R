@@ -90,13 +90,36 @@ test_that("Bowker Table 4.1: ordered training ESS approx 93.7", {
   # When DIRECTIONAL is added, expect p_mc < 0.0001 with directional Fisher.
 })
 
-test_that("Bowker Table 4.1: DIRECTIONAL ordered multiclass p_mc < 0.0001 [deferred]", {
+test_that("Bowker Table 4.1: DIRECTIONAL ordered multiclass p_mc < 0.0001", {
+  skip_if_not_full("MPE Chapter 4 canon")
   # MPE Chapter 4: Bowker/stability, DIRECTIONAL < 1 2 3 4.
-  # Future anchors when multiclass DIRECTIONAL MC is implemented:
-  #   ESS ≈ 93.7, diagonal correctly classified count = 53295,
-  #   p_mc < 0.0001 with directional Fisher.
-  # LOO not part of this target unless MPE declares it.
-  skip("multiclass DIRECTIONAL not implemented: target Bowker DIRECTIONAL < 1 2 3 4, ESS \u2248 93.7, p_mc < 0.0001")
+  # direction = "ascending" constrains segment s --> class s (MPE Chapter 4 ordered).
+  # Anchors: ESS ≈ 93.7, diagonal = 53295, p_mc < 0.0001.
+  # LOO not declared by MPE for this analysis.
+  bowker <- matrix(c(
+    11607,   100,   366,   124,
+       87, 13677,   515,   302,
+      172,   225, 17819,   270,
+       63,   176,   286, 10192
+  ), nrow = 4L, byrow = TRUE)
+
+  d <- .expand_table(t(bowker), class_vals = 1:4, attr_vals = 1:4)
+
+  set.seed(42L)
+  fit <- oda_fit(d$x, d$y,
+                 attr_type = "ordered",
+                 priors_on = TRUE,
+                 loo       = "off",
+                 mc_iter   = 10000L,
+                 direction = "ascending")
+
+  expect_true(fit$ok)
+  expect_equal(fit$ess, 93.7, tolerance = 0.1)
+  expect_equal(fit$rule$type, "multiclass_ordered")
+  expect_equal(fit$rule$cut_values, c(1.5, 2.5, 3.5))
+  expect_equal(fit$rule$seg_classes, 1:4)
+  expect_equal(sum(diag(fit$confusion)), 53295L)
+  expect_lt(fit$p_mc, 0.0001)
 })
 
 # ---- Marginal Dissymmetry (MPE Table 4.1 off-diagonal) ----------------------
@@ -249,16 +272,16 @@ test_that("Pinckney Table 4.4: residual categorical training ESS approx 40.9", {
 
 # ---- Political affiliation (MPE Chapter 4) ----------------------------------
 
-test_that("Political affiliation: categorical multiclass DIRECTIONAL p < 0.0001 [deferred]", {
+test_that("Political affiliation: categorical multiclass DIRECTIONAL p < 0.0001 [data unavailable]", {
   # MPE Chapter 4: political affiliation, categorical multiclass.
   # MegaODA commands: CATEGORICAL ON; TABLE 7; CLASS ROW;
   #   DIRECTIONAL < 1 2 3 4 5 6 7; MCARLO ITER 10000; GO;
   # Directional hypothesis: student and parent have same political affiliation.
-  # Future anchors when categorical multiclass DIRECTIONAL is implemented:
-  #   ESS = 19.4, ESP = 17.9, p < 0.0001.
+  # Anchors (when data available): ESS = 19.4, ESP = 17.9, p < 0.0001.
   # LOO is superfluous when class categories equal attribute categories (k = C)
   # and a directional hypothesis is specified; LOO off / not applicable.
-  skip("categorical multiclass DIRECTIONAL not implemented: target political affiliation DIRECTIONAL < 1..7, ESS 19.4, ESP 17.9, p < 0.0001, LOO superfluous")
+  # Implementation: direction = "ascending" with L == C auto-creates identity map.
+  skip("data unavailable: the 7x7 political affiliation table is not in the package data. direction='ascending' for categorical k=C DIRECTIONAL is implemented (Phase 6C).")
 })
 
 # ---- Bray-Curtis (MPE Table 4.2) --------------------------------------------

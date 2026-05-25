@@ -61,9 +61,16 @@ table(amino_acid_type, biological_type,
 
 ## Fit the ODA model
 
-Amino acid type is a four-category nominal variable; ODA scans it with the
-categorical flag, consistent with the MegaODA reference analysis. Leave-one-out
-(LOO) jackknife is not conducted for multicategorical class variables.
+Amino acid type is a four-category nominal variable. Because the directional
+hypothesis is convergent validity — amino acid type codes equal biological type
+codes — and there are exactly as many attribute categories as class values
+(k = C = 4), `direction = "ascending"` is used. This constrains ODA to the
+identity mapping (amino acid type i → biological type i) without searching
+other partitions. ODA evaluates the identity rule and conducts the MC
+permutation test under the same constraint — a directional hypothesis test
+consistent with MPE Chapter 4 categorical identity-map DIRECTIONAL (Phase 6C).
+Leave-one-out (LOO) jackknife is not conducted for multicategorical class
+variables.
 
 ```{r fit-canonical, eval=FALSE}
 # Canonical reference run (mc_iter = 25000L; not evaluated in CRAN vignette)
@@ -71,6 +78,7 @@ fit <- oda_fit(
   x         = amino_acid_type,
   y         = biological_type,
   attr_type = "categorical",
+  direction = "ascending",
   mc_iter   = 25000L,
   loo       = "off"
 )
@@ -83,6 +91,7 @@ fit <- oda_fit(
   x         = amino_acid_type,
   y         = biological_type,
   attr_type = "categorical",
+  direction = "ascending",
   mc_iter   = 500L,
   mc_seed   = 42L,
   loo       = "off"
@@ -151,14 +160,17 @@ cat("  Type 4:", round(pv[4], 1), "%\n")
 
 ## Monte Carlo validity
 
-The nondirectional MC p-value is shown in the `summary` output above.
+The directional MC p-value is shown in the `summary` output above.
 
-- **MC p-value:** The printed `p(MC)` is a nondirectional Fisher-randomization
-  p-value. Interpret by decision threshold (e.g., p < 0.05).
+- **MC p-value:** The printed `p(MC)` is a directional Fisher-randomization
+  p-value. Because `direction = "ascending"` constrains each permutation to
+  evaluate only the identity mapping, the p-value is one-tailed — consistent
+  with the *a priori* convergent-validity hypothesis. Interpret by decision
+  threshold (e.g., p < 0.05).
 - **LOO:** Leave-one-out jackknife is not conducted for multicategorical class
   variables.
 
-## Notes on reproducibility and current scope
+## Notes on reproducibility
 
 **Fixture parity.** The training rule, confusion matrix, and ESS are verified
 against MegaODA.exe output in the package test suite
@@ -168,11 +180,11 @@ against MegaODA.exe output in the package test suite
 in this CRAN vignette. Use the canonical run with `mc_iter = 25000L` (chunk
 `fit-canonical`, `eval=FALSE`) for publication-quality results.
 
-**Directional analysis.** The original analysis specified a *directional*
-hypothesis (convergent validity: amino acid type codes equal biological type
-codes). This is a multiclass categorical directional hypothesis (MPE Chapter 4
-TABLE/DIRECTIONAL). MPE Chapter 2 binary ordered directional ODA is implemented
-via `direction = c("greater", "less")` in `oda_fit()` and `oda_univariate_core()`.
-Multiclass and categorical/table DIRECTIONAL is Phase 6C (not yet implemented);
-the current nondirectional MC p-value is conservative relative to the
-directional alternative.
+**Directional analysis.** `direction = "ascending"` implements MPE Chapter 4
+categorical identity-map DIRECTIONAL (Phase 6C): with k = C = 4 attribute
+categories and class values, `"ascending"` auto-creates the identity mapping
+(amino acid type i → biological type i) and constrains both training and MC
+permutations to this mapping. Because the identity rule is the globally optimal
+categorical mapping for this dataset, training ESS is unchanged relative to a
+nondirectional analysis; only the MC p-value changes (directional p is at most
+half the nondirectional p, and typically much smaller).

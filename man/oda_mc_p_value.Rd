@@ -21,7 +21,8 @@ oda_mc_p_value(
   mc_adjust = FALSE,
   seed = NULL,
   ess_obs = NULL,
-  direction = c("both", "off", "greater", "less")
+  direction = c("both", "off", "greater", "less"),
+  direction_map = NULL
 )
 }
 \arguments{
@@ -54,6 +55,10 @@ oda_mc_p_value(
 \item{direction}{Directional constraint forwarded from oda_univariate_core():
 "both" (canonical non-directional default), "off" (synonym for "both"),
 "greater", or "less". Each permutation refit uses the same constraint.}
+
+\item{direction_map}{Named integer vector for categorical fixed-partition
+DIRECTIONAL. When supplied, each permutation evaluates the SAME fixed
+mapping on permuted y labels. Default NULL.}
 }
 \value{
 List with p_mc, ge_count, iter_used, ess_obs.

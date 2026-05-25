@@ -116,7 +116,7 @@ Modes:
 
 For CTA, LOO applies to every attribute used in the tree, not only to the final tree confusion.
 
-## DIRECTION (MPE Chapter 2 binary ordered)
+## DIRECTION (MPE Chapter 2 binary ordered — Phase 6A/6B)
 
 Canonical MegaODA Appendix A command shape:
 
@@ -125,7 +125,7 @@ DIRECTION < 0 1   -- high values predict class 1 ("greater" / "0->1")
 DIRECTION > 0 1   -- low values predict class 1  ("less"  / "1->0")
 ```
 
-R `direction` parameter values and mapping:
+R `direction` parameter values and mapping for binary ordered/binary:
 
 | `direction`  | Meaning                                              | Internal      |
 |--------------|------------------------------------------------------|---------------|
@@ -140,11 +140,50 @@ Implementation scope (Phase 6A/6B — complete):
 - LOO fold refits: directional constraint applied identically in each fold refit.
 - LOO Fisher `alternative`: `"two.sided"` for `"both"`/`"off"`; `"greater"` for directional.
 
-Categorical attributes: directional analysis is not supported (MPE Chapter 4
-TABLE/DIRECTIONAL semantics). Requesting a directional fit on a categorical attribute
-returns `ok = FALSE` with `reason = "direction_not_supported_for_categorical"`.
+Binary class errors: `"ascending"` and `"descending"` are rejected for binary class
+(Chapter 4 semantics require multiclass). Use `"greater"` or `"less"` instead.
 
-MPE Chapter 4 categorical/table DIRECTIONAL is Phase 6C (not yet implemented).
+Categorical attributes + Chapter 2 direction: `direction` in `{"greater","less"}` with
+categorical attribute returns `ok = FALSE` with `reason = "direction_not_supported_for_categorical"`.
+Use `direction_map` for categorical directional hypotheses.
+
+## DIRECTION (MPE Chapter 4 categorical/table DIRECTIONAL — Phase 6C)
+
+Two additional direction values for multiclass and categorical identity-map DIRECTIONAL:
+
+| `direction`     | Meaning                                                    | Scope              |
+|-----------------|------------------------------------------------------------|--------------------|
+| `"ascending"`   | Segment/level s → class s (identity / ascending order)    | multiclass ordered + categorical k=C |
+| `"descending"`  | Segment/level s → class C+1-s (reverse order)             | multiclass ordered + categorical k=C |
+
+**Multiclass ordered (`direction = "ascending"` or `"descending"`):**
+- Constrains the segment-to-class assignment in `oda_best_ordered_multiclass_partition()`.
+- For each cut position, only the ascending (s→s) or descending (s→C+1-s) assignment
+  is evaluated; no other assignments are considered.
+- MC permutation: same direction constraint applied per permutation refit.
+- Covers MPE Chapter 4 stability analysis (Bowker Table 4.1 DIRECTIONAL < 1 2 3 4).
+
+**Multiclass categorical, k = C (`direction = "ascending"`):**
+- When L == C, auto-creates identity `direction_map` = setNames(1..C, attribute_levels).
+- When L != C and no `direction_map` supplied: error (must supply `direction_map`).
+- Covers MPE Chapter 4 political affiliation and protein convergent validity.
+
+**`direction_map` parameter (categorical fixed-partition DIRECTIONAL):**
+- Named integer vector: names = attribute levels (character), values = predicted class labels.
+- For binary class: values 0/1 in coded space (recoded by `oda_fit()` from original labels).
+- For multiclass: values 1..C in internal encoded space.
+- All attribute levels must be covered exactly once; at least two distinct classes.
+- Bypasses the partition search entirely; evaluates only the specified mapping.
+- MC permutation: each permutation evaluates the SAME fixed mapping on permuted y labels.
+- LOO: with fixed categorical rule, predictions are determined by x alone → trivially stable.
+- Covers MPE Chapter 4 gully erosion example (fixed partition, k ≠ C).
+
+**Compatible combinations:**
+- `direction = "both"` (default) + `direction_map` = nondirectional fit with a fixed partition.
+- `direction = "ascending"` + categorical + L==C = auto identity map (Chapter 4 ascending).
+- `direction = "ascending"` + categorical + L≠C + `direction_map` = custom fixed partition.
+- `direction = "ascending"` + ordered + multiclass = constrained segment-to-class (Chapter 4).
+- `direction = "greater"/"less"` + binary ordered = Chapter 2 directional (existing).
 
 ## Public Wrapper Policy
 

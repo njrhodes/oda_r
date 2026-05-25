@@ -244,6 +244,9 @@ oda_apply_primary_secondary <- function(cand_df, primary, secondary, y, w,
 #' @param direction  Directional constraint forwarded from oda_univariate_core():
 #'   "both" (canonical non-directional default), "off" (synonym for "both"),
 #'   "greater", or "less". Each permutation refit uses the same constraint.
+#' @param direction_map  Named integer vector for categorical fixed-partition
+#'   DIRECTIONAL. When supplied, each permutation evaluates the SAME fixed
+#'   mapping on permuted y labels. Default NULL.
 #' @return List with p_mc, ge_count, iter_used, ess_obs.
 oda_mc_p_value <- function(
     x, y,
@@ -261,7 +264,8 @@ oda_mc_p_value <- function(
     mc_adjust    = FALSE,
     seed         = NULL,
     ess_obs      = NULL,
-    direction    = c("both", "off", "greater", "less")
+    direction    = c("both", "off", "greater", "less"),
+    direction_map = NULL
 ) {
   chance_model <- match.arg(chance_model)
   direction    <- match.arg(direction)
@@ -291,21 +295,22 @@ oda_mc_p_value <- function(
 
     fit_b <- oda_univariate_core(
       x = x, y = y_star, w = w,
-      attr_type    = attr_type,
-      priors_on    = priors_on,
-      primary      = primary,
-      secondary    = secondary,
-      miss_codes   = miss_codes,
-      loo          = "off",
-      mcarlo       = FALSE,
-      mc_iter      = 0L,
-      mc_target    = mc_target,
-      mc_stop      = mc_stop,
-      mc_stopup    = mc_stopup,
-      mc_adjust    = mc_adjust,
-      mc_seed      = NULL,
-      chance_model = chance_model,
-      direction    = direction
+      attr_type     = attr_type,
+      priors_on     = priors_on,
+      primary       = primary,
+      secondary     = secondary,
+      miss_codes    = miss_codes,
+      loo           = "off",
+      mcarlo        = FALSE,
+      mc_iter       = 0L,
+      mc_target     = mc_target,
+      mc_stop       = mc_stop,
+      mc_stopup     = mc_stopup,
+      mc_adjust     = mc_adjust,
+      mc_seed       = NULL,
+      chance_model  = chance_model,
+      direction     = direction,
+      direction_map = direction_map
     )
 
     ess_b <- if (!isTRUE(fit_b$ok)) 0 else fit_b$ess
@@ -497,7 +502,8 @@ oda_loo_for_rule <- function(
     mc_stopup  = NA_real_,
     mc_adjust  = FALSE,
     mc_seed    = NULL,
-    direction  = c("both", "off", "greater", "less")
+    direction  = c("both", "off", "greater", "less"),
+    direction_map = NULL
 ) {
   chance_model <- match.arg(chance_model)
   attr_type    <- match.arg(attr_type)
@@ -572,23 +578,33 @@ oda_loo_for_rule <- function(
         }
       }
 
+      # Fixed categorical rule (direction_map supplied): predictions are
+      # determined entirely by x, not training data.  Apply training rule.
+      if (identical(rule$type, "nominal_cut") && !is.null(direction_map)) {
+        if (!is.na(x[i])) {
+          y_pred_loo[i] <- oda_rule_predict(x[i], rule)
+          next
+        }
+      }
+
       fit_i <- oda_univariate_core(
         x = x[keep], y = y[keep], w = w[keep],
-        attr_type    = attr_type,
-        priors_on    = priors_on,
-        primary      = primary,
-        secondary    = secondary,
-        miss_codes   = miss_codes,
-        loo          = "off",
-        mcarlo       = FALSE,
-        mc_iter      = mc_iter,
-        mc_target    = mc_target,
-        mc_stop      = mc_stop,
-        mc_stopup    = mc_stopup,
-        mc_adjust    = mc_adjust,
-        mc_seed      = if (is.null(mc_seed)) NULL else mc_seed + i,
-        chance_model = chance_model,
-        direction    = direction
+        attr_type     = attr_type,
+        priors_on     = priors_on,
+        primary       = primary,
+        secondary     = secondary,
+        miss_codes    = miss_codes,
+        loo           = "off",
+        mcarlo        = FALSE,
+        mc_iter       = mc_iter,
+        mc_target     = mc_target,
+        mc_stop       = mc_stop,
+        mc_stopup     = mc_stopup,
+        mc_adjust     = mc_adjust,
+        mc_seed       = if (is.null(mc_seed)) NULL else mc_seed + i,
+        chance_model  = chance_model,
+        direction     = direction,
+        direction_map = direction_map
       )
 
       if (!isTRUE(fit_i$ok)) {
@@ -701,7 +717,8 @@ oda_univariate_core <- function(
     chance_model = c("class","attribute"),
     eval_order   = c("mc_then_loo", "loo_then_mc"),
     mindenom     = 1L,
-    direction    = c("both", "off", "greater", "less")
+    direction    = c("both", "off", "greater", "less"),
+    direction_map = NULL
 ) {
   chance_model <- match.arg(chance_model)
   loo          <- match.arg(loo)
@@ -746,6 +763,10 @@ oda_univariate_core <- function(
   k_attr      <- NA_integer_
 
   # 6. Enumerate admissible rules -------------------------------------------
+
+  # Placeholder for rule built from direction_map (categorical fixed-partition).
+  # Set in the categorical branch; used in step 9 to skip reconstruction.
+  rule_from_dmap <- NULL
 
   # Accumulate candidate fields as parallel vectors; build cand_df once after
   # enumeration. Avoids repeated data.frame() + deparse + make.names overhead
@@ -812,23 +833,50 @@ oda_univariate_core <- function(
     k_attr <- length(levs)
     if (k_attr < 2L) return(list(ok = FALSE, reason = "no_levels", type = "leaf"))
 
-    # Order by weighted class-1 rate
-    p1 <- sapply(levs, function(l) {
-      wl <- w[x_fac == l]; yl <- y[x_fac == l]
-      if (sum(wl) == 0) NA_real_ else sum(wl * yl) / sum(wl)
-    })
-    levs_ord <- levs[order(p1, na.last = TRUE)]
+    if (!is.null(direction_map)) {
+      # Fixed-partition directional: evaluate only the specified mapping.
+      dm_names <- as.character(names(direction_map))
+      dm_vals  <- as.integer(direction_map)
+      if (!setequal(dm_names, levs))
+        return(list(ok = FALSE,
+                    reason = "direction_map_levels_mismatch",
+                    type   = "leaf"))
+      if (!all(dm_vals %in% c(0L, 1L)))
+        return(list(ok = FALSE,
+                    reason = "direction_map_values_not_binary",
+                    type   = "leaf"))
+      left_levels  <- dm_names[dm_vals == 0L]
+      right_levels <- dm_names[dm_vals == 1L]
+      if (length(left_levels) == 0L || length(right_levels) == 0L)
+        return(list(ok = FALSE,
+                    reason = "direction_map_one_sided",
+                    type   = "leaf"))
+      # Build and register the single fixed rule
+      rule_from_dmap <- list(type        = "nominal_cut",
+                             direction   = "0->1",
+                             left_levels = left_levels,
+                             right_levels = right_levels)
+      add_candidate(rule_from_dmap, j_index = NA_integer_)
+    } else {
+      # Nondirectional: exhaustive ordered partition search
+      # Order by weighted class-1 rate
+      p1 <- sapply(levs, function(l) {
+        wl <- w[x_fac == l]; yl <- y[x_fac == l]
+        if (sum(wl) == 0) NA_real_ else sum(wl * yl) / sum(wl)
+      })
+      levs_ord <- levs[order(p1, na.last = TRUE)]
 
-    for (j in seq_len(k_attr - 1L)) {
-      n_left  <- sum(x_fac %in% levs_ord[seq_len(j)])
-      n_right <- sum(x_fac %in% levs_ord[(j + 1L):k_attr])
-      if (n_left < mindenom || n_right < mindenom) next
-      left  <- levs_ord[seq_len(j)]
-      right <- levs_ord[(j + 1L):k_attr]
-      for (dir in c("0->1","1->0")) {
-        rule <- list(type="nominal_cut", direction=dir,
-                     left_levels=left, right_levels=right)
-        add_candidate(rule, j_index = j)
+      for (j in seq_len(k_attr - 1L)) {
+        n_left  <- sum(x_fac %in% levs_ord[seq_len(j)])
+        n_right <- sum(x_fac %in% levs_ord[(j + 1L):k_attr])
+        if (n_left < mindenom || n_right < mindenom) next
+        left  <- levs_ord[seq_len(j)]
+        right <- levs_ord[(j + 1L):k_attr]
+        for (dir in c("0->1","1->0")) {
+          rule <- list(type="nominal_cut", direction=dir,
+                       left_levels=left, right_levels=right)
+          add_candidate(rule, j_index = j)
+        }
       }
     }
   }
@@ -910,24 +958,29 @@ oda_univariate_core <- function(
     rule_best <- list(type="binary_map", direction=best_row$direction,
                       left_levels=levs[1], right_levels=levs[2])
   } else if (attr_type == "categorical") {
-    x_fac     <- factor(x)
-    levs      <- levels(x_fac)
-    p1        <- sapply(levs, function(l) {
-      wl <- w[x_fac == l]; yl <- y[x_fac == l]
-      if (sum(wl) == 0) NA_real_ else sum(wl * yl) / sum(wl)
-    })
-    levs_ord  <- levs[order(p1, na.last = TRUE)]
-    j         <- best_row$j
-    left_raw  <- levs_ord[seq_len(j)]
-    right_raw <- levs_ord[(j + 1L):length(levs_ord)]
-    # MegaODA convention: left always = side predicting 0
-    if (best_row$direction == "0->1") {
-      left_lev <- left_raw;  right_lev <- right_raw
+    if (!is.null(rule_from_dmap)) {
+      # Fixed-partition rule already fully constructed above
+      rule_best <- rule_from_dmap
     } else {
-      left_lev <- right_raw; right_lev <- left_raw
+      x_fac     <- factor(x)
+      levs      <- levels(x_fac)
+      p1        <- sapply(levs, function(l) {
+        wl <- w[x_fac == l]; yl <- y[x_fac == l]
+        if (sum(wl) == 0) NA_real_ else sum(wl * yl) / sum(wl)
+      })
+      levs_ord  <- levs[order(p1, na.last = TRUE)]
+      j         <- best_row$j
+      left_raw  <- levs_ord[seq_len(j)]
+      right_raw <- levs_ord[(j + 1L):length(levs_ord)]
+      # MegaODA convention: left always = side predicting 0
+      if (best_row$direction == "0->1") {
+        left_lev <- left_raw;  right_lev <- right_raw
+      } else {
+        left_lev <- right_raw; right_lev <- left_raw
+      }
+      rule_best <- list(type="nominal_cut", direction=best_row$direction,
+                        left_levels=left_lev, right_levels=right_lev)
     }
-    rule_best <- list(type="nominal_cut", direction=best_row$direction,
-                      left_levels=left_lev, right_levels=right_lev)
   } else {
     rule_best <- list(type="ordered_cut", direction=best_row$direction,
                       cut_value=best_row$cut_value)
@@ -969,20 +1022,21 @@ oda_univariate_core <- function(
   if (isTRUE(mcarlo)) {
     mc_res <- oda_mc_p_value(
       x = x, y = y, w = w_raw,  # raw weights; MC loop re-applies priors per permutation
-      attr_type    = attr_type,
-      priors_on    = priors_on,
-      primary      = primary,
-      secondary    = secondary,
-      miss_codes   = miss_codes,
-      chance_model = chance_model,
-      mc_iter      = mc_iter,
-      mc_target    = mc_target,
-      mc_stop      = mc_stop,
-      mc_stopup    = mc_stopup,
-      mc_adjust    = mc_adjust,
-      seed         = mc_seed,
-      ess_obs      = ess_obj,
-      direction    = direction
+      attr_type     = attr_type,
+      priors_on     = priors_on,
+      primary       = primary,
+      secondary     = secondary,
+      miss_codes    = miss_codes,
+      chance_model  = chance_model,
+      mc_iter       = mc_iter,
+      mc_target     = mc_target,
+      mc_stop       = mc_stop,
+      mc_stopup     = mc_stopup,
+      mc_adjust     = mc_adjust,
+      seed          = mc_seed,
+      ess_obs       = ess_obj,
+      direction     = direction,
+      direction_map = direction_map
     )
     p_mc <- mc_res$p_mc
   }
@@ -992,20 +1046,21 @@ oda_univariate_core <- function(
   if (loo != "off") {
     loo_out <- oda_loo_for_rule(
       x = x, y = y, rule = rule_best, w = w_raw,
-      chance_model = chance_model,
-      k_attr       = k_attr,
-      attr_type    = attr_type,
-      priors_on    = priors_on,
-      primary      = primary,
-      secondary    = secondary,
-      miss_codes   = miss_codes,
-      mc_iter      = mc_iter,
-      mc_target    = mc_target,
-      mc_stop      = mc_stop,
-      mc_stopup    = mc_stopup,
-      mc_adjust    = mc_adjust,
-      mc_seed      = if (is.null(mc_seed)) NULL else mc_seed + 1L,
-      direction    = direction
+      chance_model  = chance_model,
+      k_attr        = k_attr,
+      attr_type     = attr_type,
+      priors_on     = priors_on,
+      primary       = primary,
+      secondary     = secondary,
+      miss_codes    = miss_codes,
+      mc_iter       = mc_iter,
+      mc_target     = mc_target,
+      mc_stop       = mc_stop,
+      mc_stopup     = mc_stopup,
+      mc_adjust     = mc_adjust,
+      mc_seed       = if (is.null(mc_seed)) NULL else mc_seed + 1L,
+      direction     = direction,
+      direction_map = direction_map
     )
 
     if (isTRUE(loo_out$allowed)) {

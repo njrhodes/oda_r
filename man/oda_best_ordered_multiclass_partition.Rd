@@ -16,7 +16,8 @@ oda_best_ordered_multiclass_partition(
   secondary = NULL,
   cut_value_mode = c("midpoint", "lower", "upper"),
   debug_return_ties = FALSE,
-  debug_max_ties = 200L
+  debug_max_ties = 200L,
+  direction = "off"
 )
 }
 \arguments{
@@ -39,6 +40,10 @@ oda_best_ordered_multiclass_partition(
 \item{debug_return_ties}{Return all primary-tied candidates for diagnostics.}
 
 \item{debug_max_ties}{Cap on number of ties stored.}
+
+\item{direction}{Directional constraint (MPE Chapter 4 ordered DIRECTIONAL).
+"ascending" forces segment s to map to class s; "descending" forces class
+C+1-s. Default "off" (nondirectional; all assignments evaluated).}
 }
 \value{
 List with ok, cuts_idx, cut_values, seg_cls_idx, primary_obj,
