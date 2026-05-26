@@ -228,10 +228,38 @@ oda_fit <- function(
 
 # ---- cta_fit: public wrapper for CTA ----------------------------------------
 
-cta_fit <- function(X, y, verbose = FALSE, ...) {
+cta_fit <- function(X, y, verbose = FALSE,
+                    recursive = FALSE,
+                    min_n     = 30L,
+                    max_depth = 8L,
+                    max_nodes = 31L,
+                    ...) {
   cls <- sort(unique(y[!is.na(y)]))
   if (length(cls) != 2L) {
     stop("cta_fit currently supports binary class variables only", call. = FALSE)
+  }
+  if (isTRUE(recursive)) {
+    dots <- list(...)
+    if ("mindenom" %in% names(dots)) {
+      stop(paste0(
+        "When recursive = TRUE, mindenom is selected by a per-node MDSA ",
+        "family scan. Do not supply mindenom."
+      ), call. = FALSE)
+    }
+    return(.cta_ort_fit(
+      X           = X,
+      y           = y,
+      w           = dots$w,
+      mc_seed     = dots$mc_seed     %||% 42L,
+      mc_iter     = dots$mc_iter     %||% 5000L,
+      alpha_split = dots$alpha_split %||% 0.05,
+      prune_alpha = dots$prune_alpha %||% 0.05,
+      loo         = dots$loo         %||% "stable",
+      min_n       = min_n,
+      max_depth   = max_depth,
+      max_nodes   = max_nodes,
+      verbose     = verbose
+    ))
   }
   oda_cta_fit(X = X, y = y, verbose = verbose, ...)
 }
