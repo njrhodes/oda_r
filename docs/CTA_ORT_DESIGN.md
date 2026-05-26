@@ -450,6 +450,13 @@ be added as a smoke-tier fixture.
   accessible via `$ort_nodes[[i]]$model` but not printed by default.
 - **Weighted ORT canon parity:** Case weights flow through to each sub-fit but
   weighted ORT is not tested against CTA.exe canon in v1.
+- **`min_target_n` / `min_class_n` guard (backlog):** In rare-event clinical
+  classification, total `min_n` is insufficient to replicate conservative
+  manual stopping rules. A future guard like `min_class_n = NULL` would
+  terminate recursion when any terminal child stratum contains fewer than
+  `min_class_n` cases of the target class. This would let ORT mimic rules
+  such as "stop when < 17 target-class cases per stratum." Not in v1; add
+  when a use case requires it.
 
 ---
 
