@@ -223,3 +223,64 @@ test_that("cta_fit recursive: different mc_seed stored in ort_settings", {
   expect_equal(ort_a$ort_settings$mc_seed, 42L)
   expect_equal(ort_b$ort_settings$mc_seed, 99L)
 })
+
+# ---------------------------------------------------------------------------
+# Hardening tests (Tests 17-21)
+# ---------------------------------------------------------------------------
+
+# Test 17: predict type = "stratum" and type = "path" return correct types
+test_that("predict.cta_ort: type='stratum' is integer, type='path' is character", {
+  ort <- do.call(cta_fit, syn_ort_args)
+  expect_true(is.integer(predict(ort, syn_X, type = "stratum")))
+  expect_equal(length(predict(ort, syn_X, type = "stratum")), nrow(syn_X))
+  expect_true(is.character(predict(ort, syn_X, type = "path")))
+  expect_equal(length(predict(ort, syn_X, type = "path")), nrow(syn_X))
+})
+
+# Test 18: predict with NA in split attribute returns NA (missing_action = "na")
+test_that("predict.cta_ort: NA in root-split attribute returns NA with missing_action='na'", {
+  ort     <- do.call(cta_fit, syn_ort_args)
+  new_row <- syn_X[1L, ]
+  new_row$A <- NA_integer_   # A is the root split attribute
+  pred <- predict(ort, new_row, type = "all", missing_action = "na")
+  expect_true(is.na(pred$predicted_class[1L]))
+  expect_true(is.na(pred$stratum_id[1L]))
+})
+
+# Test 19: no-tree root (min_n guard) -- predict assigns majority class to all rows
+test_that("predict.cta_ort: no-tree root assigns majority class, no NAs", {
+  ort <- cta_fit(syn_X, syn_y, recursive = TRUE,
+                 min_n   = nrow(syn_X) + 1L,
+                 mc_iter = 100L, mc_seed = 42L, loo = "off")
+  pred <- predict(ort, syn_X, type = "all")
+  # All rows assigned; no NA stratum_ids
+  expect_true(all(!is.na(pred$stratum_id)))
+  expect_equal(length(unique(pred$stratum_id)), 1L)
+  # Majority class of syn_y is 0 (40 zeros, 20 ones)
+  expect_true(all(pred$predicted_class == 0L, na.rm = TRUE))
+})
+
+# Test 20: max_nodes guard produces stop_reason "max_nodes" and does not error
+test_that("cta_fit recursive: max_nodes = 1 produces max_nodes stop_reason", {
+  ort <- cta_fit(syn_X, syn_y, recursive = TRUE,
+                 max_nodes = 1L,
+                 mc_iter   = 100L, mc_seed = 42L, loo = "off",
+                 min_n     = 5L)
+  term_nodes   <- Filter(function(nd) isTRUE(nd$is_terminal), ort$ort_nodes)
+  stop_reasons <- vapply(term_nodes, `[[`, character(1L), "stop_reason")
+  expect_true(all(stop_reasons == "max_nodes"))
+  # predict must not error
+  pred <- predict(ort, syn_X, type = "all")
+  expect_equal(nrow(pred), nrow(syn_X))
+  expect_true(all(!is.na(pred$stratum_id)))
+})
+
+# Test 21: non-recursive cta_fit result is not cta_ort
+test_that("cta_fit non-recursive: result is cta_tree but not cta_ort", {
+  tree <- cta_fit(syn_X, syn_y,
+                  recursive = FALSE,
+                  mindenom  = 1L,
+                  mc_iter   = 100L, mc_seed = 42L, loo = "off")
+  expect_false(inherits(tree, "cta_ort"))
+  expect_true(inherits(tree, "cta_tree"))
+})

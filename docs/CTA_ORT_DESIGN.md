@@ -179,34 +179,37 @@ Each node in the composite tree is a list stored under `$ort_nodes`:
 
 ```r
 list(
-  node_id        = integer,    # unique across the entire composite tree
-  parent_id      = integer,    # 0 for root
-  depth          = integer,    # recursion depth (root = 0)
-  endpoint_index = integer,    # 1 = right, 2 = left (NA for root)
+  node_id         = integer,    # unique across the entire composite tree
+  depth           = integer,    # recursion depth (root = 0)
 
-  path           = character,  # full conjunction: "v21>0.5 & v20<=0.5"
-  path_parts     = list,       # structured: list(attr, direction, cut) per split
+  path            = character,  # full conjunction string: "v21>0.5 AND v20<=0.5"
+  path_conditions = character,  # character vector of per-level conditions
 
-  n              = integer,    # n in this subset
-  class_counts   = integer,    # raw class counts [C]
+  n               = integer,    # n in this subset
+  class_counts    = integer,    # named raw class counts (e.g. c("0"=18, "1"=2))
 
-  # Traversal data — stored for auditability
-  level_mindenom = integer,    # MINDENOM of the MDSA min-D model selected here
-  level_ess      = numeric,    # ESS of the model selected here (NA if no-tree)
-  level_d        = numeric,    # D-statistic of the model selected here (NA if no-tree)
-  path_ess       = numeric,    # vector of ESS from root to this node
+  # Traversal data -- stored for auditability
+  level_mindenom  = integer,    # MINDENOM of the MDSA min-D model selected here
+  level_ess       = numeric,    # ESS of the model selected here (NA if no-tree)
+  level_d         = numeric,    # D-statistic of the model selected here (NA if no-tree)
+  path_ess        = numeric,    # vector of ESS values from root to this node
+  path_mindenom   = integer,    # vector of MINDENOM values from root to this node
 
-  model          = cta_tree,   # the cta_tree (MDSA min-D member) fitted at this node
-  model_seed     = integer,    # mc_seed used (same for all nodes)
+  model           = cta_tree,   # the cta_tree (MDSA min-D member) fitted here; NULL if guard fired
 
-  is_terminal    = logical,    # TRUE if no further recursion
-  stop_reason    = character,  # "no_tree" | "min_n" | "max_depth"
-  terminal_class = integer,    # majority class in this subset (if terminal)
+  is_terminal     = logical,    # TRUE if no further recursion
+  stop_reason     = character,  # "no_tree" | "min_n" | "max_depth" | "max_nodes"
+  terminal_class  = integer,    # majority class in this subset (if terminal; NA otherwise)
 
-  right_child_id = integer,    # node_id of right child (NA if terminal)
-  left_child_id  = integer     # node_id of left child (NA if terminal)
+  child_ids       = integer,    # vector of child ORT node_ids (length 0 if terminal)
+  right_child_id  = integer,    # node_id of right child (NA if terminal)
+  left_child_id   = integer     # node_id of left child (NA if terminal)
 )
 ```
+
+`mc_seed` is not stored per node.  The seed is set once in `.cta_ort_fit()` and
+child MDSA scans consume the RNG stream in deterministic right-then-left traversal
+order.  See Section 3.3.
 
 ### 4.3 Top-level `cta_ort` / `cta_tree` object fields
 
@@ -226,7 +229,8 @@ $ort_settings    = list(
   prune_alpha    = numeric,
   loo            = character,
   min_n          = integer,
-  max_depth      = integer
+  max_depth      = integer,
+  max_nodes      = integer
 )
 ```
 
