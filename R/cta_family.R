@@ -303,7 +303,8 @@ cta_descendant_family <- function(
   min_d_idx <- if (length(feasible) == 0L) {
     NA_integer_
   } else {
-    as.integer(feasible[which.min(d_vals[feasible])])
+    wm <- which.min(d_vals[feasible])      # integer(0) when all d_vals are NA
+    if (length(wm) == 0L) NA_integer_ else as.integer(feasible[wm])
   }
 
   new_cta_family(

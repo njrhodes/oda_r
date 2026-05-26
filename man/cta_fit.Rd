@@ -44,7 +44,10 @@ cta_fit(X, y, verbose = FALSE,
   \item{...}{Additional arguments passed to \code{\link{oda_cta_fit}}
     (non-recursive) or used as ORT settings (recursive).  Supported ORT
     settings via \code{...}: \code{w}, \code{mc_seed}, \code{mc_iter},
-    \code{alpha_split}, \code{prune_alpha}, \code{loo}.}
+    \code{alpha_split}, \code{prune_alpha}, \code{loo}.  When
+    \code{recursive = TRUE}, \code{mc_seed} initializes the RNG once at
+    ORT start; child-node MDSA scans consume the stream in deterministic
+    right-then-left traversal order without resetting the seed.}
 }
 \value{
 Non-recursive: a \code{cta_tree} object.

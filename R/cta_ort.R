@@ -55,8 +55,10 @@
   path_mindenom,     # integer vector of MINDENOM values from root (empty at root)
   depth,             # integer recursion depth (root = 0L)
   counter_env,       # mutable environment for node_id tracking
-  mc_seed, mc_iter, alpha_split, prune_alpha, loo,
+  mc_iter, alpha_split, prune_alpha, loo,
   min_n, max_depth, max_nodes, verbose
+  # mc_seed intentionally absent: seed is set once in .cta_ort_fit(); child
+  # fits consume the RNG stream in deterministic R->L traversal order.
 ) {
   # Allocate this node's ID (DFS pre-order)
   my_node_id <- counter_env$next_node_id
@@ -119,13 +121,15 @@
   fam <- cta_descendant_family(
     X, y_int, w = w,
     mc_iter     = mc_iter,
-    mc_seed     = mc_seed,
     alpha_split = alpha_split,
     prune_alpha = prune_alpha,
     loo         = loo
+    # mc_seed not passed: RNG stream flows from single top-level seed
   )
 
   min_d_idx <- fam$min_d_idx
+  # Guard: length 0 or NA both mean no valid min-D member
+  if (length(min_d_idx) != 1L) min_d_idx <- NA_integer_
 
   if (is.na(min_d_idx)) {
     # All family members are no-tree -> terminal
@@ -207,7 +211,6 @@
       path_mindenom   = new_path_mindenom,
       depth           = depth + 1L,
       counter_env     = counter_env,
-      mc_seed         = mc_seed,
       mc_iter         = mc_iter,
       alpha_split     = alpha_split,
       prune_alpha     = prune_alpha,
@@ -373,13 +376,18 @@
   max_depth <- as.integer(max_depth)
   max_nodes <- as.integer(max_nodes)
 
+  # Set seed once for the entire recursive run.
+  # Child fits consume the RNG stream in deterministic right-then-left
+  # traversal order; seeds are not reset per node.
+  if (!is.null(mc_seed)) set.seed(as.integer(mc_seed))
+
   # Mutable state for the recursion
   counter_env <- new.env(parent = emptyenv())
   counter_env$next_node_id <- 1L
   counter_env$total_nodes  <- 0L
   counter_env$all_nodes    <- list()
 
-  # Run the recursive engine
+  # Run the recursive engine (mc_seed not passed -- RNG stream flows through)
   .cta_ort_fit_internal(
     X               = X,
     y               = y,
@@ -389,7 +397,6 @@
     path_mindenom   = integer(0),
     depth           = 0L,
     counter_env     = counter_env,
-    mc_seed         = mc_seed,
     mc_iter         = mc_iter,
     alpha_split     = alpha_split,
     prune_alpha     = prune_alpha,
@@ -412,9 +419,9 @@
     # Forced terminal at root (min_n / max_depth / max_nodes guard before any fit)
     root_model <- oda_cta_fit(
       X, y, w = w,
-      mindenom    = n + 1L,
-      mc_iter     = 1L,
-      mc_seed     = as.integer(mc_seed) %||% 42L
+      mindenom = n + 1L,
+      mc_iter  = 1L
+      # mc_seed not passed: no MC runs at this mindenom, seed irrelevant
     )
   }
 

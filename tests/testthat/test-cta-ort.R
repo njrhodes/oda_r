@@ -188,3 +188,38 @@ test_that("plot.cta_ort: runs without error (no file output)", {
   expect_silent(plot(ort))
   expect_silent(plot(ort, target_class = 1L))
 })
+
+# ---------------------------------------------------------------------------
+# Seed policy tests (Tests 14-16)
+# ---------------------------------------------------------------------------
+
+# Test 14: top-level mc_seed stored in ort_settings
+test_that("cta_fit recursive: ort_settings$mc_seed equals supplied seed", {
+  ort <- do.call(cta_fit, syn_ort_args)   # syn_ort_args uses mc_seed = 42L
+  expect_equal(ort$ort_settings$mc_seed, 42L)
+})
+
+# Test 15: reproducibility -- same seed gives identical strata and predictions
+test_that("cta_fit recursive: same mc_seed gives identical strata and predictions", {
+  ort1 <- do.call(cta_fit, syn_ort_args)
+  ort2 <- do.call(cta_fit, syn_ort_args)
+
+  # Strata table identical (n, path, prop_class1, stop_reason)
+  expect_equal(ort1$strata$n,           ort2$strata$n)
+  expect_equal(ort1$strata$path,        ort2$strata$path)
+  expect_equal(ort1$strata$prop_class1, ort2$strata$prop_class1)
+  expect_equal(ort1$strata$stop_reason, ort2$strata$stop_reason)
+
+  # Predictions identical
+  pred1 <- predict(ort1, syn_X, type = "all")
+  pred2 <- predict(ort2, syn_X, type = "all")
+  expect_equal(pred1$stratum_id, pred2$stratum_id)
+})
+
+# Test 16: different mc_seed stores a different top-level seed
+test_that("cta_fit recursive: different mc_seed stored in ort_settings", {
+  ort_a <- do.call(cta_fit, syn_ort_args)                                   # seed 42
+  ort_b <- do.call(cta_fit, modifyList(syn_ort_args, list(mc_seed = 99L)))  # seed 99
+  expect_equal(ort_a$ort_settings$mc_seed, 42L)
+  expect_equal(ort_b$ort_settings$mc_seed, 99L)
+})

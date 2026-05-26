@@ -118,9 +118,15 @@ is selected as the split for that level. This is the canonical novometric proced
 
 `cta_descendant_family()` is the inner workhorse at each recursive node.
 
-### 3.3 Single seed
+### 3.3 Single seed / single RNG stream
 
-`mc_seed` is passed unchanged to every sub-fit at every depth. No cascade.
+`mc_seed` initializes the RNG once at the start of `cta_fit(recursive=TRUE)`.
+Child-node MDSA scans consume the RNG stream in deterministic right-then-left
+traversal order; seeds are not reset per node.
+
+Reproducibility: calling `cta_fit(recursive=TRUE, mc_seed=s)` twice with the
+same `s` gives identical results. The stored `ort_settings$mc_seed` records
+the top-level seed for auditing.
 
 ### 3.4 Traversal order: Right then Left
 
