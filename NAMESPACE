@@ -61,6 +61,11 @@ S3method(print,   cta_ort_summary)
 
 # ----- SDA -----
 export(sda_fit)
+export(sda_selected_attributes)
+export(sda_step_table)
+export(sda_candidate_table)
+export(as_cta_candidates)
+export(sda_to_cta_data)
 S3method(predict, sda_fit)
 S3method(print,   sda_fit)
 S3method(summary, sda_fit)
