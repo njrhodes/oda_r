@@ -835,16 +835,25 @@ Scope constraints:
 
 Tests: `tests/testthat/test-auto-sda.R`
 
-### Slice SDA-4 — `sda_fit(mode="novometric_min_d")`
+### Slice SDA-4A — Acceptance contract (this document; no code)
 
-Adds novometric mode to `sda_fit()`.
-Requires per-attribute `cta_descendant_family()` calls; relies on existing
-`cta_descendant_family()` infrastructure.
+Status: current slice. Defines the acceptance criteria that must be agreed
+before SDA-4B implementation begins. Do not write R code until SDA-4A is
+approved.
 
-Tests: `tests/testthat/test-sda-novometric.R`: Tests from §8.2.
+See §SDA-4 Novometric Acceptance Contract below for full specification.
 
-Requires synthetic canon anchors for novometric mode. Private PsA fixture
-remains untracked.
+### Slice SDA-4B — `sda_fit(mode="novometric_min_d")` implementation
+
+Implements the novometric mode per the SDA-4A acceptance contract.
+
+New internal helpers (added to `R/sda_core.R`):
+- `.sda_step_novometric_min_d()`
+
+New test file:
+- `tests/testthat/test-sda-novometric.R`
+
+Requires synthetic canon anchors. Private PsA fixture remains untracked.
 
 ### Slice SDA-5 — Staged adjustment workflow helpers
 
@@ -859,6 +868,195 @@ and stabilized weight computation. A separate design note is recommended
 before implementing SDA-5.
 
 ---
+
+---
+
+## SDA-4 Novometric Acceptance Contract
+
+**Status:** Acceptance plan (SDA-4A). Do not implement until approved.
+
+This section is the concrete acceptance contract for
+`sda_fit(mode = "novometric_min_d")`. Nothing in it may be silently changed
+during implementation. If a design question arises during SDA-4B, update this
+section and re-approve before proceeding.
+
+---
+
+### 4A.1 MINDENOM requirement
+
+`mindenom` is a **mandatory argument** for `mode = "novometric_min_d"`.
+
+There is no silent default. If `mindenom` is not supplied, error immediately
+with a canon-grounded message:
+
+```
+"sda_fit(mode = 'novometric_min_d') requires explicit mindenom.
+MINDENOM must be tied to statistical power (MPE):
+  moderate effect: N ≈ 32 per class per category → mindenom = 64
+  strong effect:   N ≈ 12 per class per category → mindenom = 24
+Do not pass mindenom = 1 and claim power requirements are satisfied."
+```
+
+`mindenom` is an integer. It is the minimum endpoint n that any admissible
+split candidate must achieve. This is the Axiom 1 / statistical power gate.
+
+---
+
+### 4A.2 Per-step mechanics
+
+At each SDA step, for each remaining candidate attribute in order:
+
+1. Run `cta_descendant_family()` on that single attribute against the current
+   working sample (active rows only). This is a single-attribute MDSA search —
+   not `oda_fit()` / UniODA.
+
+2. **MINDENOM / Axiom 1 gate:** If no family member achieves all endpoints
+   ≥ `mindenom`, the candidate is ineligible with
+   `ineligible_reason = "axiom1"`.
+
+3. **p gate / MC significance:** If the eligible family member with minimum D
+   has p > α (MC p-value), the candidate is ineligible with
+   `ineligible_reason = "p_gate"`.
+
+4. Among candidates passing both gates, **select the candidate with minimum D**
+   using the tie-breaking rules in §4A.3.
+
+5. Apply the selected model (its selected family member) to the active rows
+   to obtain predictions.
+
+6. Remove correctly classified observations from the working sample (row-based,
+   not weight-based).
+
+7. Remove the selected attribute from the candidate set.
+
+8. Repeat on the remaining unresolved observations.
+
+**Step order within one step:**
+- MINDENOM gate is evaluated first (before MC). Axiom 1 failure is cheaper to
+  detect than an MC run and should short-circuit.
+- MC gate second.
+- D comparison only among doubly-eligible candidates.
+
+**Which family member represents each candidate:**
+- From `cta_descendant_family()`, extract the member with minimum D that
+  satisfies `mindenom`. This is the representative model for that candidate at
+  this step. Record its ESS, D, p_mc, strata count, and min terminal
+  denominator in the candidate table.
+
+---
+
+### 4A.3 Tie-breaking rule
+
+When two or more eligible candidates have equal D (matched to the same tick
+value via `tick(d)`), break ties in this order:
+
+1. **Minimum D** — primary selection criterion. All following rules apply only
+   when D is tied at tick precision.
+2. **Fewer strata** — prefer the candidate whose selected family member has
+   fewer strata (smaller S). Fewer strata = more parsimonious.
+3. **Larger minimum terminal denominator** — prefer the candidate whose
+   selected family member has the largest minimum endpoint n. More support
+   in each stratum.
+4. **Candidate order in X** — first candidate in column order of `X` as
+   passed to `sda_fit()`. This is the final, deterministic tie-break.
+
+All tied candidates (those sharing the same minimum D before tie-breaking)
+must be recorded in the candidate table with `tied_objective = TRUE`. The
+winner must be flagged `selected_by_tie_break = TRUE` if tie-breaking was
+needed to determine it.
+
+---
+
+### 4A.4 Candidate table required fields (novometric mode)
+
+The candidate table for each step must include all of the following columns.
+Fields not applicable to novometric mode (e.g. from unioda_max_ess) carry
+`NA` rather than being absent.
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `attribute` | character | Candidate attribute name |
+| `status` | character | `"selected"` / `"eligible"` / `"ineligible"` / `"skipped"` |
+| `eligible` | logical | Passed both MINDENOM and p gates |
+| `ineligible_reason` | character | `"axiom1"`, `"p_gate"`, `"no_model"`, `"pure_node"`, `"all_missing"`, `"zero_variance"`, `"collinear"`, or `NA` |
+| `n` | integer | Active working-sample n for this attribute (after missingness) |
+| `class_counts` | list | Raw class counts integer(2) for this attribute's valid obs |
+| `mindenom` | integer | MINDENOM used at this step (same for all candidates) |
+| `min_terminal_denom` | integer | Minimum endpoint n achieved by the selected family member; `NA` if ineligible |
+| `ess` | numeric | ESS of the selected family member; `NA` if ineligible |
+| `d` | numeric | D of the selected family member; `NA` if ineligible |
+| `p_mc` | numeric | MC p-value of the selected family member; `NA` if ineligible |
+| `ge_count` | integer | MC ge_count; `NA` if MC not run |
+| `iter_used` | integer | MC iter_used; `NA` if MC not run |
+| `strata` | integer | Number of strata (S) in the selected family member; `NA` if ineligible |
+| `selected` | logical | `TRUE` for the chosen candidate |
+| `tied_objective` | logical | `TRUE` if this candidate tied on D with the winner or another eligible candidate |
+| `selected_by_tie_break` | logical | `TRUE` if this candidate was chosen by tie-break rule (not unique minimum D) |
+
+---
+
+### 4A.5 Object behavior
+
+- `mode` stored as `"novometric_min_d"` in the top-level field and in each
+  step object.
+- `mindenom` stored in `settings$mindenom`.
+- Each step's `model` field stores the result of `cta_descendant_family()` for
+  the selected attribute (the full family object, not just the winning member).
+  The winning member index is stored separately as `step$min_d_idx`.
+- `step$d` is non-NA (the D of the selected family member).
+- `step$mindenom` is the MINDENOM used at that step.
+- Prediction (`predict.sda_fit()`) uses the same sequential selected-step
+  application as SDA-1. At each step, the selected model's rule is applied
+  to newdata.
+- No weights. No propensity output. Both remain deferred.
+
+---
+
+### 4A.6 Stopping conditions (novometric mode)
+
+Same canonical stopping conditions as unioda_max_ess (§1.3), applied in
+the same order. The `p_gate` stop fires when **no candidate** passes both
+the MINDENOM gate and the p gate at a given step. The `axiom1_violated` stop
+fires when no candidate passes the MINDENOM gate alone (p is not even tested).
+
+Stop reason `"axiom1_violated"` is distinct from `"p_gate"`. Both must be
+implemented and distinguishable.
+
+---
+
+### 4A.7 Tests required before SDA-4B is complete
+
+All tests use synthetic, publicly-safe data only. No private PsA data.
+No data-raw artifacts.
+
+| # | Test | What it checks |
+|---|------|----------------|
+| N1 | min-D winner ≠ max-ESS winner | Synthetic data where the min-D candidate has lower ESS than a competing eligible candidate; confirms novometric mode selects min-D, not max-ESS |
+| N2 | `mindenom` missing → error | `sda_fit(mode="novometric_min_d")` without `mindenom` errors with canon message |
+| N3 | p-gate failure → ineligible | Candidate with p > α marked ineligible; does not contribute to winner selection |
+| N4 | MINDENOM failure → ineligible | Candidate whose min endpoint n < `mindenom` marked `ineligible_reason = "axiom1"` |
+| N5 | No eligible candidate → `p_gate` stop | All candidates fail at a step; `stop_reason = "p_gate"` or `"axiom1_violated"` |
+| N6 | Selected attribute removed | Attribute selected at step 1 absent from step 2 candidate table |
+| N7 | Correctly classified removed | Step 2 `n_in` = step 1 `n_in` − step 1 `n_correct` |
+| N8 | Candidate table records all candidates | Every evaluated attribute has a row; rejected candidates show `ineligible_reason` |
+| N9 | Tie case deterministic | Two attributes with identical D; winner is the first in column order; both show `tied_objective = TRUE` |
+| N10 | `predict.sda_fit` works on novometric fit | Sequential selected-step application produces valid class predictions on newdata |
+| N11 | CTA interop | `as_cta_candidates(fit, X)` works on a novometric fit |
+| N12 | `axiom1_violated` vs `p_gate` | Confirm the two stop reasons are distinguishable and correctly assigned |
+| N13 | `min_terminal_denom` recorded | Winner's `min_terminal_denom` in candidate table matches the family object |
+
+---
+
+### 4A.8 Constraints
+
+- Do not use private PsA data in package tests.
+- Do not use `data-raw` artifacts in package tests.
+- Do not implement weighted SDA.
+- Do not implement staged CTA / FORCENODE workflow.
+- `novometric_min_d` must remain inert (error) until SDA-4B is approved and
+  implemented; do not silently partially implement.
+- `mindenom` has no default in novometric mode. The error message must cite
+  MPE power guidance.
 
 ---
 
