@@ -1211,39 +1211,86 @@ cta_assign_endpoints <- function(tree, newdata,
     ))
   }
 
-  # --- column count validation (runs even for zero-row newdata) ---------------
+  # --- split nodes (used for validation and column mapping) -------------------
   split_nodes <- Filter(function(nd) !isTRUE(nd$leaf), tree$nodes)
-  max_attr_col <- if (length(split_nodes) == 0L) 0L else {
-    max(vapply(split_nodes, function(nd) nd$attr_col %||% 0L, integer(1L)))
+
+  # --- column routing: positional (same-width) or name-based (wide/reordered) --
+  #
+  # Positions are canonical under the hood; names are a safe cross-reference
+  # layer used only when newdata has a different column count than training X.
+  #
+  #  * same-width  (ncol(newdata) == n_attrs): positional routing.  Identity map.
+  #    Works for named or unnamed newdata; existing callers are unaffected.
+  #
+  #  * wide/reordered (ncol(newdata) != n_attrs): name-based routing required.
+  #    Both names(newdata) and tree$attr_names must be present.
+  #    Required split variable names must all be found in names(newdata).
+  #    Never silently fallback to position for a missing named variable.
+  tree_names <- tree$attr_names
+  nd_names   <- names(newdata)
+  n_tr       <- tree$n_attrs %||% 0L
+  n_nd       <- ncol(newdata)
+
+  if (n_nd == n_tr) {
+    # Same-width: positional (identity map).
+    attr_col_in_newdata <- seq_len(n_nd)
+    wide_routing        <- FALSE
+  } else {
+    # Wide / reordered: name-based mapping required — no silent positional fallback.
+    if (is.null(nd_names) || length(nd_names) == 0L) {
+      stop(sprintf(
+        "cta_assign_endpoints: newdata has %d column(s) but training X had %d. ",
+        n_nd, n_tr
+      ), "Name-based routing is required for wide newdata, but names(newdata) is absent.")
+    }
+    if (is.null(tree_names) || length(tree_names) == 0L) {
+      stop(sprintf(
+        "cta_assign_endpoints: newdata has %d column(s) but training X had %d. ",
+        n_nd, n_tr
+      ), "Name-based routing is required, but the fitted tree has no attr_names.")
+    }
+    nd_name_pos <- setNames(seq_along(nd_names), nd_names)
+    attr_col_in_newdata <- vapply(seq_along(tree_names), function(j) {
+      nm <- tree_names[j]
+      if (!is.na(nm) && nm %in% names(nd_name_pos)) {
+        nd_name_pos[[nm]]
+      } else {
+        NA_integer_   # absent: caught by validation below
+      }
+    }, integer(1L))
+    wide_routing <- TRUE
   }
-  if (ncol(newdata) < max_attr_col) {
-    stop(sprintf(
-      "cta_assign_endpoints: newdata has %d column(s) but tree requires at least %d.",
-      ncol(newdata), max_attr_col
-    ))
+
+  # --- column validation (runs even for zero-row newdata) ---------------------
+  split_attr_cols <- unique(vapply(split_nodes,
+                                   function(nd) nd$attr_col %||% NA_integer_,
+                                   integer(1L)))
+  split_attr_cols <- split_attr_cols[!is.na(split_attr_cols)]
+
+  if (wide_routing) {
+    # Name-based: every required split attribute must map to a column in newdata.
+    valid_sac <- split_attr_cols[split_attr_cols >= 1L & split_attr_cols <= length(attr_col_in_newdata)]
+    missing_idx <- valid_sac[is.na(attr_col_in_newdata[valid_sac])]
+    if (length(missing_idx) > 0L) {
+      missing_names <- tree_names[missing_idx]
+      missing_names <- missing_names[!is.na(missing_names)]
+      stop(sprintf(
+        "cta_assign_endpoints: newdata is missing required split variable(s): %s.",
+        paste(missing_names, collapse = ", ")
+      ))
+    }
+  } else {
+    # Positional: check newdata has enough columns.
+    max_attr_col <- if (length(split_attr_cols) == 0L) 0L else max(split_attr_cols)
+    if (ncol(newdata) < max_attr_col) {
+      stop(sprintf(
+        "cta_assign_endpoints: newdata has %d column(s) but tree requires at least %d.",
+        ncol(newdata), max_attr_col
+      ))
+    }
   }
 
   if (n_new == 0L) return(empty_df())
-
-  # --- optional name-mismatch warning ----------------------------------------
-  nd_names   <- names(newdata)
-  tree_names <- tree$attr_names
-  if (!is.null(nd_names) && !is.null(tree_names)) {
-    split_cols <- vapply(split_nodes, function(nd) nd$attr_col %||% NA_integer_,
-                         integer(1L))
-    split_cols <- unique(split_cols[!is.na(split_cols)])
-    for (jj in split_cols) {
-      if (jj <= length(tree_names) && jj <= length(nd_names) &&
-          !is.na(tree_names[jj]) && !is.na(nd_names[jj]) &&
-          tree_names[jj] != nd_names[jj]) {
-        warning(sprintf(
-          paste0("cta_assign_endpoints: column %d is named '%s' in newdata ",
-                 "but '%s' in tree$attr_names. Traversal uses column position."),
-          jj, nd_names[jj], tree_names[jj]
-        ))
-      }
-    }
-  }
 
   # --- build endpoint_node_id -> endpoint_id lookup --------------------------
   es <- cta_endpoint_summary(tree)
@@ -1262,8 +1309,10 @@ cta_assign_endpoints <- function(tree, newdata,
       if (is.null(nd) || isTRUE(nd$leaf) || length(nd$child_ids) == 0L)
         return(nd$node_id %||% NA_integer_)
 
-      j     <- nd$attr_col
-      x_val <- newdata[[j]][i]
+      j        <- nd$attr_col
+      j_actual <- if (!is.na(j) && j >= 1L && j <= length(attr_col_in_newdata))
+                    attr_col_in_newdata[j] else j
+      x_val    <- newdata[[j_actual]][i]
 
       miss_here <- is.na(x_val)
       if (!is.null(miss_codes) && !miss_here) miss_here <- x_val %in% miss_codes

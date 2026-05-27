@@ -89,24 +89,33 @@ When `recursive = FALSE` (default), behavior is identical to current — no code
 path changes. When `recursive = TRUE`, an internal engine handles the recursion
 and returns a `cta_ort` / `cta_tree` composite object.
 
+**Training X contract:** For recursive CTA, `X` is the declared candidate
+predictor frame — pass only variables eligible for CTA search.  Prediction may
+be performed on wider `newdata` (e.g., the full clinical table) as long as the
+split variable names are present; internal fitting remains positional, and names
+are used as a safe cross-reference when `ncol(newdata) != ncol(X)`.
+
 ```r
 cta_fit(
   X, y, w = NULL,
 
   # --- existing args unchanged ---
-  mindenom    = 1L,          # ignored when recursive=TRUE (MDSA determines per level)
-  mc_iter     = 5000L,
-  mc_seed     = 42L,         # single seed — same value passed to every sub-fit
-  alpha_split = 0.05,
-  prune_alpha = 0.05,
-  loo         = "stable",
-  verbose     = FALSE,
+  mindenom     = 1L,          # ignored when recursive=TRUE (MDSA determines per level)
+  mc_iter      = 5000L,
+  mc_seed      = 42L,         # single seed — set once, stream consumed per node
+  alpha_split  = 0.05,
+  prune_alpha  = 0.05,
+  loo          = "stable",
+  verbose      = FALSE,
 
-  # --- new recursive args ---
-  recursive   = FALSE,       # if TRUE, enables ORT recursion
-  min_n       = 30L,         # minimum endpoint n to attempt recursion
-  max_depth   = 8L,          # safety cap on recursion depth
-  max_nodes   = 31L          # safety cap on total ORT nodes
+  # --- recursive guards ---
+  recursive    = FALSE,       # if TRUE, enables ORT recursion
+  min_n        = 30L,         # minimum endpoint n to attempt recursion
+  max_depth    = 8L,          # safety cap on recursion depth
+  max_nodes    = 31L,         # safety cap on total ORT nodes
+
+  # --- MDSA family scan budget (recursive-only) ---
+  family_max_steps = 20L      # max CTA fits per-node MDSA scan; default = cta_descendant_family() default
 )
 ```
 
@@ -145,13 +154,47 @@ not be selected as a split. This is natural self-elimination, not a policy rule.
 
 ### 3.6 Recursion guards
 
-- `min_n`: if an endpoint has fewer than `min_n` observations, it becomes
-  terminal immediately without attempting a sub-fit. Stop reason: `"min_n"`.
-- `max_depth`: if `depth >= max_depth`, the node becomes terminal.
-  Stop reason: `"max_depth"`.
-- `max_nodes`: if the total ORT node count already exceeds `max_nodes`, the current endpoint becomes terminal without a sub-fit. Stop reason: `"max_nodes"`.
-- No-tree: if the MDSA family scan at a node finds no admissible tree
-  (all members are no-tree), the node is terminal. Stop reason: `"no_tree"`.
+Guard evaluation order (first match wins):
+
+1. `max_nodes`: if total ORT nodes already exceed `max_nodes`, the current
+   endpoint becomes terminal without a sub-fit. Stop reason: `"max_nodes"`.
+2. `min_n`: if an endpoint has fewer than `min_n` observations, it becomes
+   terminal immediately. Stop reason: `"min_n"`.
+3. `max_depth`: if `depth >= max_depth`, the node becomes terminal.
+   Stop reason: `"max_depth"`.
+4. No-tree: if the MDSA family scan finds no admissible tree (all members
+   are no-tree), the node is terminal. Stop reason: `"no_tree"`.
+
+### 3.7 Compute budget: `family_max_steps`
+
+Each ORT node runs a full `cta_descendant_family()` scan to select its min-D
+winning model.  `cta_descendant_family()` steps from MINDENOM=1 upward, fitting
+one `oda_cta_fit()` per step, until the chain produces a no-tree result or
+`max_steps` is reached.
+
+On large wide datasets (n >> 1000, p >> 20), each `oda_cta_fit()` call is
+expensive.  Without a budget cap, a single ORT node scan may run up to 20 full
+CTA fits — several minutes for diagnostic/iteration work.
+
+`family_max_steps` controls this:
+
+- **Default `20L`**: preserves `cta_descendant_family()` behavior.  Full MDSA
+  family is evaluated at each node.
+- **Smaller values** (e.g. `5L`): cap the per-node scan at 5 CTA fits.  Useful
+  for diagnostic runs where speed matters more than full family coverage.
+  The min-D winner is selected from whichever family members are evaluated.
+  If the true min-D would appear at step 6+, it is missed.
+- Stored in `ort_settings$family_max_steps` for auditing.
+- Only used when `recursive = TRUE`; error if explicitly supplied with
+  `recursive = FALSE`.
+
+**Important:** `family_max_steps` bounds the MDSA search within each node.  It
+does not change recursion semantics.  ORT always recurses only the min-D winner's
+endpoints — right first, then left.  Family losers never become recursive branches,
+regardless of `family_max_steps`.
+
+- `max_depth` / `max_nodes`: bound recursive topology (how deep and wide the ORT grows).
+- `family_max_steps`: bounds per-node MDSA search (how many CTA fits per node).
 
 ---
 
@@ -223,14 +266,17 @@ $ort_root_id     = 1L                 # always 1
 $strata          = data.frame         # flat terminal-strata table (see §4.4)
 $n_strata        = integer
 $ort_settings    = list(
-  mc_seed        = integer,
-  mc_iter        = integer,
-  alpha_split    = numeric,
-  prune_alpha    = numeric,
-  loo            = character,
-  min_n          = integer,
-  max_depth      = integer,
-  max_nodes      = integer
+  mc_seed          = integer,
+  mc_iter          = integer,
+  mc_stop          = numeric,
+  mc_stopup        = numeric,
+  alpha_split      = numeric,
+  prune_alpha      = numeric,
+  loo              = character,
+  min_n            = integer,
+  max_depth        = integer,
+  max_nodes        = integer,
+  family_max_steps = integer
 )
 ```
 
@@ -346,13 +392,13 @@ graphics v3.
 | Reason | Condition | Sub-fit attempted? |
 |--------|-----------|-------------------|
 | `"no_tree"` | MDSA family scan finds no admissible tree in this stratum | Yes — confirmed no-tree |
+| `"max_nodes"` | Total ORT nodes > `max_nodes` | No |
 | `"min_n"` | Endpoint n < `min_n` | No |
 | `"max_depth"` | `depth >= max_depth` | No |
-| `"max_nodes"` | Total ORT nodes > `max_nodes` | No |
 
 `"no_tree"` is the canonical stopping criterion.
-`"min_n"` and `"max_depth"` are safety guards that may mask further structure;
-both are stored and inspectable in the node and strata table.
+`"min_n"`, `"max_depth"`, and `"max_nodes"` are safety guards that may mask
+further structure; both are stored and inspectable in the node and strata table.
 
 ---
 
@@ -458,9 +504,8 @@ be added as a smoke-tier fixture.
   classification, total `min_n` is insufficient to replicate conservative
   manual stopping rules. A future guard like `min_class_n = NULL` would
   terminate recursion when any terminal child stratum contains fewer than
-  `min_class_n` cases of the target class. This would let ORT mimic rules
-  such as "stop when < 17 target-class cases per stratum." Not in v1; add
-  when a use case requires it.
+  `min_class_n` cases of the target class. Not in v1; add when a use case
+  requires it.
 
 ---
 

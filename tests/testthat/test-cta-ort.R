@@ -284,3 +284,157 @@ test_that("cta_fit non-recursive: result is cta_tree but not cta_ort", {
   expect_false(inherits(tree, "cta_ort"))
   expect_true(inherits(tree, "cta_tree"))
 })
+
+# ---------------------------------------------------------------------------
+# MC threading contract tests (Tests 31-32)
+# Confirm mc_stop / mc_stopup are accepted and stored.
+# Do NOT assert wall-clock timing.
+# ---------------------------------------------------------------------------
+
+# Test 31: mc_stop / mc_stopup accepted and stored in ort_settings
+test_that("cta_fit recursive: mc_stop and mc_stopup stored in ort_settings", {
+  ort <- do.call(cta_fit, modifyList(syn_ort_args,
+                                     list(mc_stop = 99.0, mc_stopup = 10)))
+  expect_equal(ort$ort_settings$mc_stop,   99.0)
+  expect_equal(ort$ort_settings$mc_stopup, 10)
+})
+
+# Test 32: mc_stop / mc_stopup default values stored when not supplied
+test_that("cta_fit recursive: mc_stop/mc_stopup default to oda_cta_fit canonical values", {
+  ort <- do.call(cta_fit, syn_ort_args)   # no mc_stop / mc_stopup supplied
+  expect_equal(ort$ort_settings$mc_stop,   99.9)
+  expect_equal(ort$ort_settings$mc_stopup, 20)
+})
+
+# ---------------------------------------------------------------------------
+# family_max_steps tests (Tests 33-36)
+# ---------------------------------------------------------------------------
+
+# Test 33: family_max_steps stored in ort_settings
+test_that("cta_fit recursive: family_max_steps stored in ort_settings", {
+  ort <- do.call(cta_fit, modifyList(syn_ort_args, list(family_max_steps = 5L)))
+  expect_equal(ort$ort_settings$family_max_steps, 5L)
+})
+
+# Test 34: default family_max_steps = 20L stored when not supplied
+test_that("cta_fit recursive: family_max_steps defaults to 20L in ort_settings", {
+  ort <- do.call(cta_fit, syn_ort_args)   # no family_max_steps supplied
+  expect_equal(ort$ort_settings$family_max_steps, 20L)
+})
+
+# Test 35: invalid family_max_steps errors
+test_that("cta_fit recursive: family_max_steps = 0 errors", {
+  expect_error(
+    do.call(cta_fit, modifyList(syn_ort_args, list(family_max_steps = 0L))),
+    regexp = "family_max_steps"
+  )
+})
+
+# Test 36: non-recursive explicit family_max_steps errors
+test_that("cta_fit non-recursive: explicit family_max_steps errors", {
+  expect_error(
+    cta_fit(syn_X, syn_y, recursive = FALSE, family_max_steps = 5L,
+            mindenom = 1L, mc_iter = 100L, mc_seed = 42L, loo = "off"),
+    regexp = "family_max_steps"
+  )
+})
+
+# Test 37: tiny family_max_steps = 1L does not error on synthetic ORT
+test_that("cta_fit recursive: family_max_steps = 1L runs without error", {
+  ort <- cta_fit(syn_X, syn_y, recursive = TRUE,
+                 family_max_steps = 1L,
+                 mc_iter = 100L, mc_seed = 42L, loo = "off",
+                 min_n   = 5L)
+  expect_true(inherits(ort, "cta_ort"))
+  expect_true(ort$n_strata >= 1L)
+  expect_true(isTRUE(ort$strata_check_passed))
+})
+
+# ---------------------------------------------------------------------------
+# Wide-newdata column routing tests (T38-T44)
+#
+# Routing contract:
+#   * ncol(newdata) == n_attrs  → positional routing (identity map, unchanged)
+#   * ncol(newdata) != n_attrs  → name-based routing; no silent positional fallback
+#
+# Tests use a single non-recursive cta_tree fitted on syn_X (named, 2 cols)
+# for direct cta_assign_endpoints() tests, plus one predict.cta_ort() test.
+# ---------------------------------------------------------------------------
+
+syn_tree_named <- cta_fit(syn_X, syn_y,
+                           mc_iter = 100L, mc_seed = 42L, loo = "off",
+                           min_n   = 5L)
+
+# Wide newdata: extra unused column appended (3 cols, named)
+syn_X_wide <- data.frame(
+  A       = syn_X$A,
+  B       = syn_X$B,
+  C_extra = seq_len(60L)
+)
+
+# Wide newdata: split variables present but in different column order
+syn_X_wide_reordered <- data.frame(
+  C_extra = seq_len(60L),
+  B       = syn_X$B,
+  A       = syn_X$A
+)
+
+test_that("cta_assign_endpoints: named narrow newdata uses positional routing (T38)", {
+  ep_ref  <- cta_assign_endpoints(syn_tree_named, syn_X)
+  ep_same <- cta_assign_endpoints(syn_tree_named, syn_X)
+  expect_identical(ep_ref$endpoint_id, ep_same$endpoint_id)
+})
+
+test_that("cta_assign_endpoints: wide named newdata with extra column gives same result (T39)", {
+  skip_if_not(inherits(syn_tree_named, "cta_tree"))
+  ep_narrow <- cta_assign_endpoints(syn_tree_named, syn_X)
+  ep_wide   <- cta_assign_endpoints(syn_tree_named, syn_X_wide)
+  expect_identical(ep_narrow$endpoint_id, ep_wide$endpoint_id)
+})
+
+test_that("cta_assign_endpoints: wide named newdata with reordered columns gives same result (T40)", {
+  skip_if_not(inherits(syn_tree_named, "cta_tree"))
+  ep_narrow   <- cta_assign_endpoints(syn_tree_named, syn_X)
+  ep_reordered <- cta_assign_endpoints(syn_tree_named, syn_X_wide_reordered)
+  expect_identical(ep_narrow$endpoint_id, ep_reordered$endpoint_id)
+})
+
+test_that("cta_assign_endpoints: wide newdata missing required split variable errors (T41)", {
+  skip_if_not(inherits(syn_tree_named, "cta_tree"))
+  # 3 named columns but B is absent — triggers wide routing and errors
+  nd_missing_B <- data.frame(A = syn_X$A, C_extra = seq_len(60L), D_extra = seq_len(60L))
+  expect_error(
+    cta_assign_endpoints(syn_tree_named, nd_missing_B),
+    regexp = "missing required split variable"
+  )
+})
+
+test_that("cta_assign_endpoints: unnamed same-width newdata uses positional routing (T42)", {
+  skip_if_not(inherits(syn_tree_named, "cta_tree"))
+  ep_ref     <- cta_assign_endpoints(syn_tree_named, syn_X)
+  nd_unnamed <- as.data.frame(matrix(c(syn_X$A, syn_X$B), ncol = 2L))
+  # V1=A, V2=B — same column positions as training X
+  expect_identical(ep_ref$endpoint_id,
+                   cta_assign_endpoints(syn_tree_named, nd_unnamed)$endpoint_id)
+})
+
+test_that("cta_assign_endpoints: wide newdata with non-matching auto-names errors (T43)", {
+  skip_if_not(inherits(syn_tree_named, "cta_tree"))
+  # matrix() -> as.data.frame() auto-names columns V1/V2/V3 (not A/B) — wide routing
+  # then errors because required split variable names A and B are absent
+  nd_autonamed_wide <- as.data.frame(matrix(c(syn_X$A, syn_X$B, seq_len(60L)), ncol = 3L))
+  expect_error(
+    cta_assign_endpoints(syn_tree_named, nd_autonamed_wide),
+    regexp = "missing required split variable"
+  )
+})
+
+test_that("predict.cta_ort: wide named newdata gives same result as narrow newdata (T44)", {
+  ort <- cta_fit(syn_X, syn_y, recursive = TRUE,
+                 mc_iter = 100L, mc_seed = 42L, loo = "off",
+                 min_n   = 5L)
+  # default type = "class" returns integer vector
+  pred_narrow <- predict(ort, syn_X)
+  pred_wide   <- predict(ort, syn_X_wide)
+  expect_identical(pred_narrow, pred_wide)
+})

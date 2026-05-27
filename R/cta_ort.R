@@ -55,8 +55,10 @@
   path_mindenom,     # integer vector of MINDENOM values from root (empty at root)
   depth,             # integer recursion depth (root = 0L)
   counter_env,       # mutable environment for node_id tracking
-  mc_iter, alpha_split, prune_alpha, loo,
-  min_n, max_depth, max_nodes, verbose
+  mc_iter, mc_stop, mc_stopup, alpha_split, prune_alpha, loo,
+  min_n, max_depth, max_nodes,
+  family_max_steps,  # integer; passed as max_steps to cta_descendant_family()
+  verbose
   # mc_seed intentionally absent: seed is set once in .cta_ort_fit(); child
   # fits consume the RNG stream in deterministic R->L traversal order.
 ) {
@@ -71,15 +73,16 @@
   path_str <- if (length(path_conditions) == 0L) "/"
               else paste(path_conditions, collapse = " AND ")
 
-  # ---- Guard checks ----------------------------------------------------------
+  # ---- Guard checks (evaluated in order; first match wins) -------------------
+  # Order: max_nodes > min_n > max_depth > pure no_tree
   stop_reason <- NULL
 
-  if (n < min_n) {
+  if (counter_env$total_nodes > max_nodes) {
+    stop_reason <- "max_nodes"
+  } else if (n < min_n) {
     stop_reason <- "min_n"
   } else if (depth >= max_depth) {
     stop_reason <- "max_depth"
-  } else if (counter_env$total_nodes > max_nodes) {
-    stop_reason <- "max_nodes"
   } else if (length(unique(y_int)) < 2L) {
     # Pure node: only one class present -- no discrimination possible
     stop_reason <- "no_tree"
@@ -121,9 +124,12 @@
   fam <- cta_descendant_family(
     X, y_int, w = w,
     mc_iter     = mc_iter,
+    mc_stop     = mc_stop,
+    mc_stopup   = mc_stopup,
     alpha_split = alpha_split,
     prune_alpha = prune_alpha,
-    loo         = loo
+    loo         = loo,
+    max_steps   = family_max_steps
     # mc_seed not passed: RNG stream flows from single top-level seed
   )
 
@@ -203,22 +209,25 @@
     w_sub  <- if (!is.null(w)) w[in_ep] else NULL
 
     child_id <- .cta_ort_fit_internal(
-      X               = X_sub,
-      y               = y_sub,
-      w               = w_sub,
-      path_conditions = c(path_conditions, ep_cond),
-      path_ess        = new_path_ess,
-      path_mindenom   = new_path_mindenom,
-      depth           = depth + 1L,
-      counter_env     = counter_env,
-      mc_iter         = mc_iter,
-      alpha_split     = alpha_split,
-      prune_alpha     = prune_alpha,
-      loo             = loo,
-      min_n           = min_n,
-      max_depth       = max_depth,
-      max_nodes       = max_nodes,
-      verbose         = verbose
+      X                = X_sub,
+      y                = y_sub,
+      w                = w_sub,
+      path_conditions  = c(path_conditions, ep_cond),
+      path_ess         = new_path_ess,
+      path_mindenom    = new_path_mindenom,
+      depth            = depth + 1L,
+      counter_env      = counter_env,
+      mc_iter          = mc_iter,
+      mc_stop          = mc_stop,
+      mc_stopup        = mc_stopup,
+      alpha_split      = alpha_split,
+      prune_alpha      = prune_alpha,
+      loo              = loo,
+      min_n            = min_n,
+      max_depth        = max_depth,
+      max_nodes        = max_nodes,
+      family_max_steps = family_max_steps,
+      verbose          = verbose
     )
 
     child_ids[ep_idx] <- child_id
@@ -358,16 +367,19 @@
 .cta_ort_fit <- function(
   X,
   y,
-  w           = NULL,
-  mc_seed     = 42L,
-  mc_iter     = 5000L,
-  alpha_split = 0.05,
-  prune_alpha = 0.05,
-  loo         = "stable",
-  min_n       = 30L,
-  max_depth   = 8L,
-  max_nodes   = 31L,
-  verbose     = FALSE
+  w                = NULL,
+  mc_seed          = 42L,
+  mc_iter          = 5000L,
+  mc_stop          = 99.9,
+  mc_stopup        = 20,
+  alpha_split      = 0.05,
+  prune_alpha      = 0.05,
+  loo              = "stable",
+  min_n            = 30L,
+  max_depth        = 8L,
+  max_nodes        = 31L,
+  family_max_steps = 20L,
+  verbose          = FALSE
 ) {
   X         <- as.data.frame(X)
   y         <- as.integer(y)
@@ -389,22 +401,25 @@
 
   # Run the recursive engine (mc_seed not passed -- RNG stream flows through)
   .cta_ort_fit_internal(
-    X               = X,
-    y               = y,
-    w               = w,
-    path_conditions = character(0),
-    path_ess        = numeric(0),
-    path_mindenom   = integer(0),
-    depth           = 0L,
-    counter_env     = counter_env,
-    mc_iter         = mc_iter,
-    alpha_split     = alpha_split,
-    prune_alpha     = prune_alpha,
-    loo             = loo,
-    min_n           = min_n,
-    max_depth       = max_depth,
-    max_nodes       = max_nodes,
-    verbose         = verbose
+    X                = X,
+    y                = y,
+    w                = w,
+    path_conditions  = character(0),
+    path_ess         = numeric(0),
+    path_mindenom    = integer(0),
+    depth            = 0L,
+    counter_env      = counter_env,
+    mc_iter          = mc_iter,
+    mc_stop          = mc_stop,
+    mc_stopup        = mc_stopup,
+    alpha_split      = alpha_split,
+    prune_alpha      = prune_alpha,
+    loo              = loo,
+    min_n            = min_n,
+    max_depth        = max_depth,
+    max_nodes        = max_nodes,
+    family_max_steps = family_max_steps,
+    verbose          = verbose
   )
 
   ort_nodes  <- counter_env$all_nodes
@@ -434,14 +449,17 @@
       strata       = strata,
       n_strata     = nrow(strata),
       ort_settings = list(
-        mc_seed     = mc_seed,
-        mc_iter     = mc_iter,
-        alpha_split = alpha_split,
-        prune_alpha = prune_alpha,
-        loo         = loo,
-        min_n       = min_n,
-        max_depth   = max_depth,
-        max_nodes   = max_nodes
+        mc_seed          = mc_seed,
+        mc_iter          = mc_iter,
+        mc_stop          = mc_stop,
+        mc_stopup        = mc_stopup,
+        alpha_split      = alpha_split,
+        prune_alpha      = prune_alpha,
+        loo              = loo,
+        min_n            = min_n,
+        max_depth        = max_depth,
+        max_nodes        = max_nodes,
+        family_max_steps = family_max_steps
       )
     )),
     class = c("cta_ort", "cta_tree")

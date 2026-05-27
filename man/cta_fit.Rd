@@ -15,14 +15,18 @@ found or a compute guard fires.  Returns a dual-tagged
 }
 \usage{
 cta_fit(X, y, verbose = FALSE,
-        recursive = FALSE,
-        min_n     = 30L,
-        max_depth = 8L,
-        max_nodes = 31L,
+        recursive        = FALSE,
+        min_n            = 30L,
+        max_depth        = 8L,
+        max_nodes        = 31L,
+        family_max_steps = 20L,
         ...)
 }
 \arguments{
-  \item{X}{Data frame or matrix of attribute columns.}
+  \item{X}{Data frame or matrix of attribute columns.  For recursive CTA,
+    \code{X} is the declared candidate predictor frame; pass only variables
+    eligible for CTA search.  Prediction may be performed on wider
+    \code{newdata} as long as the split variable names are present.}
   \item{y}{Integer class variable vector. Must have exactly two distinct values.}
   \item{verbose}{Logical; if \code{TRUE}, emit \code{[CTA]} and \code{[ORT]}
     progress messages. Default \code{FALSE}.}
@@ -41,6 +45,15 @@ cta_fit(X, y, verbose = FALSE,
     the node count exceeds \code{max_nodes} the current endpoint becomes
     terminal with stop reason \code{"max_nodes"}.  Default \code{31L}.
     Only used when \code{recursive = TRUE}.}
+  \item{family_max_steps}{Integer or \code{NULL} (default \code{20L}); maximum
+    number of MDSA family members evaluated at each recursive node.  This bounds
+    the per-node \code{\link{cta_descendant_family}} scan (its \code{max_steps}
+    argument).  The default of \code{20L} preserves
+    \code{cta_descendant_family()} behavior.  Smaller values reduce the per-node
+    compute budget at the cost of possibly missing the true min-D member if the
+    family is long.  Stored in \code{ort_settings$family_max_steps}.  Only used
+    when \code{recursive = TRUE}; error if explicitly supplied with
+    \code{recursive = FALSE}.}
   \item{...}{Additional arguments passed to \code{\link{oda_cta_fit}}
     (non-recursive) or used as ORT settings (recursive).  Supported ORT
     settings via \code{...}: \code{w}, \code{mc_seed}, \code{mc_iter},

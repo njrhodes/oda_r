@@ -229,14 +229,21 @@ oda_fit <- function(
 # ---- cta_fit: public wrapper for CTA ----------------------------------------
 
 cta_fit <- function(X, y, verbose = FALSE,
-                    recursive = FALSE,
-                    min_n     = 30L,
-                    max_depth = 8L,
-                    max_nodes = 31L,
+                    recursive        = FALSE,
+                    min_n            = 30L,
+                    max_depth        = 8L,
+                    max_nodes        = 31L,
+                    family_max_steps = 20L,
                     ...) {
   cls <- sort(unique(y[!is.na(y)]))
   if (length(cls) != 2L) {
     stop("cta_fit currently supports binary class variables only", call. = FALSE)
+  }
+  # recursive-only args: error if explicitly supplied with recursive = FALSE.
+  if (!isTRUE(recursive)) {
+    if (!missing(family_max_steps)) {
+      stop("family_max_steps is only used when recursive = TRUE.", call. = FALSE)
+    }
   }
   if (isTRUE(recursive)) {
     dots <- list(...)
@@ -246,19 +253,26 @@ cta_fit <- function(X, y, verbose = FALSE,
         "family scan. Do not supply mindenom."
       ), call. = FALSE)
     }
+    # Validate family_max_steps
+    family_max_steps <- as.integer(family_max_steps)
+    if (is.na(family_max_steps) || family_max_steps < 1L)
+      stop("family_max_steps must be a positive integer.", call. = FALSE)
     return(.cta_ort_fit(
-      X           = X,
-      y           = y,
-      w           = dots$w,
-      mc_seed     = dots$mc_seed     %||% 42L,
-      mc_iter     = dots$mc_iter     %||% 5000L,
-      alpha_split = dots$alpha_split %||% 0.05,
-      prune_alpha = dots$prune_alpha %||% 0.05,
-      loo         = dots$loo         %||% "stable",
-      min_n       = min_n,
-      max_depth   = max_depth,
-      max_nodes   = max_nodes,
-      verbose     = verbose
+      X                = X,
+      y                = y,
+      w                = dots$w,
+      mc_seed          = dots$mc_seed     %||% 42L,
+      mc_iter          = dots$mc_iter     %||% 5000L,
+      mc_stop          = dots$mc_stop     %||% 99.9,
+      mc_stopup        = dots$mc_stopup   %||% 20,
+      alpha_split      = dots$alpha_split %||% 0.05,
+      prune_alpha      = dots$prune_alpha %||% 0.05,
+      loo              = dots$loo         %||% "stable",
+      min_n            = min_n,
+      max_depth        = max_depth,
+      max_nodes        = max_nodes,
+      family_max_steps = family_max_steps,
+      verbose          = verbose
     ))
   }
   oda_cta_fit(X = X, y = y, verbose = verbose, ...)
