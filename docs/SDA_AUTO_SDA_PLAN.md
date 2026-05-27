@@ -1240,3 +1240,209 @@ and weighted candidate-table semantics."
 This is not deferred for convenience. Weighted SDA requires explicit design
 across three distinct dimensions — see §Weighted SDA design boundary for the
 full specification of what must be designed before implementation.
+
+---
+
+## Production Roadmap
+
+_Updated: 2026-05-27. Each checkpoint is a discrete, sequenced work unit. Only
+the active checkpoint should be implemented at any time. Future checkpoints are
+planned but not approved for implementation until explicitly activated._
+
+### Checkpoint 1 — SDA-4B: novometric_min_d  ✓ COMPLETE
+
+**Scope:** `sda_fit(mode = "novometric_min_d")` — per-attribute MDSA via
+`cta_descendant_family()`, mandatory `mindenom`, MINDENOM gate, p gate,
+min-D selection, tie-breaking per §SDA-4 Novometric Acceptance Contract,
+17-column candidate table, tests N1–N13.
+
+**Definition of done:**
+- `test-sda-novometric.R` all N1–N13 tests pass.
+- Fast tier: FAIL 0 | WARN 0.
+- CRAN light check: 0 errors, 0 warnings.
+- No stale "not yet implemented" references in exported docs.
+- Committed.
+
+**Status:** Implemented and passing (2026-05-27). Commit pending CRAN check.
+
+---
+
+### Checkpoint 2 — Data-raw artifact ingestion & cleanup
+
+**Scope:** Capture lessons learned from scratch CTA.EXE/pgm/MODEL.TXT
+experiments into a tracked design note. Delete or gitignore the scratch
+artifacts after lessons are recorded. Do not delete any file until lessons
+are captured.
+
+**Key lessons to record (do not delete before capturing):**
+- `FORCENODE` is a node-level directive, not a workflow-level one. It cannot
+  drive a staged EX-CTA workflow without a wrapper that knows which nodes to
+  force at each stage.
+- Staged EX CTA needs a workflow-level object that accumulates the EX list
+  across stages; a single MINDENOM is too blunt for manual staged EX.
+- Single-MINDENOM MDSA conflates effect-size power with tree depth.
+
+**Definition of done:**
+- Design note committed to `docs/` or appended to an existing canon doc.
+- Scratch `.pgm`, `.txt`, `.exe` artifacts removed from working tree (or
+  gitignored with a comment).
+- No private paths or credentials in tracked files.
+
+---
+
+### Checkpoint 3 — CRAN/check hardening
+
+**Scope:** Make `devtools::check(vignettes=FALSE)` exit cleanly (0 errors,
+0 warnings, ≤ acceptable notes). Specifically:
+- Resolve any `R CMD check` notes about undocumented functions or
+  missing `\value` tags.
+- Ensure `NAMESPACE` stays synchronized with `@export` tags.
+- Confirm `devtools::document()` produces no warnings.
+- Run `devtools::check()` as the final gate before any release tag.
+
+**Definition of done:**
+- `devtools::check(vignettes=FALSE)` exits: 0 errors, 0 warnings.
+- `devtools::document()` exits without warning.
+
+---
+
+### Checkpoint 4 — Covariate balance V1
+
+**Scope:** Implement `sda_balance()` or equivalent — compute standardized
+mean differences (SMD) or balance statistics on SDA strata (resolved vs.
+unresolved; per-step). This is the first diagnostic layer for assessing
+whether SDA-induced stratification preserves covariate balance on
+non-candidate columns.
+
+**Design boundary:** Balance diagnostics are read-only (no model
+modification). They operate on the full sample, not only the training folds.
+The output is a balance table, not a reweighting procedure.
+
+**Definition of done:** TBD at activation.
+
+---
+
+### Checkpoint 5 — Graphics V3
+
+**Scope:** CTA tree visualization third generation — mature ggplot/grid
+implementation with ellipse internal nodes, rectangle leaves, target-class
+coloring, and a confusion panel. See `docs/` graphics vision section.
+`cta_plot_data()` is the stable contract layer between the CTA object and
+the renderer.
+
+**Definition of done:** TBD at activation.
+
+---
+
+### Checkpoint 6 — SDA→CTA/ORT anchor
+
+**Scope:** Formalize the SDA-selected-attribute → CTA/ORT handoff workflow.
+`sda_to_cta_data()` produces the constrained candidate frame. The anchor
+doc should specify:
+- Which observations go into CTA (all, or unresolved only)?
+- Which `X` columns are candidates (SDA-selected only)?
+- How `mindenom` for CTA is derived from SDA power analysis.
+- How the ORT is generated from the CTA fit.
+
+**Design note:** MPE Chapter 12 (Path B) is the canonical reference.
+Full-sample CTA on SDA-selected attributes is the default; unresolved-only
+CTA is an explicit variant requiring separate justification.
+
+**Definition of done:** TBD at activation.
+
+---
+
+### Checkpoint 7 — CTA reporting completeness audit
+
+**Scope:** Audit the CTA translation stack against all CTA.exe output fields.
+Identify any fields in `MODEL.TXT` / `CTA_output.txt` that are not yet
+reproducible via R functions. Produce a gap list. Prioritize by frequency
+of use in publications.
+
+**Current state:** First production version complete (all primary translation
+functions implemented). Known gap: `ge_count` / `iter_used` not stored on
+`cta_tree` nodes (discarded after MC runs).
+
+**Definition of done:** TBD at activation.
+
+---
+
+### Checkpoint 8 — Staged CTA workflow (FORCENODE / EX)
+
+**Scope:** Implement a workflow object that accumulates the EX list across
+staged EX-CTA runs. Each stage:
+1. Fits CTA on the full candidate frame.
+2. Identifies the selected root/split path.
+3. Excludes those attributes from the next stage's candidate frame (EX).
+4. Optionally forces previously selected nodes (FORCENODE equivalent).
+
+**Design boundary:** This is NOT a wrapper around CTA.EXE. It is a pure-R
+workflow that calls `cta_fit()` / `cta_descendant_family()` at each stage.
+The FORCENODE mechanism must be implemented as a tree-surgery function, not
+as a CTA.EXE directive.
+
+**Definition of done:** TBD at activation.
+
+---
+
+### Checkpoint 9 — Private tmp-script cleanup
+
+**Scope:** Audit `tests/testthat/fixtures/`, `data-raw/`, and any top-level
+scratch files for:
+- Private data paths (absolute Windows paths, Dropbox paths).
+- Temporary probe scripts that were never deleted.
+- `.exe` or `.pgm` files that leaked into the working tree.
+
+**Process:** List candidates → confirm with user → delete or gitignore.
+Do not delete any fixture that is referenced by a passing test.
+
+**Definition of done:** `git status` shows no untracked private-path files.
+`git grep` finds no absolute Windows/Dropbox paths in tracked `.R` files.
+
+---
+
+### Checkpoint 10 — Weighted SDA
+
+**Scope:** Implement `sda_fit()` with `weights != NULL`. Requires:
+- Weighted removal: after each step, remove obs where `w * correct >= ...`
+  (exact criterion TBD — see §Weighted SDA design boundary).
+- WESS labeling throughout candidate table and step table.
+- Weighted candidate-table semantics.
+- Full test suite update.
+
+**Prerequisite:** Explicit weighted removal criterion must be designed and
+approved before implementation. The current error message guards this.
+
+**Definition of done:** TBD at activation.
+
+---
+
+### Checkpoint 11 — Documentation review pass
+
+**Scope:** Full review of all exported function `@param` / `@return` /
+`@examples` tags for accuracy after SDA-4B. Specifically:
+- All references to "not yet implemented" updated.
+- `sda_fit()`, `predict.sda_fit()`, `auto_sda_plan()`, `sda_selected_attributes()`,
+  `sda_step_table()`, `sda_candidate_table()`, `as_cta_candidates()`,
+  `sda_to_cta_data()` fully documented.
+- `devtools::document()` produces 0 warnings.
+
+**Status:** Partially complete — stale "not yet implemented" refs in
+`sda_core.R` and `sda_auto_plan.R` fixed (2026-05-27, SDA-4B close).
+
+**Definition of done:** TBD at full-pass activation.
+
+---
+
+### Checkpoint 12 — Release hardening
+
+**Scope:** Pre-release gate for the first tagged version:
+- `devtools::check()` (with vignettes) exits: 0 errors, 0 warnings, ≤ 1 note.
+- Full tier (`ODACORE_TEST_TIER=full`) exits: FAIL 0 | WARN 0.
+- `NEWS.md` / `CHANGELOG.md` captures all user-visible changes since last tag.
+- `DESCRIPTION` version bump.
+- No `.exe`, `.pgm`, or private-path artifacts in the package tarball.
+- All canon fixture paths are relative and portable.
+
+**Definition of done:** `R CMD build` + `R CMD check --as-cran` exits clean
+on a clean machine.

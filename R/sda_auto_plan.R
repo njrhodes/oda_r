@@ -1,7 +1,7 @@
 ###############################################################################
 # R/sda_auto_plan.R
 #
-# auto_sda_plan() — dry-run planning and validation layer for SDA.
+# auto_sda_plan() -- dry-run planning and validation layer for SDA.
 #
 # SDA-3 scope:
 #   dry_run = TRUE only; no fitting.
@@ -9,7 +9,7 @@
 #   Exact-duplicate detection only (collinearity_threshold = 1.0).
 #   Returns class c("auto_sda_plan", "odacore_plan").
 #
-# Canon reference: docs/SDA_AUTO_SDA_PLAN.md §6.
+# Canon reference: docs/SDA_AUTO_SDA_PLAN.md Sec. 6.
 ###############################################################################
 
 #' Dry-run planning and validation layer for SDA
@@ -50,7 +50,8 @@
 #' @param min_n Passed through to \code{proposed_call} for \code{sda_fit()}.
 #' @param min_class_n Passed through to \code{proposed_call}.
 #' @param mode SDA mode: \code{"unioda_max_ess"} (legacy/iterative UniODA) or
-#'   \code{"novometric_min_d"} (MPE-canon; not yet implemented in SDA-1).
+#'   \code{"novometric_min_d"} (MPE-canon; per-attribute MDSA via
+#'   \code{cta_descendant_family()}; requires \code{mindenom}).
 #' @param dry_run Logical. Must be \code{TRUE} (default). Fitting is not
 #'   performed in SDA-3; \code{dry_run = FALSE} errors.
 #' @return Object of class \code{c("auto_sda_plan", "odacore_plan")}.
@@ -181,7 +182,7 @@ auto_sda_plan <- function(
         nm_time <- if (nm %in% names(time_map)) time_map[[nm]] else NULL
         if (!is.null(nm_time) && nm_time > outcome_time)
           plan_warnings <- c(plan_warnings, sprintf(
-            "'%s' time index (%s) > outcome time (%s) — potential leakage; review before including",
+            "'%s' time index (%s) > outcome time (%s) -- potential leakage; review before including",
             nm, nm_time, outcome_time))
       }
     }
@@ -299,6 +300,8 @@ auto_sda_plan <- function(
 }
 
 #' Print an auto_sda_plan object
+#' @param x An \code{auto_sda_plan} object.
+#' @param ... Unused.
 #' @export
 print.auto_sda_plan <- function(x, ...) {
   cat(sprintf("auto_sda_plan  [mode: %s  |  dry_run: %s]\n",

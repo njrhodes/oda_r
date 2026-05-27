@@ -20,7 +20,22 @@ alert.sh
 inst/dev/timing_*.R
 inst/dev/diag_*.R
 *.log
+# data-raw scratch artifacts (CTA.EXE runs, pgm/MODEL.TXT) -- never commit
+data-raw/CTA.EXE
+data-raw/*.pgm
+data-raw/MODEL*.TXT
+data-raw/data.csv
+data-raw/data.txt
+
 # roxygen-generated Rd files for non-exported internal helpers (never commit)
+man/dot-auto_sda_infer_types.Rd
+man/dot-sda_check_class.Rd
+man/dot-sda_find_collinear.Rd
+man/dot-sda_remove_correctly_classified.Rd
+man/dot-sda_resolve_attr_types.Rd
+man/dot-sda_step_novometric_min_d.Rd
+man/dot-sda_step_unioda_max_ess.Rd
+man/dot-sda_validate_candidate_frame.Rd
 man/oda_apply_priors.Rd
 man/oda_apply_priors_multiclass.Rd
 man/oda_clean_xy.Rd
@@ -45,6 +60,9 @@ tests/testthat/CTA_DEMO.CSV
 prompts/*
 !prompts/prod-roadmap-*.md
 
-# MegaODA/CTA engine binaries under vignette fixture folders — never commit
+# top-level scratch/probe scripts — never commit
+tmp_*.R
+
+# MegaODA/CTA engine binaries under vignette fixture folders -- never commit
 tests/testthat/fixtures/vignettes/data/**/*.EXE
 tests/testthat/fixtures/vignettes/data/**/*.exe

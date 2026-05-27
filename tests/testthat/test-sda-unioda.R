@@ -260,12 +260,12 @@ test_that("sda: weights != NULL errors with informative message", {
 })
 
 # ---------------------------------------------------------------------------
-# Test 14: mode = "novometric_min_d" errors with not-yet-implemented message
+# Test 14: mode = "novometric_min_d" requires explicit mindenom (SDA-4B)
 # ---------------------------------------------------------------------------
-test_that("sda: novometric_min_d mode errors as not-yet-implemented", {
+test_that("sda: novometric_min_d without mindenom errors with MPE guidance", {
   expect_error(
     sda_fit(sda_X, sda_y, mode = "novometric_min_d"),
-    regexp = "not yet implemented"
+    regexp = "mindenom"
   )
 })
 

@@ -85,22 +85,29 @@ predict.sda_fit <- function(object, newdata, type = "class", ...) {
   for (s in seq_along(steps)) {
     if (length(unresolved) == 0L) break
 
-    step  <- steps[[s]]
-    attr  <- step$attribute
-    rule  <- step$model$rule
+    step <- steps[[s]]
+    attr <- step$attribute
 
-    x_step <- newdata[unresolved, attr]
-    pred_coded <- oda_rule_predict(x_step, rule)
-    # remap 0/1 to original class labels
-    pred_orig <- ifelse(pred_coded == 0L,
-                        rule$label_0,
-                        rule$label_1)
+    if (identical(step$mode, "novometric_min_d")) {
+      # --- novometric: apply min-D CTA tree to unresolved rows
+      best_tree <- step$model$members[[step$min_d_idx]]$tree
+      nd_single <- newdata[unresolved, attr, drop = FALSE]
+      pred_orig <- predict(best_tree, nd_single, missing_action = "na")
+    } else {
+      # --- unioda_max_ess: apply UniODA rule
+      rule       <- step$model$rule
+      x_step     <- newdata[unresolved, attr]
+      pred_coded <- oda_rule_predict(x_step, rule)
+      pred_orig  <- ifelse(pred_coded == 0L, rule$label_0, rule$label_1)
+    }
+
+    pred_orig <- as.integer(pred_orig)
 
     # classified = non-NA prediction
-    classified_local <- !is.na(pred_orig)
+    classified_local  <- !is.na(pred_orig)
     classified_global <- unresolved[classified_local]
 
-    out_class[classified_global] <- as.integer(pred_orig[classified_local])
+    out_class[classified_global] <- pred_orig[classified_local]
     out_stage[classified_global] <- s
     out_rule [classified_global] <- attr
 
@@ -110,7 +117,7 @@ predict.sda_fit <- function(object, newdata, type = "class", ...) {
         step_id    = s,
         attribute  = attr,
         classified = classified_local,
-        class_pred = as.integer(pred_orig),
+        class_pred = pred_orig,
         stringsAsFactors = FALSE
       )
     }
@@ -127,6 +134,8 @@ predict.sda_fit <- function(object, newdata, type = "class", ...) {
 }
 
 #' Print an sda_fit object
+#' @param x An \code{sda_fit} object.
+#' @param ... Unused.
 #' @export
 print.sda_fit <- function(x, ...) {
   steps <- x$steps
@@ -138,18 +147,28 @@ print.sda_fit <- function(x, ...) {
   if (length(steps) > 0L) {
     cat("  Selected sequence:\n")
     for (s in steps) {
-      cat(sprintf("    [%d] %-30s ESS=%.2f%%  p=%.4f  n_in=%d  n_correct=%d\n",
-                  s$step_id, s$attribute,
-                  s$ess %||% NA_real_,
-                  s$p_mc %||% NA_real_,
-                  s$n_in,
-                  s$n_correct))
+      if (identical(s$mode, "novometric_min_d")) {
+        cat(sprintf("    [%d] %-30s D=%.4f  ESS=%.2f%%  p=%.4f  n_in=%d  n_correct=%d\n",
+                    s$step_id, s$attribute,
+                    s$d   %||% NA_real_,
+                    s$ess %||% NA_real_,
+                    s$p_mc %||% NA_real_,
+                    s$n_in, s$n_correct))
+      } else {
+        cat(sprintf("    [%d] %-30s ESS=%.2f%%  p=%.4f  n_in=%d  n_correct=%d\n",
+                    s$step_id, s$attribute,
+                    s$ess %||% NA_real_,
+                    s$p_mc %||% NA_real_,
+                    s$n_in, s$n_correct))
+      }
     }
   }
   invisible(x)
 }
 
 #' Summarise an sda_fit object
+#' @param object An \code{sda_fit} object.
+#' @param ... Unused.
 #' @export
 summary.sda_fit <- function(object, ...) {
   steps <- object$steps
@@ -181,6 +200,8 @@ summary.sda_fit <- function(object, ...) {
 }
 
 #' Print an sda_fit_summary object
+#' @param x An \code{sda_fit_summary} object.
+#' @param ... Unused.
 #' @export
 print.sda_fit_summary <- function(x, ...) {
   cat(sprintf("SDA summary  [mode: %s  |  stop: %s]\n",
