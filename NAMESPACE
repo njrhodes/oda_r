@@ -59,6 +59,13 @@ S3method(print,   cta_ort)
 S3method(summary, cta_ort)
 S3method(print,   cta_ort_summary)
 
+# ----- SDA -----
+export(sda_fit)
+S3method(predict, sda_fit)
+S3method(print,   sda_fit)
+S3method(summary, sda_fit)
+S3method(print,   sda_fit_summary)
+
 # ----- Novometric bootstrap -----
 export(novo_boot_ci)
 S3method(print, novo_boot_ci)
