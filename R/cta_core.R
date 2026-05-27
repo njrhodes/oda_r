@@ -577,6 +577,8 @@ oda_cta_fit <- function(
       ess       = obs_ess,
       ess_pac   = obs_ess,
       p_mc      = p_mc,
+      ge_count  = mc_res$ge_count,
+      iter_used = mc_res$iter_used,
       attr_type = "ordered",
       engine    = "binary",
       confusion = NULL,
@@ -602,7 +604,10 @@ oda_cta_fit <- function(
       attribute = cand$name, attr_col = cand$j,
       attr_type = cand$fit$attr_type %||% "ordered",
       rule = appl$rule, ess = cand$ess, ess_weighted = cand$ess,
-      p_mc = cand$p_mc, loo_status = li$status,
+      p_mc      = cand$p_mc,
+      ge_count  = cand$ge_count  %||% NA_integer_,
+      iter_used = cand$iter_used %||% NA_integer_,
+      loo_status = li$status,
       loo_ess = li$ess_loo, loo_p = li$p_value,
       confusion = conf,
       split_labels = as.integer(sl),
@@ -672,7 +677,9 @@ oda_cta_fit <- function(
                                           row_hash = rh, n_obs_parent = length(idx))
         if (!is.null(cta_fit))
           return(list(j = j, name = attr_names[j], fit = cta_fit,
-                      ess = cta_fit$ess, p_mc = cta_fit$p_mc))
+                      ess = cta_fit$ess, p_mc = cta_fit$p_mc,
+                      ge_count  = cta_fit$ge_count  %||% NA_integer_,
+                      iter_used = cta_fit$iter_used %||% NA_integer_))
         return(NULL)  # triggered and rejected; do not fall back to generic ODA
       }
     }
@@ -750,7 +757,9 @@ oda_cta_fit <- function(
     .vmsg("  -> accepted: ESS=", round(ess, 2), "% p=", round(p_mc, 4),
           " (", elapsed, "s)")
     .log_gen(p_mc, ess, TRUE, NA_character_)
-    list(j = j, name = attr_names[j], fit = fit, ess = ess, p_mc = p_mc)
+    list(j = j, name = attr_names[j], fit = fit, ess = ess, p_mc = p_mc,
+         ge_count  = fit$mc_info$ge_count  %||% NA_integer_,
+         iter_used = fit$mc_info$iter_used %||% NA_integer_)
   }
 
   # Get ALL valid candidates at a node position (fast screen then ALL full MC+LOO).

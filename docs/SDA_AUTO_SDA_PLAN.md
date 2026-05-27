@@ -1360,8 +1360,9 @@ reproducible via R functions. Produce a gap list. Prioritize by frequency
 of use in publications.
 
 **Current state:** First production version complete (all primary translation
-functions implemented). Known gap: `ge_count` / `iter_used` not stored on
-`cta_tree` nodes (discarded after MC runs).
+functions implemented). Previously known gap resolved (SDA-4B close):
+`ge_count` / `iter_used` now preserved on `cta_tree` split nodes from both
+the CTA ordered path (`mc_res`) and the generic ODA path (`fit$mc_info`).
 
 **Definition of done:** TBD at activation.
 

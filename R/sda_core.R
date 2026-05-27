@@ -283,8 +283,8 @@ sda_fit <- function(
         ess                       = wr$ess,
         d                         = wr$d,
         p_mc                      = wr$p_mc,
-        ge_count                  = NA_integer_,   # not stored by cta_tree nodes
-        iter_used                 = NA_integer_,   # not stored by cta_tree nodes
+        ge_count                  = wr$ge_count  %||% NA_integer_,
+        iter_used                 = wr$iter_used %||% NA_integer_,
         mindenom                  = settings$mindenom,
         n_correct                 = n_correct,
         n_incorrect               = n_incorrect,
@@ -686,12 +686,18 @@ sda_fit <- function(
     strata <- member$strata      %||% NA_integer_
     min_td <- member$min_terminal_denom %||% NA_integer_
 
-    # p_mc from root split node of the min-D tree
-    p_mc <- NA_real_
+    # p_mc, ge_count, iter_used from root split node of the min-D tree
+    p_mc      <- NA_real_
+    ge_count  <- NA_integer_
+    iter_used <- NA_integer_
     tr   <- member$tree
     if (!is.null(tr) && !isTRUE(tr$no_tree) && !is.null(tr$nodes)) {
-      root_nd <- tr$nodes[[tr$root_id]]
-      if (!is.null(root_nd)) p_mc <- root_nd$p_mc %||% NA_real_
+      root_nd   <- tr$nodes[[tr$root_id]]
+      if (!is.null(root_nd)) {
+        p_mc      <- root_nd$p_mc      %||% NA_real_
+        ge_count  <- root_nd$ge_count  %||% NA_integer_
+        iter_used <- root_nd$iter_used %||% NA_integer_
+      }
     }
 
     # p gate
@@ -701,6 +707,7 @@ sda_fit <- function(
         ineligible_reason = "p_gate",
         n = n_attr, class_counts = class_counts,
         ess = ess, d = d, p_mc = p_mc,
+        ge_count = ge_count, iter_used = iter_used,
         strata = as.integer(strata),
         min_terminal_denom = as.integer(min_td),
         min_d_idx = midx
@@ -712,6 +719,7 @@ sda_fit <- function(
       ineligible_reason = NA_character_,
       n = n_attr, class_counts = class_counts,
       ess = ess, d = d, p_mc = p_mc,
+      ge_count = ge_count, iter_used = iter_used,
       strata = as.integer(strata),
       min_terminal_denom = as.integer(min_td),
       min_d_idx = midx
@@ -808,8 +816,8 @@ sda_fit <- function(
     ess                   = vapply(results, function(r) r$ess  %||% NA_real_,         numeric(1)),
     d                     = vapply(results, function(r) r$d    %||% NA_real_,         numeric(1)),
     p_mc                  = vapply(results, function(r) r$p_mc %||% NA_real_,         numeric(1)),
-    ge_count              = NA_integer_,   # not stored by cta_tree nodes; structural gap
-    iter_used             = NA_integer_,   # not stored by cta_tree nodes; structural gap
+    ge_count              = vapply(results, function(r) r$ge_count  %||% NA_integer_, integer(1)),
+    iter_used             = vapply(results, function(r) r$iter_used %||% NA_integer_, integer(1)),
     strata                = vapply(results, function(r) r$strata %||% NA_integer_,    integer(1)),
     selected              = vapply(seq_len(n_cands),
                                    function(i) !is.na(winner_pos) && i == winner_pos, logical(1)),

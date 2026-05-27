@@ -236,3 +236,55 @@ test_that("cta-demo regression: uniform weights bypass CTA path; root=V2 ESS=52.
   expect_equal(root$ess, 52.63, tolerance = 0.5,
     label = "V2 root ESS ≈ 52.63% (CTA.exe fixture)")
 })
+
+# =============================================================================
+# Test 5: split-node MC metadata preservation (CRAN-safe, synthetic data)
+#
+# Verifies that ge_count and iter_used are preserved on the split node after
+# the CTA patch that carries MC counters from the candidate through .split_nd().
+# Uses small synthetic data with uniform weights (generic ODA path).
+# =============================================================================
+
+test_that("node-selection: split node stores ge_count and iter_used from MC run", {
+  set.seed(77L)
+  n   <- 60L
+  y_s <- c(rep(1L, 30L), rep(2L, 30L))
+  X_s <- data.frame(A = c(rep(0L, 25L), rep(1L,  5L),
+                           rep(1L, 25L), rep(0L,  5L)),
+                    B = sample(0:1, n, replace = TRUE))
+
+  tree <- oda_cta_fit(
+    X           = X_s,
+    y           = y_s,
+    priors_on   = FALSE,
+    alpha_split = 0.05,
+    mindenom    = 1L,
+    prune_alpha = 0.05,
+    max_depth   = 5L,
+    ess_min     = 0,
+    mc_iter     = 500L,
+    mc_target   = 0.05,
+    mc_stop     = 99.9,
+    mc_stopup   = 20,
+    mc_seed     = 42L,
+    loo         = "off",
+    attr_names  = c("A", "B")
+  )
+
+  root <- tree$nodes[[tree$root_id]]
+  # Root must be a split (A is near-perfect separator)
+  expect_false(isTRUE(root$leaf), label = "root should be a split node")
+
+  # p_mc must be numeric and finite (MC ran with mc_iter=500)
+  expect_true(is.numeric(root$p_mc), label = "root$p_mc must be numeric")
+  expect_false(is.na(root$p_mc),     label = "root$p_mc must not be NA")
+
+  # ge_count and iter_used must be non-NA non-negative integers
+  expect_false(is.na(root$ge_count),   label = "root$ge_count must not be NA")
+  expect_true(is.integer(root$ge_count), label = "root$ge_count must be integer")
+  expect_true(root$ge_count >= 0L,     label = "root$ge_count must be >= 0")
+
+  expect_false(is.na(root$iter_used),  label = "root$iter_used must not be NA")
+  expect_true(is.integer(root$iter_used), label = "root$iter_used must be integer")
+  expect_true(root$iter_used >= 1L,    label = "root$iter_used must be >= 1 when MC ran")
+})

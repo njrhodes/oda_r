@@ -4,9 +4,9 @@
 # Tier: CRAN-safe. Synthetic data only. No data-raw artifacts.
 # All tests from §4A.7 of docs/SDA_AUTO_SDA_PLAN.md.
 #
-# Known structural gap: ge_count and iter_used are not stored by cta_tree
-# nodes; they are NA_integer_ in the candidate table. p_mc is extracted from
-# the root split node (tree$nodes[[root_id]]$p_mc).
+# CTA split nodes preserve MC counters p_mc, ge_count, and iter_used;
+# novometric SDA candidate tables extract them from the selected member's
+# root split node (tree$nodes[[root_id]]).
 ###############################################################################
 
 # ---------------------------------------------------------------------------
@@ -410,9 +410,13 @@ test_that("novometric step stores non-NA d, mode='novometric_min_d', min_d_idx",
     expect_false(is.na(stp$d))
     expect_false(is.na(stp$min_d_idx))
     expect_equal(stp$reason, "min_d")
-    # ge_count and iter_used are NA (structural gap: not stored by cta_tree)
-    expect_true(is.na(stp$ge_count))
-    expect_true(is.na(stp$iter_used))
+    # ge_count and iter_used are extracted from root split node MC counters
+    expect_false(is.na(stp$ge_count))
+    expect_true(is.integer(stp$ge_count))
+    expect_true(stp$ge_count >= 0L)
+    expect_false(is.na(stp$iter_used))
+    expect_true(is.integer(stp$iter_used))
+    expect_true(stp$iter_used >= 1L)
   }
 })
 
