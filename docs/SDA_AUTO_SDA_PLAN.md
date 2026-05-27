@@ -1263,30 +1263,35 @@ min-D selection, tie-breaking per §SDA-4 Novometric Acceptance Contract,
 - No stale "not yet implemented" references in exported docs.
 - Committed.
 
-**Status:** Implemented and passing (2026-05-27). Commit pending CRAN check.
+**Status:** Implemented and passing (2026-05-27). Committed 8ede119 + 3583ec8.
 
 ---
 
-### Checkpoint 2 — Data-raw artifact ingestion & cleanup
+### Checkpoint 2 — Data-raw artifact ingestion & cleanup  ✓ INGESTED (cleanup pending)
 
 **Scope:** Capture lessons learned from scratch CTA.EXE/pgm/MODEL.TXT
 experiments into a tracked design note. Delete or gitignore the scratch
-artifacts after lessons are recorded. Do not delete any file until lessons
-are captured.
+artifacts after lessons are recorded.
 
-**Key lessons to record (do not delete before capturing):**
-- `FORCENODE` is a node-level directive, not a workflow-level one. It cannot
+**Lessons captured:** See `docs/STAGED_CTA_WORKFLOW_PLAN.md`.
+
+Key findings:
+- FORCENODE is a node-level directive, not a workflow-level one. It cannot
   drive a staged EX-CTA workflow without a wrapper that knows which nodes to
   force at each stage.
-- Staged EX CTA needs a workflow-level object that accumulates the EX list
-  across stages; a single MINDENOM is too blunt for manual staged EX.
-- Single-MINDENOM MDSA conflates effect-size power with tree depth.
+- FORCENODE fails silently (Warning 4, no tree) when global MINDENOM exceeds
+  the forced root's smaller endpoint denominator.
+- Similar ESS hides radically different error allocation: FORCENODE MD=1 gives
+  FP=2342; manual staged EX (MD=47 per branch) gives FP=598 at ESS=35.72% vs 35.35%.
+- Staged EX CTA needs a workflow-level object; a single global MINDENOM is too
+  blunt for branch-specific power requirements.
 
-**Definition of done:**
-- Design note committed to `docs/` or appended to an existing canon doc.
-- Scratch `.pgm`, `.txt`, `.exe` artifacts removed from working tree (or
-  gitignored with a comment).
-- No private paths or credentials in tracked files.
+**Status:** Design doc created (2026-05-27). Scratch artifacts gitignored.
+Deletion awaiting explicit user approval.
+
+**Remaining to close:**
+- User approves deletion commands in `docs/STAGED_CTA_WORKFLOW_PLAN.md §7`.
+- Scratch `.pgm`, `.exe`, `.txt` artifacts removed from working tree.
 
 ---
 
@@ -1370,17 +1375,25 @@ the CTA ordered path (`mc_res`) and the generic ODA path (`fit$mc_info`).
 
 ### Checkpoint 8 — Staged CTA workflow (FORCENODE / EX)
 
-**Scope:** Implement a workflow object that accumulates the EX list across
-staged EX-CTA runs. Each stage:
-1. Fits CTA on the full candidate frame.
-2. Identifies the selected root/split path.
-3. Excludes those attributes from the next stage's candidate frame (EX).
-4. Optionally forces previously selected nodes (FORCENODE equivalent).
+**Full design:** See `docs/STAGED_CTA_WORKFLOW_PLAN.md`.
+
+**Scope:** Implement a `staged_cta_workflow` object that runs branch-specific
+CTA models with branch-specific EX filters, MINDENOM, and candidate sets.
+Each stage applies its branch filter, fits CTA (or records no-tree terminal),
+and contributes to an integrated confusion table.
+
+**Key lessons already captured (from Checkpoint 2):**
+- FORCENODE is node-level; staged EX is workflow-level. They are not equivalent.
+- Similar ESS can hide a 4x difference in FP (see model comparison table in SCWD).
+- A single global MINDENOM cannot simultaneously satisfy branch-specific power
+  requirements. Branch MINDENOM must be set per branch.
+- "No tree" is a valid terminal decision and must be modeled explicitly, not as an error.
 
 **Design boundary:** This is NOT a wrapper around CTA.EXE. It is a pure-R
 workflow that calls `cta_fit()` / `cta_descendant_family()` at each stage.
-The FORCENODE mechanism must be implemented as a tree-surgery function, not
-as a CTA.EXE directive.
+Branch filters are programmatic predicates, not EX strings.
+
+**Implementation sequence (SCTA-0 through SCTA-4):** See `docs/STAGED_CTA_WORKFLOW_PLAN.md §6`.
 
 **Definition of done:** TBD at activation.
 
