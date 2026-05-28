@@ -266,6 +266,38 @@ test_that("print.cta_tree: WESS label shown for weighted synthetic tree", {
     expect_match(out, "WESS", fixed = TRUE)
 })
 
+test_that("print.cta_tree: split-node confusion block labelled 'Node-local split confusion'", {
+  # Run a fit with verbose=FALSE; capture print output; check label present
+  # when a confusion matrix is stored on a split node.
+  d <- list(X = data.frame(x = 1:8), y = c(0L,0L,0L,0L,1L,1L,1L,1L))
+  tree <- suppressMessages(
+    oda_cta_fit(d$X, d$y, mindenom = 2L, mc_iter = 300L,
+                mc_seed = 1L, loo = "off", verbose = TRUE)
+  )
+  skip_if(isTRUE(tree$no_tree), "mc sampling missed")
+  # Check that at least one split node has a confusion matrix stored
+  has_conf <- any(vapply(tree$nodes, function(nd)
+    !is.null(nd) && !isTRUE(nd$leaf) && !is.null(nd$confusion), logical(1L)))
+  skip_if(!has_conf, "no confusion matrix stored on split nodes")
+  out <- paste(capture.output(print(tree)), collapse = "\n")
+  expect_match(out, "Node-local split confusion", fixed = TRUE)
+})
+
+test_that("print.cta_tree: terminal endpoints section present", {
+  tree <- .sumtest_stump_fit()
+  skip_if(isTRUE(tree$no_tree), "mc sampling missed")
+  out <- paste(capture.output(print(tree)), collapse = "\n")
+  expect_match(out, "Terminal endpoints (*)", fixed = TRUE)
+})
+
+test_that("print.cta_tree: terminal marker '*' present in endpoints section", {
+  tree <- .sumtest_stump_fit()
+  skip_if(isTRUE(tree$no_tree), "mc sampling missed")
+  out <- paste(capture.output(print(tree)), collapse = "\n")
+  # Each endpoint line starts with "* endpoint"
+  expect_match(out, "* endpoint", fixed = TRUE)
+})
+
 # =============================================================================
 # Slow fixture tests — gated (canonical settings matching test-fixture-myeloma-cta.R)
 # =============================================================================

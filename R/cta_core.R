@@ -1402,7 +1402,10 @@ print.cta_tree <- function(x, ...) {
                 nd$ess %||% 0, nd$ess_weighted %||% 0,
                 loo_str, rule_str))
 
-    if (!is.null(nd$confusion)) .print_node_confusion(nd$confusion)
+    if (!is.null(nd$confusion)) {
+      cat("  Node-local split confusion (this rule only, observations at this node)\n")
+      .print_node_confusion(nd$confusion)
+    }
     cat("\n")
   }
 
@@ -1410,6 +1413,25 @@ print.cta_tree <- function(x, ...) {
   n_leaf  <- x$n_nodes - n_split
   cat(sprintf("Nodes: %d total  (%d split  %d leaf)\n",
               x$n_nodes, n_split, n_leaf))
+
+  # Terminal endpoints section — uses cta_endpoint_table() as the source.
+  ep <- tryCatch(cta_endpoint_table(x), error = function(e) NULL)
+  if (!is.null(ep) && nrow(ep) > 0L) {
+    cat("\nTerminal endpoints (*):\n")
+    for (i in seq_len(nrow(ep))) {
+      ccr     <- ep$class_counts_raw[[i]]
+      cnt_str <- if (!is.null(ccr))
+        paste(sprintf("%s:%d", names(ccr), as.integer(ccr)), collapse = " ")
+      else ""
+      tp    <- ep$target_prop[i]
+      tp_str <- if (!is.na(tp)) sprintf("  target_prop=%.1f%%", tp * 100) else ""
+      cat(sprintf("* endpoint %d  node %d:  path=%s  n=%d%s  predicted=%d%s\n",
+                  ep$endpoint_id[i], ep$leaf_node_id[i],
+                  ep$path[i], ep$n[i],
+                  if (nzchar(cnt_str)) sprintf("  counts=[%s]", cnt_str) else "",
+                  ep$predicted_class[i], tp_str))
+    }
+  }
 
   # Compact footer: ESS/WESS, D, strata, min endpoint denominator.
   ess_val <- x$overall_ess
@@ -1441,6 +1463,7 @@ cta_node_table <- function(tree) {
     data.frame(
       node_id      = nd$node_id,
       parent_id    = nd$parent_id,
+      level        = nd$depth,
       depth        = nd$depth,
       leaf         = isTRUE(nd$leaf),
       attribute    = nd$attribute    %||% NA_character_,
@@ -1452,6 +1475,11 @@ cta_node_table <- function(tree) {
       ess_weighted = nd$ess_weighted %||% NA_real_,
       loo_status   = nd$loo_status   %||% NA_character_,
       loo_ess      = nd$loo_ess      %||% NA_real_,
+      loo_p        = nd$loo_p        %||% NA_real_,
+      model        = if (!isTRUE(nd$leaf))
+                       tryCatch(.cta_model_string(tree, nd),
+                                error = function(e) NA_character_)
+                     else NA_character_,
       stringsAsFactors = FALSE
     )
   })
@@ -1460,6 +1488,58 @@ cta_node_table <- function(tree) {
 }
 
 # ---- Internal helpers -------------------------------------------------------
+
+# .cta_model_string(tree, nd)
+#
+# Build the CTA.exe-style MODEL field for a split node.  Format per branch:
+#   branch_condition-->class,correct_n/total_n,pct[*]
+# where `*` marks a terminal (leaf) branch.
+#
+# correct_n and total_n are derived from the split node's own confusion matrix
+# (rows = actual class, cols = predicted class).  The column for each predicted
+# class gives the branch totals; the diagonal cell gives the correct count.
+# This is available for all split nodes regardless of tree depth.
+.cta_model_string <- function(tree, nd) {
+  if (is.null(nd) || isTRUE(nd$leaf)) return(NA_character_)
+  if (length(nd$child_ids) == 0L)      return(.cta_rule_string(nd$rule))
+
+  conf <- nd$confusion
+  if (is.table(conf))  conf <- as.matrix(conf)
+  if (!is.matrix(conf) || prod(dim(conf)) == 0L) conf <- NULL
+
+  parts <- character(length(nd$child_ids))
+  for (k in seq_along(nd$child_ids)) {
+    child_id  <- nd$child_ids[k]
+    pred_cls  <- as.integer(nd$split_labels[k])
+    pc_str    <- as.character(pred_cls)
+
+    # Branch label ("<=cut" / ">cut" etc.)
+    branch_lbl <- tryCatch(.cta_branch_string(nd, k),
+                           error = function(e) pc_str)
+
+    # Per-branch counts from the split node's confusion column
+    if (!is.null(conf) && pc_str %in% colnames(conf)) {
+      col_v    <- conf[, pc_str]
+      total_n  <- as.integer(round(sum(col_v)))
+      corr_n   <- if (pc_str %in% rownames(conf))
+        as.integer(round(conf[pc_str, pc_str])) else NA_integer_
+      pct_str  <- if (!is.na(corr_n) && total_n > 0L)
+        sprintf("%.2f%%", 100 * corr_n / total_n) else "?"
+      cnt_str  <- if (!is.na(corr_n))
+        sprintf("%d/%d", corr_n, total_n) else sprintf("?/%d", total_n)
+    } else {
+      cnt_str <- "?/?"
+      pct_str <- "?"
+    }
+
+    # Terminal marker: `*` if child is a leaf
+    child_nd <- tree$nodes[[child_id]]
+    star     <- if (!is.null(child_nd) && isTRUE(child_nd$leaf)) "*" else ""
+    parts[k] <- sprintf("%s-->%d,%s,%s%s",
+                        branch_lbl, pred_cls, cnt_str, pct_str, star)
+  }
+  paste(parts, collapse = "; ")
+}
 
 .cta_rule_string <- function(rule) {
   if (is.null(rule)) return("")

@@ -234,68 +234,106 @@ print.cta_tree_summary <- function(x, ...) {
   segs
 }
 
-#' Terminal-leaf report table for a fitted CTA tree
+#' Canonical terminal endpoint map for a fitted CTA tree
 #'
 #' Returns one row per terminal leaf (endpoint) of a \code{cta_tree}.  All
 #' values are read directly from stored node fields; no refitting or prediction
-#' is performed.
+#' is performed.  This is the canonical endpoint map for reporting, translation,
+#' ORT, and staged workflows.
 #'
-#' Per-endpoint class-count and target-class summaries are deferred to the
-#' future CTA confusion/endpoint-count table because leaf class counts are not
-#' currently stored at fit time.
+#' Leaf class counts are stored on every terminal node at fit time
+#' (\code{class_counts_raw}, \code{class_counts_weighted}).  \code{target_n}
+#' and \code{target_prop} are derived from the stored counts.
+#'
+#' ESS, WESS, p, LOO status, LOO ESS/WESSL, and LOOp are canonical split-node
+#' report metrics (see \code{\link{cta_node_table}}).  Terminal endpoints are
+#' connected to those metrics through their parent split-node lineage.  The
+#' \code{parent_split_*} columns expose the immediate parent split's canonical
+#' metrics for auditability.  They are not recomputed ESS at the leaf.
 #'
 #' @param tree A \code{cta_tree} from \code{\link{oda_cta_fit}}.
+#' @param target_class Integer class label to use as the target (positive)
+#'   class for \code{target_n} and \code{target_prop}.  When \code{NULL}
+#'   (default), the function auto-detects: for binary trees with classes
+#'   \code{0} and \code{1}, class \code{1} is used; otherwise \code{target_n}
+#'   and \code{target_prop} are \code{NA}.
 #' @return A \code{data.frame} with one row per terminal leaf and columns:
 #' \describe{
-#'   \item{\code{node_id}}{Integer node identifier.}
-#'   \item{\code{parent_id}}{Integer parent node identifier
-#'     (\code{0} for the root leaf in a no-tree fit).}
+#'   \item{\code{endpoint_id}}{Integer sequential endpoint index 1..n.}
+#'   \item{\code{leaf_node_id}}{Integer tree node identifier for this leaf.}
+#'   \item{\code{terminal_marker}}{Character \code{"*"} on every row.}
+#'   \item{\code{terminal}}{Logical \code{TRUE} on every row.}
 #'   \item{\code{depth}}{Integer depth from root (root = 1).}
+#'   \item{\code{parent_split_node_id}}{Integer parent split node identifier.}
 #'   \item{\code{path}}{Character; AND-joined branch labels from root to this
 #'     leaf (e.g. \code{"V14<=0.5 AND V15>0.5"}).  \code{"/"} for the root
 #'     leaf.}
-#'   \item{\code{majority_class}}{Integer class label assigned to this leaf.}
-#'   \item{\code{n_obs}}{Integer raw observation count at this leaf.}
-#'   \item{\code{n_weighted}}{Numeric weighted observation count
-#'     (\code{NA} when weights not active).}
-#'   \item{\code{ess}}{Numeric ESS stored on this leaf (\code{NA_real_} —
-#'     ESS is a split-node metric and is always \code{NA} for leaf nodes).}
-#'   \item{\code{ess_weighted}}{Numeric WESS stored on this leaf
-#'     (\code{NA_real_}).}
-#'   \item{\code{loo_status}}{Character LOO status (\code{NA} for leaf nodes).}
-#'   \item{\code{loo_ess}}{Numeric LOO ESS (\code{NA} for leaf nodes).}
+#'   \item{\code{n}}{Integer raw observation count at this endpoint.}
+#'   \item{\code{class_counts_raw}}{List column; each element is a named
+#'     integer vector of raw per-class counts, or \code{NULL}.}
+#'   \item{\code{class_counts_weighted}}{List column; each element is a named
+#'     numeric vector of weighted per-class counts, or \code{NULL}.}
+#'   \item{\code{predicted_class}}{Integer class label assigned to this
+#'     endpoint (stored leaf majority class).}
+#'   \item{\code{target_n}}{Integer count of \code{target_class} observations
+#'     at this endpoint (\code{NA} when not resolvable).}
+#'   \item{\code{target_prop}}{Numeric proportion \code{target_n / n}
+#'     (\code{NA} when not resolvable).}
+#'   \item{\code{parent_split_attribute}}{Character attribute name of the
+#'     immediate parent split node (\code{NA} if not available).}
+#'   \item{\code{parent_split_ess}}{Numeric ESS of the parent split node
+#'     (\code{NA} if not available).}
+#'   \item{\code{parent_split_wess}}{Numeric WESS (weighted ESS) of the parent
+#'     split node (\code{NA} if not available).}
+#'   \item{\code{parent_split_loo_status}}{Character LOO status of the parent
+#'     split node (\code{NA} if not available).}
+#'   \item{\code{parent_split_loo_ess}}{Numeric LOO ESS/WESSL of the parent
+#'     split node (\code{NA} if not available).}
+#'   \item{\code{parent_split_p_mc}}{Numeric MC p-value of the parent split
+#'     node (\code{NA} if not available).}
 #' }
 #' For a no-tree fit the returned data frame has zero rows but the correct
-#' column structure.
-#' @seealso \code{\link{oda_cta_fit}}, \code{\link{summary.cta_tree}},
-#'   \code{\link{cta_strata}}, \code{\link{cta_endpoint_denominators}}
+#' column structure and types.
+#' @seealso \code{\link{oda_cta_fit}}, \code{\link{cta_node_table}},
+#'   \code{\link{summary.cta_tree}}, \code{\link{cta_strata}},
+#'   \code{\link{cta_endpoint_denominators}}, \code{\link{cta_endpoint_summary}},
+#'   \code{\link{cta_endpoint_counts}}
 #' @examples
 #' data(mtcars)
 #' X    <- mtcars[, c("cyl", "disp", "hp", "wt")]
 #' y    <- as.integer(mtcars$am)
 #' tree <- oda_cta_fit(X, y, mindenom = 5L, mc_iter = 500L, mc_seed = 42L)
 #' cta_endpoint_table(tree)
-cta_endpoint_table <- function(tree) {
+cta_endpoint_table <- function(tree, target_class = NULL) {
   stopifnot(inherits(tree, "cta_tree"))
 
   # ------------------------------------------------------------------
   # Empty data frame template — returned for no-tree or zero-leaf cases
   # ------------------------------------------------------------------
   empty_df <- function() {
-    data.frame(
-      node_id        = integer(0),
-      parent_id      = integer(0),
-      depth          = integer(0),
-      path           = character(0),
-      majority_class = integer(0),
-      n_obs          = integer(0),
-      n_weighted     = numeric(0),
-      ess            = numeric(0),
-      ess_weighted   = numeric(0),
-      loo_status     = character(0),
-      loo_ess        = numeric(0),
-      stringsAsFactors = FALSE
+    df <- data.frame(
+      endpoint_id              = integer(0),
+      leaf_node_id             = integer(0),
+      terminal_marker          = character(0),
+      terminal                 = logical(0),
+      depth                    = integer(0),
+      parent_split_node_id     = integer(0),
+      path                     = character(0),
+      n                        = integer(0),
+      predicted_class          = integer(0),
+      target_n                 = integer(0),
+      target_prop              = numeric(0),
+      parent_split_attribute   = character(0),
+      parent_split_ess         = numeric(0),
+      parent_split_wess        = numeric(0),
+      parent_split_loo_status  = character(0),
+      parent_split_loo_ess     = numeric(0),
+      parent_split_p_mc        = numeric(0),
+      stringsAsFactors         = FALSE
     )
+    df$class_counts_raw      <- list()
+    df$class_counts_weighted <- list()
+    df
   }
 
   if (isTRUE(tree$no_tree)) return(empty_df())
@@ -303,56 +341,110 @@ cta_endpoint_table <- function(tree) {
   leaves <- Filter(function(nd) !is.null(nd) && isTRUE(nd$leaf), tree$nodes)
   if (length(leaves) == 0L) return(empty_df())
 
+  # Sort leaves by node_id for stable ordering
+  node_ids <- vapply(leaves, function(nd) nd$node_id, integer(1L))
+  leaves   <- leaves[order(node_ids)]
+
   # ------------------------------------------------------------------
   # Build per-leaf rows
   # ------------------------------------------------------------------
-  n <- length(leaves)
-  node_id        <- integer(n)
-  parent_id      <- integer(n)
-  depth          <- integer(n)
-  path           <- character(n)
-  majority_class <- integer(n)
-  n_obs          <- integer(n)
-  n_weighted     <- numeric(n)
-  ess            <- numeric(n)
-  ess_weighted   <- numeric(n)
-  loo_status     <- character(n)
-  loo_ess        <- numeric(n)
+  nl <- length(leaves)
+  leaf_node_id_vec           <- integer(nl)
+  parent_split_vec           <- integer(nl)
+  depth_vec                  <- integer(nl)
+  path_vec                   <- character(nl)
+  n_vec                      <- integer(nl)
+  predicted_class_vec        <- integer(nl)
+  class_counts_raw_list      <- vector("list", nl)
+  class_counts_weighted_list <- vector("list", nl)
+  ps_attribute_vec           <- character(nl)
+  ps_ess_vec                 <- numeric(nl)
+  ps_wess_vec                <- numeric(nl)
+  ps_loo_status_vec          <- character(nl)
+  ps_loo_ess_vec             <- numeric(nl)
+  ps_p_mc_vec                <- numeric(nl)
 
-  for (i in seq_len(n)) {
-    nd <- leaves[[i]]
+  for (i in seq_len(nl)) {
+    nd   <- leaves[[i]]
     segs <- .cta_path_segments(tree, nd$node_id)
 
-    node_id[i]        <- nd$node_id
-    parent_id[i]      <- nd$parent_id %||% NA_integer_
-    depth[i]          <- nd$depth     %||% NA_integer_
-    path[i]           <- if (length(segs) == 0L) "/"
-                         else paste(segs, collapse = " AND ")
-    majority_class[i] <- nd$majority_class %||% NA_integer_
-    n_obs[i]          <- nd$n_obs          %||% NA_integer_
-    n_weighted[i]     <- nd$n_weighted     %||% NA_real_
-    ess[i]            <- nd$ess            %||% NA_real_
-    ess_weighted[i]   <- nd$ess_weighted   %||% NA_real_
-    loo_status[i]     <- nd$loo_status     %||% NA_character_
-    loo_ess[i]        <- nd$loo_ess        %||% NA_real_
+    leaf_node_id_vec[i]    <- nd$node_id
+    parent_split_vec[i]    <- nd$parent_id       %||% NA_integer_
+    depth_vec[i]           <- nd$depth           %||% NA_integer_
+    path_vec[i]            <- if (length(segs) == 0L) "/"
+                              else paste(segs, collapse = " AND ")
+    n_vec[i]               <- nd$n_obs           %||% NA_integer_
+    predicted_class_vec[i] <- nd$majority_class  %||% NA_integer_
+    class_counts_raw_list[[i]]      <- nd$class_counts_raw      %||% NULL
+    class_counts_weighted_list[[i]] <- nd$class_counts_weighted %||% NULL
+
+    # Parent split lineage
+    pid <- nd$parent_id %||% NA_integer_
+    pnd <- if (!is.na(pid)) tree$nodes[[pid]] else NULL
+    ps_attribute_vec[i]  <- if (!is.null(pnd)) pnd$attribute    %||% NA_character_ else NA_character_
+    ps_ess_vec[i]        <- if (!is.null(pnd)) pnd$ess          %||% NA_real_      else NA_real_
+    ps_wess_vec[i]       <- if (!is.null(pnd)) pnd$ess_weighted %||% NA_real_      else NA_real_
+    ps_loo_status_vec[i] <- if (!is.null(pnd)) pnd$loo_status   %||% NA_character_ else NA_character_
+    ps_loo_ess_vec[i]    <- if (!is.null(pnd)) pnd$loo_ess      %||% NA_real_      else NA_real_
+    ps_p_mc_vec[i]       <- if (!is.null(pnd)) pnd$p_mc         %||% NA_real_      else NA_real_
+  }
+
+  # ------------------------------------------------------------------
+  # Determine target_class (auto-detect binary 0/1 if not supplied)
+  # ------------------------------------------------------------------
+  if (is.null(target_class)) {
+    first_counts <- Filter(Negate(is.null), class_counts_raw_list)
+    if (length(first_counts) > 0L) {
+      cls_nms <- names(first_counts[[1L]])
+      if (!is.null(cls_nms) && length(cls_nms) == 2L &&
+          all(sort(cls_nms) == c("0", "1"))) {
+        target_class <- 1L
+      }
+    }
+  }
+
+  # ------------------------------------------------------------------
+  # Compute target_n and target_prop
+  # ------------------------------------------------------------------
+  target_n_vec    <- rep(NA_integer_, nl)
+  target_prop_vec <- rep(NA_real_,    nl)
+  if (!is.null(target_class)) {
+    tc_str <- as.character(target_class)
+    for (i in seq_len(nl)) {
+      ccr <- class_counts_raw_list[[i]]
+      ni  <- n_vec[i]
+      if (!is.null(ccr) && tc_str %in% names(ccr) &&
+          !is.na(ni) && ni > 0L) {
+        tn                <- as.integer(ccr[[tc_str]])
+        target_n_vec[i]   <- tn
+        target_prop_vec[i] <- tn / ni
+      }
+    }
   }
 
   df <- data.frame(
-    node_id        = node_id,
-    parent_id      = parent_id,
-    depth          = depth,
-    path           = path,
-    majority_class = majority_class,
-    n_obs          = n_obs,
-    n_weighted     = n_weighted,
-    ess            = ess,
-    ess_weighted   = ess_weighted,
-    loo_status     = loo_status,
-    loo_ess        = loo_ess,
-    stringsAsFactors = FALSE
+    endpoint_id              = seq_len(nl),
+    leaf_node_id             = leaf_node_id_vec,
+    terminal_marker          = rep("*", nl),
+    terminal                 = rep(TRUE, nl),
+    depth                    = depth_vec,
+    parent_split_node_id     = parent_split_vec,
+    path                     = path_vec,
+    n                        = n_vec,
+    predicted_class          = predicted_class_vec,
+    target_n                 = target_n_vec,
+    target_prop              = target_prop_vec,
+    parent_split_attribute   = ps_attribute_vec,
+    parent_split_ess         = ps_ess_vec,
+    parent_split_wess        = ps_wess_vec,
+    parent_split_loo_status  = ps_loo_status_vec,
+    parent_split_loo_ess     = ps_loo_ess_vec,
+    parent_split_p_mc        = ps_p_mc_vec,
+    stringsAsFactors         = FALSE
   )
-
-  df[order(df$node_id), , drop = FALSE]
+  df$class_counts_raw      <- class_counts_raw_list
+  df$class_counts_weighted <- class_counts_weighted_list
+  df
 }
 
 # =============================================================================
