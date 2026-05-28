@@ -37,7 +37,11 @@ oda_cta_fit(X, y, w = NULL, priors_on = TRUE, miss_codes = NULL,
   \item{mc_target, mc_stop, mc_stopup}{MC stopping parameters.}
   \item{mc_seed}{Base RNG seed; each node uses mc_seed + node_id * 1000 + attr_j.}
   \item{loo}{LOO mode per node: \code{"off"} (default), \code{"stable"}
-    (MegaODA LOO STABLE), or \code{"pvalue"}.}
+    (MegaODA LOO STABLE; accept when |WESSL − WESS| ≤ 0.01 pp; reports
+    \code{loo_status = "STABLE"}), \code{"pvalue"} (Fisher p \emph{strictly
+    less than} 0.05; reports \code{loo_status = "PVALUE"}), or a single
+    numeric in (0, 1) (Fisher p \emph{strictly less than} the supplied
+    threshold; reports \code{loo_status = "PVALUE"}).}
   \item{attr_names}{Attribute names. Defaults to column names of X.}
   \item{K_segments}{Segments for multiclass ordered splits. Default = C.}
   \item{verbose}{Logical; if \code{TRUE}, emit \code{[CTA]} progress messages

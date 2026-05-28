@@ -40,7 +40,16 @@
 #' @param mc_stop Confidence for lower-tail early stop (percent). Default 99.9.
 #' @param mc_stopup Confidence for upper-tail early stop (percent). Default 20.
 #' @param mc_seed Optional RNG seed for reproducibility.
-#' @param loo LOO mode: "off", "on" (multiclass), "stable", or "pvalue" (binary).
+#' @param loo LOO mode. \code{"off"} (default): no LOO filter.
+#'   \code{"on"}: synonym for \code{"pvalue"} when used with the multiclass engine.
+#'   \code{"stable"}: binary only; accept when LOO ESS equals training ESS
+#'   (|WESSL − WESS| ≤ 0.01 pp); split node reports \code{loo_status = "STABLE"}.
+#'   \code{"pvalue"}: binary only; accept when LOO Fisher p is strictly less than
+#'   0.05 (default threshold); split node reports \code{loo_status = "PVALUE"}.
+#'   Numeric in (0, 1): binary only; accept when LOO Fisher p is strictly less than
+#'   the supplied value; must be a single finite value strictly in (0, 1);
+#'   split node reports \code{loo_status = "PVALUE"}.
+#'   Do not describe the p-value gate as "STABLE" — the two modes are distinct.
 #' @param direction Directional hypothesis control.
 #'   \describe{
 #'     \item{\code{"both"} (default)}{Non-directional; evaluates all directions.

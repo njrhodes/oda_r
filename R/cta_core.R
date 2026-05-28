@@ -297,7 +297,12 @@
 #' @param mc_stop Confidence level (pct) for STOP bound.
 #' @param mc_stopup Confidence level (pct) for STOPUP bound.
 #' @param mc_seed Integer base seed; NULL = unseeded.
-#' @param loo LOO mode: "off", "stable", or "pvalue".
+#' @param loo LOO mode per node: \code{"off"} (default), \code{"stable"}
+#'   (MegaODA LOO STABLE; accept when |WESSL − WESS| ≤ 0.01 pp; reports
+#'   \code{loo_status = "STABLE"}), \code{"pvalue"} (Fisher p strictly less
+#'   than 0.05; reports \code{loo_status = "PVALUE"}), or a single numeric in
+#'   (0, 1) (Fisher p strictly less than the supplied threshold; reports
+#'   \code{loo_status = "PVALUE"}).
 #' @param attr_names Optional character vector of attribute names.
 #' @param K_segments Segments for multiclass ordered splits.
 #' @return An object of class \code{cta_tree}.

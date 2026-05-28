@@ -42,6 +42,6 @@ applying each node's \code{cta_tree} model via
 }
 \note{
 \code{predict.cta_ort} is a legacy compatibility name; the class
-\code{cta_ort} and all \code{*.cta_ort} methods refer to the implemented
-LORT method.  New docs and APIs should use LORT terminology.
+  \code{cta_ort} and all \code{*.cta_ort} methods refer to the implemented
+  LORT method.  New docs and APIs should use LORT terminology.
 }

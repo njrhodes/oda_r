@@ -64,8 +64,9 @@ Renders the composite LORT using G1 base-R conventions: ellipses for split
 nodes, rectangles for terminal nodes, directed arrows for edges.
 }
 \note{
-\code{plot.cta_ort} and \code{ort_plot_data} are legacy compatibility names
-for the LORT method.  See \code{\link{print.cta_ort}} for the naming note.
+\code{plot.cta_ort} and \code{ort_plot_data} are legacy compatibility
+  names for the LORT method.  See \code{\link{print.cta_ort}} for the naming
+  note.
 }
 \seealso{
 \code{\link{ort_plot_data}}, \code{\link{plot.cta_tree}}

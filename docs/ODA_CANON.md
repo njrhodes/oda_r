@@ -127,8 +127,11 @@ LOO is a filter, not the optimization objective.
 Modes:
 
 * `loo = "off"`: no LOO filter
-* `loo = "stable"`: allow only attributes whose LOO ESS/WESS equals training ESS/WESS
-* `loo = numeric`: allow only attributes whose LOO p-value is less than or equal to the supplied threshold
+* `loo = "stable"`: allow only attributes whose LOO ESS/WESS equals training ESS/WESS (|WESSL − WESS| ≤ 0.01 pp); `loo_status = "STABLE"` on accepted nodes
+* `loo = "pvalue"`: p-value gate with default threshold 0.05; accept when LOO Fisher p **strictly less than** 0.05; `loo_status = "PVALUE"` on accepted nodes
+* `loo = numeric`: p-value gate with user-declared threshold; accept when LOO Fisher p **strictly less than** the supplied value; must be a single finite value in (0, 1); `loo_status = "PVALUE"` on accepted nodes
+
+Note: `loo_status = "STABLE"` and `loo_status = "PVALUE"` are distinct — do not describe the p-value gate as "STABLE". LOO is a filter, not the optimization objective.
 
 For CTA, LOO applies to every attribute used in the tree, not only to the final tree confusion.
 

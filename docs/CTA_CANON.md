@@ -27,6 +27,23 @@ Rules:
 
 Do not treat an all-same-class CTA or LORT result as canonical output. It is a model failure that should surface as `no_tree` or a rejected candidate, not as a valid tree with ESS > 0.
 
+## no_tree Causes — Three Distinct Mechanisms
+
+`no_tree = TRUE` on a `cta_tree` object and `is_terminal` nodes in a `cta_ort` object arise from distinct causes that must not be conflated:
+
+| Cause | Mechanism | Result object |
+|---|---|---|
+| **MINDENOM exhaustion** | All candidate splits produce at least one child with n < MINDENOM; no admissible root | `cta_tree$no_tree = TRUE` |
+| **Post-pruning degeneracy** | MC Sidak pruning collapses a class-1 branch; all surviving endpoints predict same class | `cta_tree$no_tree = TRUE` |
+| **LORT `min_n` guard** | ORT endpoint has n < `min_n`; recursion halted before MDSA scan | `cta_ort` node: `is_terminal = TRUE`, `stop_reason = "min_n"` |
+| **LORT `max_depth` guard** | ORT depth ≥ `max_depth` | `cta_ort` node: `is_terminal = TRUE`, `stop_reason = "max_depth"` |
+| **LORT `max_nodes` guard** | Total ORT node count ≥ `max_nodes` | `cta_ort` node: `is_terminal = TRUE`, `stop_reason = "max_nodes"` |
+
+Key distinctions:
+- MINDENOM exhaustion is **denominator-admissibility** — the split is structurally inadmissible because too few observations reach the child node. This is not the degeneracy gate firing.
+- LORT recursion guards (`min_n`, `max_depth`, `max_nodes`) produce terminal ORT nodes with `stop_reason`. They are **not** CTA `no_tree` — they do not signal a model failure; they are compute/depth bounds that halt further recursion at that endpoint.
+- Post-pruning degeneracy is the only listed cause that represents a rejected degenerate model; MINDENOM exhaustion represents denominator inadmissibility under the declared constraints, which is also a legitimate no-fit outcome but not a degeneracy-gate firing.
+
 ---
 
 ## Node-Level Construction
@@ -155,8 +172,13 @@ LOO {pvalue | STABLE};
 
 Rules:
 
-* `LOO STABLE`: allow only attributes whose LOO ESS/WESS equals training ESS/WESS
-* `LOO pvalue`: allow only attributes whose LOO p-value is less than or equal to `pvalue`
+* `LOO STABLE` / `loo = "stable"`: allow only attributes whose LOO ESS/WESS equals training ESS/WESS (|WESSL − WESS| ≤ 0.01 pp); split node reports `loo_status = "STABLE"`
+* `LOO pvalue` / `loo = "pvalue"`: p-value gate with default threshold 0.05; accept when LOO Fisher p **strictly less than** 0.05; split node reports `loo_status = "PVALUE"`
+* `loo = numeric`: p-value gate with user-declared threshold; accept when LOO Fisher p **strictly less than** the supplied value; must be a single finite value in (0, 1); split node reports `loo_status = "PVALUE"`
+
+`loo_status` vocabulary on split nodes: `"STABLE"` (stable gate passed), `"PVALUE"` (p-value gate passed), `"OFF"` (LOO mode is "off" or LOO did not run).
+
+Do not describe the p-value gate as "STABLE". The two modes are distinct both in mechanism and in `loo_status` metadata.
 
 LOO is a filter/gate, never the objective.
 

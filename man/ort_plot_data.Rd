@@ -2,7 +2,7 @@
 % Please edit documentation in R/cta_ort.R
 \name{ort_plot_data}
 \alias{ort_plot_data}
-\title{Renderer-independent layout data for a LORT composite tree (legacy name: ort_plot_data)}
+\title{Renderer-independent layout data for a LORT composite tree}
 \usage{
 ort_plot_data(object, target_class = NULL, class_labels = NULL, digits = 1L)
 }
@@ -24,11 +24,15 @@ A list with elements:
     \code{stop_reason}.}
   \item{\code{edges}}{data.frame: \code{from_id}, \code{to_id},
     \code{x0}, \code{y0}, \code{x1}, \code{y1}, \code{label}.}
-  \item{\code{strata}}{The strata table from the ORT object.}
+  \item{\code{strata}}{The strata table from the LORT object.}
 }
 }
 \description{
 Computes node positions and edge metadata for \code{\link{plot.cta_ort}}.
 Terminal nodes receive integer x-slot positions (left-to-right in DFS
 right-first order); internal nodes are centered over their children.
+}
+\note{
+\code{ort_plot_data} is a legacy compatibility name for the LORT method.
+  See \code{\link{print.cta_ort}} for the naming note.
 }

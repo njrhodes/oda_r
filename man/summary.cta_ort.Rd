@@ -19,6 +19,6 @@ Returns a structured list of class \code{"cta_ort_summary"} capturing
 tree-level metadata for the composite LORT.
 }
 \note{
-\code{summary.cta_ort} is a legacy compatibility name for the LORT method.
-See \code{\link{print.cta_ort}} for the naming note.
+\code{summary.cta_ort} is a legacy compatibility name for the LORT
+  method.  See \code{\link{print.cta_ort}} for the naming note.
 }

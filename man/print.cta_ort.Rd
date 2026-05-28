@@ -18,7 +18,7 @@
 Print method for Locally Optimal Recursive Tree (LORT)
 }
 \note{
-\code{print.cta_ort} is a legacy compatibility name for the LORT method.
-The class \code{cta_ort} and all \code{*.cta_ort} methods refer to LORT;
-do not introduce new bare-\code{ort} public names.
+\code{print.cta_ort} is a legacy compatibility name for the LORT
+  method.  The class \code{cta_ort} and all \code{*.cta_ort} methods refer
+  to LORT; do not introduce new bare-\code{ort} public names.
 }
