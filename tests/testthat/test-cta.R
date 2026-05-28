@@ -703,3 +703,167 @@ test_that("cta_descendant_family: myeloma summary has required columns and shape
                                              collapse = ", ")))
   expect_equal(nrow(fam$summary), 3L)
 })
+
+# =============================================================================
+# Degeneracy gate: CTA must never return a tree that predicts only one class
+# =============================================================================
+
+# ---- Unit test: degeneracy predicate logic (no CTA fit required) ------------
+
+test_that("degeneracy predicate correctly identifies all-same-class predictions", {
+  # All predict class 0 — degenerate
+  preds_0 <- c(0L, 0L, NA_integer_, 0L)
+  expect_lt(length(unique(preds_0[!is.na(preds_0)])), 2L,
+            label = "all-class-0 vector is degenerate")
+
+  # All predict class 1 — degenerate
+  preds_1 <- c(NA_integer_, 1L, 1L, 1L)
+  expect_lt(length(unique(preds_1[!is.na(preds_1)])), 2L,
+            label = "all-class-1 vector is degenerate")
+
+  # Mixed predictions — non-degenerate
+  preds_ok <- c(0L, 1L, 0L, NA_integer_, 1L)
+  expect_gte(length(unique(preds_ok[!is.na(preds_ok)])), 2L,
+             label = "mixed-class vector is non-degenerate")
+
+  # All NA (no scored obs) — boundary: < 2 unique non-NA values
+  preds_na <- c(NA_integer_, NA_integer_)
+  expect_lt(length(unique(preds_na[!is.na(preds_na)])), 2L,
+            label = "all-NA vector treated as degenerate (no classified obs)")
+})
+
+# ---- Integration: basic property ------------------------------------------
+
+test_that("cta_fit non-no_tree result always predicts both classes", {
+  # Balanced, fully separable synthetic data.
+  # Any valid tree must predict both class 0 and class 1.
+  d <- bin_data()
+  fit <- oda_cta_fit(d$X, d$y, mindenom = 2L, mc_iter = 300L,
+                     mc_seed = 1L, loo = "off")
+  if (!isTRUE(fit$no_tree)) {
+    preds <- predict(fit, d$X)
+    pred_cls <- unique(preds[!is.na(preds)])
+    expect_gte(length(pred_cls), 2L,
+               label = "CTA tree must predict both class 0 and class 1")
+  }
+})
+
+# ---- Regression: post-pruning degeneracy ------------------------------------
+#
+# Failure mode (previously exposed by MINDENOM=117 private case):
+# An expanded ENUMERATE candidate can be pruned such that a class-1-predicting
+# branch collapses to majority_class = 0 (local majority in imbalanced data).
+# All terminal leaves then predict class 0 → WESS = 0% → degenerate tree.
+# With the gate, such a candidate is skipped; the stump phase rescues.
+#
+# Direct reproduction requires controlling MC stochasticity.  The test below
+# verifies the behavioral invariant: heavily imbalanced data + aggressive
+# pruning must not yield an all-same-class result.
+
+test_that("cta_fit with aggressive pruning yields non-degenerate tree or no_tree", {
+  # 97 class-0 vs 3 class-1: severe imbalance triggers the post-pruning degen
+  # failure mode.  V1 separates classes; V2 is pure noise.
+  # prune_alpha = 0.05 ensures Sidak pruning runs.
+  set.seed(7)
+  n0 <- 97; n1 <- 3
+  y  <- c(rep(0L, n0), rep(1L, n1))
+  X  <- data.frame(
+    V1 = c(runif(n0, 0, 4), runif(n1, 7, 10)),
+    V2 = runif(n0 + n1)
+  )
+
+  fit <- oda_cta_fit(X, y,
+                     mindenom    = 1L,
+                     mc_iter     = 500L,
+                     mc_seed     = 17L,
+                     prune_alpha = 0.05,
+                     loo         = "off")
+
+  if (!isTRUE(fit$no_tree)) {
+    preds    <- predict(fit, X)
+    pred_cls <- unique(preds[!is.na(preds)])
+    expect_gte(length(pred_cls), 2L,
+               label = "pruned imbalanced CTA must not be all-same-class")
+    # Verify training_confusion has both predicted classes present
+    conf_df  <- cta_confusion_table(fit)
+    pred_cls_conf <- unique(conf_df$predicted[conf_df$n > 0L])
+    expect_gte(length(pred_cls_conf), 2L,
+               label = "training confusion must show both predicted classes")
+  }
+})
+
+# ---- Family: every non-no_tree member must be non-degenerate ---------------
+
+test_that("cta_descendant_family: every non-no_tree member predicts both classes", {
+  d   <- bin_data()
+  fam <- cta_descendant_family(d$X, d$y, mc_iter = 300L, mc_seed = 1L,
+                                loo = "off", start_mindenom = 2L)
+
+  for (i in seq_along(fam$members)) {
+    m <- fam$members[[i]]
+    if (!isTRUE(m$no_tree) && !is.null(m$tree)) {
+      preds    <- predict(m$tree, d$X)
+      pred_cls <- unique(preds[!is.na(preds)])
+      expect_gte(length(pred_cls), 2L,
+                 label = sprintf("family member %d must predict both classes", i))
+    }
+  }
+})
+
+test_that("cta_descendant_family min_d_idx never points to an all-same-class tree", {
+  d   <- bin_data()
+  fam <- cta_descendant_family(d$X, d$y, mc_iter = 300L, mc_seed = 1L,
+                                loo = "off", start_mindenom = 2L)
+
+  mid <- fam$min_d_idx
+  if (!is.na(mid)) {
+    tree <- fam$members[[mid]]$tree
+    if (!isTRUE(tree$no_tree)) {
+      preds    <- predict(tree, d$X)
+      pred_cls <- unique(preds[!is.na(preds)])
+      expect_gte(length(pred_cls), 2L,
+                 label = "min-D family member must predict both classes (non-degenerate)")
+    }
+  }
+})
+
+test_that("cta_descendant_family: min_d_idx is NA when all members are no_tree", {
+  # Force start_mindenom >> n so every CTA fit returns no_tree.
+  # This exercises the all-degenerate/no-valid-tree code path:
+  # feasible = integer(0), min_d_idx = NA_integer_.
+  d   <- bin_data()
+  fam <- cta_descendant_family(d$X, d$y, mc_iter = 50L, mc_seed = 1L,
+                                loo = "off", start_mindenom = 9999L)
+
+  expect_true(all(fam$summary$no_tree),
+              label = "all members must be no_tree when mindenom exceeds n")
+  expect_true(is.na(fam$min_d_idx),
+              label = "min_d_idx must be NA when no non-degenerate member exists")
+})
+
+# ---- ORT: node models must not be all-same-class ----------------------------
+
+test_that("ORT recursive CTA node models are non-degenerate", {
+  # bin_data() is perfectly separable (4 class-0, 4 class-1, one informative
+  # attribute).  cta_fit(recursive=TRUE) must fit without error.  mindenom is
+  # selected automatically by the per-node MDSA family scan (do not supply it).
+  # Any non-NULL, non-no_tree node model must predict both classes.
+  d   <- bin_data()
+  ort <- cta_fit(d$X, d$y, recursive = TRUE,
+                 mc_iter = 300L, mc_seed = 1L, loo = "off")
+
+  # ort_nodes is a list keyed by character node_id (e.g. "1", "2", ...)
+  nodes <- ort$ort_nodes
+  expect_false(is.null(nodes), label = "ort_nodes must be present")
+
+  for (nd_key in names(nodes)) {
+    nd <- nodes[[nd_key]]
+    if (is.null(nd) || isTRUE(nd$is_terminal)) next
+    mdl <- nd$model
+    if (is.null(mdl) || isTRUE(mdl$no_tree)) next
+    preds    <- predict(mdl, d$X)
+    pred_cls <- unique(preds[!is.na(preds)])
+    expect_gte(length(pred_cls), 2L,
+               label = sprintf("ORT node '%s' model must predict both classes", nd_key))
+  }
+})

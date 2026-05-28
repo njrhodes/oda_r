@@ -11,6 +11,22 @@ This file defines canonical `oda_fit()` behavior for odacore.
 - If weights are declared, model selection uses WESS.
 - Reported confusion matrices may be raw counts or weighted counts, but the objective must be explicit.
 
+## Degenerate Solutions
+
+A solution is **degenerate** when the predicted labels cover fewer than C classes — i.e., at least one class is never predicted.
+
+**Default behavior (`degen = FALSE`):** Degenerate solutions are rejected. A candidate rule that maps every observation to the same class is not a valid ODA solution regardless of its ESS value. This applies to both UniODA (binary and multiclass) and to every split node evaluated by CTA.
+
+**`degen = TRUE`:** Available only for UniODA and MultiODA (`oda_fit()`, `oda_univariate_core()`, `oda_multiclass_unioda_core()`). When `degen = TRUE`, degenerate solutions are allowed and `priors_on` is forced `FALSE`. This is a non-default, user-declared option for special research contexts.
+
+**CTA (`cta_fit()`, `oda_cta_fit()`):** CTA never produces degenerate trees. `degen = TRUE` is not an option for CTA. A CTA tree in which all terminal endpoints predict the same class is not a valid result — it represents a model failure (no discriminating split was found), which is reported as `no_tree`. A CTA member that selects a degenerate split must be rejected at the node level, not post-hoc.
+
+**ORT (`cta_fit(recursive = TRUE)`):** Same rule. Each recursive MDSA level must produce a non-degenerate split or terminate as `no_tree` at that node.
+
+Do not treat a degenerate CTA or ORT result as a "canonical" outcome. It is a sign that no admissible split existed under the current MINDENOM, LOO, and alpha constraints.
+
+---
+
 ## Objective
 
 For binary class problems, UniODA searches for the rule that maximizes ESS/WESS.

@@ -336,8 +336,19 @@ Root family (seed = 42, mc_iter = 25,000, max_steps = 20):
 | 2270 | baseline_covariate_E | 2 | 11.24% | 15.7941 | 2640 |
 | 2641 | no_tree | — | — | — | — |
 
-**Current greedy min-D ORT winner: MINDENOM = 117, root = `baseline_covariate_D`,
+**Previously reported min-D ORT winner: MINDENOM = 117, root = `baseline_covariate_D`,
 D = 6.8333.**
+
+**INVALID — exposed as degenerate (2025-05):** The MINDENOM = 117 S = 3 member
+was subsequently found to produce an all-class-0 terminal prediction set after
+Sidak-Bonferroni pruning collapsed the class-1-predicting branch to a
+majority_class = 0 leaf (the dataset has severe class imbalance).  A tree whose
+terminal predictions cover only one class is degenerate and must not be accepted
+as a valid CTA or ORT result.  With the degeneracy gate added to the ENUMERATE
+candidate selection loop, this member is now rejected before entering the
+best-tree competition.  `min_d_idx` must not point to a degenerate member;
+if all members at or above MINDENOM = 117 are also degenerate, the correct
+output is no_tree at that recursive node.
 
 Key constraint: at MINDENOM = 117, `baseline_signal_A` is ineligible — its
 positive-class branch has n = 116 < 117. At MINDENOM = 40 it is eligible but

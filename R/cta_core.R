@@ -1,12 +1,12 @@
 ###############################################################################
-# R/cta_core.R — Classification Tree Analysis (CTA)
+# R/cta_core.R - Classification Tree Analysis (CTA)
 #
 # Implements EO-CTA (Enumerated Optimal CTA), corresponding to MegaODA's
 # ENUMERATE command.
 #
 # Algorithm (Yarnold & Soltysik 2016, Chapters 10-11):
 #
-#   ENUMERATE: Evaluate every valid (root A × left-child B × right-child C)
+#   ENUMERATE: Evaluate every valid (root A x left-child B x right-child C)
 #     combination.  Each candidate split must pass MC significance AND LOO
 #     STABLE locally.  Below the top-3 nodes, grow greedily (HO-CTA).
 #     Compute full-tree WESS over all n observations.
@@ -43,16 +43,16 @@
 #   "0->1" direction: select the RIGHTMOST cut where the class-1
 #     priors-adjusted PAC on the right branch (sens_wa) exceeds 0.5.
 #     Since sens_wa_01 = 1 - C1a[j] is non-increasing, this is the last j
-#     before sens_wa drops to ≤ 0.5 — equivalently, maximise spec_wa subject
+#     before sens_wa drops to <= 0.5 - equivalently, maximise spec_wa subject
 #     to sens_wa > 0.5.
 #   "1->0" direction: select the LEFTMOST cut where the class-1
 #     priors-adjusted PAC on the LEFT branch (sens_wa_10 = C1a[j]) exceeds 0.5.
 #     Since C1a[j] is non-decreasing, this is the first j where sens_wa_10
-#     crosses above 0.5 — equivalently, maximise spec_wa_10 subject to
+#     crosses above 0.5 - equivalently, maximise spec_wa_10 subject to
 #     sens_wa_10 > 0.5.
 #   The two rules are symmetric: each picks the "outermost" cut that maintains
 #   class-1 majority on the prediction side.
-#   The direction yielding the higher ESS is returned (ties → "0->1").
+#   The direction yielding the higher ESS is returned (ties -> "0->1").
 #
 # Parameters
 #   x, y, w    raw data vectors (same length); y must be in {0, 1}.
@@ -96,8 +96,8 @@
   C0a <- cumsum(z0a); C1a <- cumsum(z1a); Nv <- cumsum(nv); Nm <- sum(nv)
 
   # 4. Direction "0->1": sens_wa = 1 - C1a[j] (non-increasing).
-  #    Condition: sens_wa > 0.5 ↔ C1a[j] < 0.5.
-  #    Rule: RIGHTMOST eligible j → overwrite on every valid j.
+  #    Condition: sens_wa > 0.5 <=> C1a[j] < 0.5.
+  #    Rule: RIGHTMOST eligible j -> overwrite on every valid j.
   bj01 <- NA_integer_; bes01 <- NA_real_; bse01 <- NA_real_; bsp01 <- NA_real_
   for (j in seq_len(m - 1L)) {
     nL <- Nv[j]; nR <- Nm - nL
@@ -109,8 +109,8 @@
   }
 
   # 5. Direction "1->0": sens_wa_10 = C1a[j] (non-decreasing).
-  #    Condition: sens_wa_10 > 0.5 ↔ C1a[j] > 0.5.
-  #    Rule: LEFTMOST eligible j → break on first valid j.
+  #    Condition: sens_wa_10 > 0.5 <=> C1a[j] > 0.5.
+  #    Rule: LEFTMOST eligible j -> break on first valid j.
   bj10 <- NA_integer_; bes10 <- NA_real_; bse10 <- NA_real_; bsp10 <- NA_real_
   for (j in seq_len(m - 1L)) {
     nL <- Nv[j]; nR <- Nm - nL
@@ -122,7 +122,7 @@
     break                                 # leftmost = first found
   }
 
-  # 6. Build result for each direction, pick direction with higher ESS (ties → "0->1")
+  # 6. Build result for each direction, pick direction with higher ESS (ties -> "0->1")
   .make_r <- function(dir, bj, bes, bse, bsp)
     list(rule = list(type = "ordered_cut", direction = dir,
                      cut_value = (uvals[bj] + uvals[bj + 1L]) / 2),
@@ -146,7 +146,7 @@
 # Parameters
 #   x, y_coded   raw vectors (with miss_codes intact); y must be in {0,1}.
 #   w            case weights.
-#   obs_ess      observed ESS from .cta_ordered_scan() — required.
+#   obs_ess      observed ESS from .cta_ordered_scan() - required.
 #   priors_on, miss_codes, mindenom  forwarded to .cta_ordered_scan().
 #   mc_iter, mc_target, mc_stop, mc_stopup  Fisher randomization params.
 #   mc_seed      optional RNG seed.
@@ -412,7 +412,7 @@ oda_cta_fit <- function(
          y_pred = y_pred, y_pred_raw = y_pred_raw)
   }
 
-  # 2×2 binary confusion matrix
+  # 2x2 binary confusion matrix
   .conf_binary <- function(y_node, y_pred_raw) {
     conf <- oda_confusion_binary(y_node, y_pred_raw)
     matrix(c(conf$TN, conf$FP, conf$FN, conf$TP), nrow = 2L, ncol = 2L,
@@ -423,7 +423,7 @@ oda_cta_fit <- function(
   # y_actual and y_pred must already be filtered to classified observations
   # (NA rows excluded by the caller).
   # levels defaults to class_levels (the fit-level class universe) so that
-  # the stored matrix always spans all fitted classes — preventing silent
+  # the stored matrix always spans all fitted classes - preventing silent
   # class dropping in edge cases where path-local scoring excludes a class.
   .make_training_conf <- function(y_actual, y_pred, levels = class_levels) {
     y_actual <- as.integer(y_actual)
@@ -451,9 +451,9 @@ oda_cta_fit <- function(
   # CTA-specific candidate evaluation for weighted ordered binary predictors.
   #
   # Canon (docs/CTA_ORDERED_CUT_AUDIT.md, MPE.pdf):
-  #   Full WESS: .cta_ordered_scan() — rightmost cut with class-1 right-branch
+  #   Full WESS: .cta_ordered_scan() - rightmost cut with class-1 right-branch
   #              priors-adjusted PAC (sens_wa) > 0.5.
-  #   MC p-value: .cta_mc_ordered() — Fisher randomization on CTA scan.
+  #   MC p-value: .cta_mc_ordered() - Fisher randomization on CTA scan.
   #   LOO STABLE: generic ODA per-fold refit (oda_loo_for_rule()).
   #               Canon: WESSL must equal WESS (|WESS - WESSL| <= 0.01 pp).
   #               Signif T alone is insufficient; WESSL = WESS is required.
@@ -462,10 +462,10 @@ oda_cta_fit <- function(
   # Binary attributes (<=2 unique values) use the generic ODA path unchanged.
   # Returns a fit-like list or NULL if rejected (Signif F, no eligible cut, or
   # LOO UNSTABLE). When this path is triggered, callers must not fall back to
-  # generic ODA — the candidate is either accepted here or rejected entirely.
+  # generic ODA - the candidate is either accepted here or rejected entirely.
   .cta_full_fit_ordered <- function(j, x_j, y_n, w_n, pos_id,
                                      row_hash = NULL, n_obs_parent = NA_integer_) {
-    # Guard: uniform weights → generic ODA applies
+    # Guard: uniform weights -> generic ODA applies
     if (all(w_n == w_n[1L])) return(NULL)
     # Guard: binary class (C = 2) only
     y_uniq <- sort(unique(as.integer(y_n[!is.na(y_n)])))
@@ -518,7 +518,7 @@ oda_cta_fit <- function(
     }
 
     # LOO STABLE gate (MPE.pdf canon): WESSL must equal WESS.
-    # LOO uses generic ODA per-fold refit — true refit-per-fold LOO.
+    # LOO uses generic ODA per-fold refit - true refit-per-fold LOO.
     loo_result <- NULL
     if (!identical(loo_arg, "off")) {
       t0_loo <- if (!is.null(diag_env)) proc.time()[["elapsed"]] else NULL
@@ -858,7 +858,7 @@ oda_cta_fit <- function(
           ic  <- which(sl == y_hat)
           if (length(ic) == 0L) return(nd$majority_class)
         } else {
-          # Binary: y_hat is rule-side 0/1; route by position (0→child 1, 1→child 2).
+          # Binary: y_hat is rule-side 0/1; route by position (0->child 1, 1->child 2).
           y_hat <- as.integer(oda_rule_predict(x_val, rule))
           if (!(y_hat %in% 0:1)) return(nd$majority_class)
           ic <- y_hat + 1L
@@ -880,7 +880,7 @@ oda_cta_fit <- function(
   #     4. For each flagged node: tentatively collapse it to a leaf; score the
   #        resulting tree with .predict_all() / .wess_classes().
   #     5. Apply the collapse that yields the highest WESS >= current WESS
-  #        (equal-WESS tie: keep first-found in BFS order → shallowest/leftmost).
+  #        (equal-WESS tie: keep first-found in BFS order -> shallowest/leftmost).
   #     6. If no collapse improves or maintains WESS: stop.
   #
   # Captures: y, w, prune_alpha, .predict_all, .wess_classes from enclosing scope.
@@ -889,7 +889,7 @@ oda_cta_fit <- function(
   .prune_tree <- function(nodes_list, root_id = 1L) {
     if (prune_alpha >= 1.0) return(nodes_list)
 
-    # BFS traversal — returns reachable node IDs in breadth-first (depth) order.
+    # BFS traversal - returns reachable node IDs in breadth-first (depth) order.
     .bfs_ids <- function(nlist, rid) {
       visited <- integer(0)
       queue   <- rid
@@ -948,7 +948,7 @@ oda_cta_fit <- function(
         }
       }
 
-      if (is.na(best_nid)) break   # no eligible collapse — stop
+      if (is.na(best_nid)) break   # no eligible collapse - stop
 
       current[[best_nid]]$leaf      <- TRUE
       current[[best_nid]]$child_ids <- integer(0)
@@ -963,7 +963,7 @@ oda_cta_fit <- function(
 
   root_cands <- .all_cands(seq_len(n), pos_id = 1L)
 
-  # No valid root → single-leaf tree (no_tree = TRUE)
+  # No valid root -> single-leaf tree (no_tree = TRUE)
   if (length(root_cands) == 0L) {
     .vmsg("[CTA] no valid root found, returning leaf node")
     nodes_out <- list(.leaf_nd(1L, 0L, 1L, seq_len(n)))
@@ -983,7 +983,7 @@ oda_cta_fit <- function(
       class = "cta_tree"))
   }
 
-  # ---- ENUMERATE: full A×B×C top-3-node enumeration ---------------------------
+  # ---- ENUMERATE: full AxBxC top-3-node enumeration ---------------------------
   # Canonical algorithm: evaluate every valid combination of:
   #   A = root split (all valid root candidates, sorted by root ESS desc)
   #   B = left-child option  (all valid split candidates + explicit leaf sentinel)
@@ -1050,7 +1050,7 @@ oda_cta_fit <- function(
         B_cand <- B_opt
         appl_B <- .apply_cand(B_cand, left_idx)
         sl_B   <- sort(unique(appl_B$y_pred[!is.na(appl_B$y_pred)]))
-        if (length(sl_B) < 2L) next   # degenerate B split — skip
+        if (length(sl_B) < 2L) next   # degenerate B split - skip
 
         nd2 <- .split_nd(2L, 1L, 2L, left_idx, B_cand, appl_B)
 
@@ -1075,7 +1075,7 @@ oda_cta_fit <- function(
         C_opt     <- C_options[[ci]]
         C_is_leaf <- is.null(C_opt)
 
-        # (B=leaf, C=leaf) handled by root-only stump phase — skip here
+        # (B=leaf, C=leaf) handled by root-only stump phase - skip here
         if (B_is_leaf && C_is_leaf) next
 
         c_root_id <- B_max + 1L
@@ -1088,7 +1088,7 @@ oda_cta_fit <- function(
           C_cand <- C_opt
           appl_C <- .apply_cand(C_cand, right_idx)
           sl_C   <- sort(unique(appl_C$y_pred[!is.na(appl_C$y_pred)]))
-          if (length(sl_C) < 2L) next   # degenerate C split — skip
+          if (length(sl_C) < 2L) next   # degenerate C split - skip
 
           nd_C <- .split_nd(c_root_id, 1L, 2L, right_idx, C_cand, appl_C)
 
@@ -1148,6 +1148,18 @@ oda_cta_fit <- function(
 
         .vmsg("    -> WESS=", round(wess_cand, 2), "%")
 
+        # Reject degenerate trees: pruning may collapse a class-1 branch to a
+        # class-0 majority node, leaving all terminals predicting the same class.
+        # Such a tree is invalid regardless of its WESS value.
+        if (!is.null(preds)) {
+          pred_classes_here <- unique(preds[!is.na(preds)])
+          if (length(pred_classes_here) < 2L) {
+            .vmsg("    -> degenerate (all predictions class ",
+                  pred_classes_here, ") - skipped")
+            next
+          }
+        }
+
         if (wess_cand > best_wess) {
           best_wess    <- wess_cand
           best_nodes   <- pruned_nodes
@@ -1170,10 +1182,10 @@ oda_cta_fit <- function(
   # This phase runs after the expanded phase; root-only candidates compete against
   # expanded candidates for the overall best WESS.
   #
-  # For MINDENOM=30: V17 stump scores 186 obs → WESS=16.51%;
-  #                  V14 stump scores 255 obs → WESS=14.06%.
+  # For MINDENOM=30: V17 stump scores 186 obs -> WESS=16.51%;
+  #                  V14 stump scores 255 obs -> WESS=14.06%.
   #                  V17 wins (16.51% > 14.06% and > any majority-fallback expanded score).
-  # For MINDENOM=1:  expanded V14→V15 WESS=27.69% > all stumps → expanded wins.
+  # For MINDENOM=1:  expanded V14->V15 WESS=27.69% > all stumps -> expanded wins.
   .vmsg("[ENUMERATE root-only] ", length(root_cands), " stump candidates (path-local)")
   for (i in seq_along(root_cands)) {
     A_cand  <- root_cands[[i]]
@@ -1196,6 +1208,14 @@ oda_cta_fit <- function(
 
     stump_preds <- appl_A$y_pred
     ok          <- !is.na(stump_preds)
+    # Canonical guard: stump predictions must cover both classes.
+    # sl_A already has >= 2 levels (checked above), so this should never fire
+    # in practice; the check is retained as a defensive invariant.
+    if (length(unique(stump_preds[ok])) < 2L) {
+      .vmsg("  [root-only] ", A_cand$name,
+            " degenerate stump (all predictions same class) - skipped")
+      next
+    }
     wess_stump  <- if (sum(ok) < 2L) -Inf else
                      .wess_classes(y[ok], stump_preds[ok], w[ok])
 
@@ -1320,7 +1340,7 @@ predict.cta_tree <- function(object, newdata,
         ic  <- which(sl == y_hat)
         if (length(ic) == 0L) return(nd$majority_class)
       } else {
-        # Binary: y_hat is rule-side 0/1; route by position (0→child 1, 1→child 2).
+        # Binary: y_hat is rule-side 0/1; route by position (0->child 1, 1->child 2).
         y_hat <- as.integer(oda_rule_predict(x_val, rule))
         if (!(y_hat %in% 0:1)) return(nd$majority_class)
         ic <- y_hat + 1L
