@@ -606,14 +606,14 @@ config:
   layout: dagre
 ---
 flowchart TB
-    A(["Respiratory cultures with P. aeruginosa in last 12 months?"]) -- No --> B(["Chronic lung disease in prior year?"])
-    A -- Yes --> A1["P. aeruginosa 23.3%, n=27/116"]
-    B -- No --> D(["Mechanical ventilation in prior year?"])
-    B -- Yes --> C(["Immunocompromised?"])
-    C -- No --> C1["P. aeruginosa 1.08%, n=19/1763"]
-    C -- Yes --> B1["P. aeruginosa 2.82%, n=12/426"]
-    D -- No --> E1["P. aeruginosa 0.57%, n=38/6611"]
-    D -- Yes --> D1["P. aeruginosa 3.06%, n=3/98"]
+    A(["Prior baseline indicator?"]) -- No --> B(["Baseline covariate B?"])
+    A -- Yes --> A1["Positive class 23.3%, n=27/116"]
+    B -- No --> D(["Baseline covariate C?"])
+    B -- Yes --> C(["Baseline covariate D?"])
+    C -- No --> C1["Positive class 1.08%, n=19/1763"]
+    C -- Yes --> B1["Positive class 2.82%, n=12/426"]
+    D -- No --> E1["Positive class 0.57%, n=38/6611"]
+    D -- Yes --> D1["Positive class 3.06%, n=3/98"]
 
     style A  fill:#ffffff,stroke:#000000,stroke-width:1px
     style B  fill:#ffffff,stroke:#000000,stroke-width:1px

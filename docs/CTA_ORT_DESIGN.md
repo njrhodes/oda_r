@@ -2,7 +2,7 @@
 
 **Status:** Finalized design. Implementation in R/cta_ort.R.
 **Date:** 2026-05-26
-**Motivation:** PsA stress test (see `data-raw/data.csv` workflow, 2026-05-25/26).
+**Motivation:** Private rare-event staged workflow example (2026-05-25/26).
 
 ---
 
@@ -29,52 +29,52 @@ canon at each step.
 
 ---
 
-## 2. Motivating Workflow: PsA Stress Test
+## 2. Motivating Workflow: Private Rare-Event Staged Workflow Example
 
-Dataset: 9,014 hospitalized patients; class = PA isolated in first 72 hours (binary).
-Exclusion: no prior-year PsA (n=8,898; 72 PA+; 0.81%).
-Attributes: v17, v19, v20, v21, v27 (all binary comorbidities).
+Dataset: 9,014 observations; class = rare target event (binary).
+Exclusion criterion applied (n=8,898; 72 positive-class; 0.81%).
+Attributes: v17, v19, v20, v21, v27 (all binary baseline covariates).
 
 ### Level 0 — Root
 
 MDSA family scan on full cohort. Min-D member: MINDENOM=1354 stump on **v21**
-(lung disease), ESS=18.6%, p≈0, LOO STABLE.
+(baseline covariate A), ESS=18.6%, p≈0, LOO STABLE.
 
 ```
-v21 >  0.5  →  Lung disease     (n=2189, PA=1.42%)   ← recurse RIGHT first
-v21 <= 0.5  →  No lung disease  (n=6709, PA=0.61%)   ← recurse LEFT second
+v21 >  0.5  →  Attribute A present  (n=2189, positive-class=1.42%)  ← recurse RIGHT first
+v21 <= 0.5  →  Attribute A absent   (n=6709, positive-class=0.61%)  ← recurse LEFT second
 ```
 
-### Level 1 (right): Lung stratum
+### Level 1 (right): Attribute A present stratum
 
-MDSA family on n=2189. Min-D: MINDENOM=1 stump on **v20** (immunosuppression),
+MDSA family on n=2189. Min-D: MINDENOM=1 stump on **v20** (baseline covariate B),
 ESS=19.5%, p=0.020, LOO STABLE.
 
 ```
-v20 >  0.5  →  Immunosuppressed      (n=426,  PA=2.82%)  ← terminal (no-tree)
-v20 <= 0.5  →  Not immunosuppressed  (n=1763, PA=1.08%)  ← terminal (no-tree)
+v20 >  0.5  →  Attribute B present  (n=426,  positive-class=2.82%)  ← terminal (no-tree)
+v20 <= 0.5  →  Attribute B absent   (n=1763, positive-class=1.08%)  ← terminal (no-tree)
 ```
 
-### Level 1 (left): No-lung stratum
+### Level 1 (left): Attribute A absent stratum
 
-MDSA family on n=6709. Min-D: MINDENOM=1 stump on **v19** (mech vent prior year),
+MDSA family on n=6709. Min-D: MINDENOM=1 stump on **v19** (baseline covariate C),
 ESS=5.9%, p=0.013, LOO STABLE.
 
 ```
-v19 >  0.5  →  Prior MV    (n=98,   PA=3.06%)  ← terminal (no-tree)
-v19 <= 0.5  →  No prior MV (n=6611, PA=0.58%)  ← terminal (no-tree)
+v19 >  0.5  →  Attribute C present  (n=98,   positive-class=3.06%)  ← terminal (no-tree)
+v19 <= 0.5  →  Attribute C absent   (n=6611, positive-class=0.58%)  ← terminal (no-tree)
 ```
 
-### Terminal strata — ordered by PA proportion
+### Terminal strata — ordered by positive-class proportion
 
-| Stratum | Path | n | PA rate |
-|---------|------|---|---------|
-| 1 (lowest) | v21≤0.5 & v19≤0.5 | 6611 | 0.58% |
-| 2 | v21>0.5 & v20≤0.5 | 1763 | 1.08% |
-| 3 | v21>0.5 & v20>0.5 | 426  | 2.82% |
+| Stratum | Path | n | Positive-class rate |
+|---------|------|---|---------------------|
+| 1 (lowest)  | v21≤0.5 & v19≤0.5 | 6611 | 0.58% |
+| 2           | v21>0.5 & v20≤0.5 | 1763 | 1.08% |
+| 3           | v21>0.5 & v20>0.5 | 426  | 2.82% |
 | 4 (highest) | v21≤0.5 & v19>0.5 | 98   | 3.06% |
 
-Three binary predictors carve 8,898 patients into four strata (0.58%–3.06% PA risk)
+Three binary predictors carve 8,898 observations into four strata (0.58%–3.06% positive-class rate)
 via two MDSA-optimal stumps in sequence — currently requiring four separate `GO;`
 commands with manual EX filters.
 
@@ -375,8 +375,8 @@ A new `ort_plot_data()` function (analogous to `cta_plot_data()`) provides the
 renderer-independent data contract for the composite tree layout. `cta_plot_data()`
 is unchanged.
 
-**v1 scope:** correct for balanced or near-balanced trees up to depth 3 (the PsA
-case). Deeper or highly unbalanced trees may need layout tuning deferred to
+**v1 scope:** correct for balanced or near-balanced trees up to depth 3 (a private
+rare-event example). Deeper or highly unbalanced trees may need layout tuning deferred to
 graphics v3.
 
 ### 6.3 Not in scope for plot v1
@@ -478,10 +478,10 @@ regardless of whether a sub-CTA would find a tree.
 For every fitted `cta_ort` in the test suite:
 `sum(strata$n) == N_train` and per-stratum predict counts match `strata$n`.
 
-### 9.6 PsA stress test (manual, data private)
+### 9.6 Private stress test (manual, data private)
 
-`data-raw/data.csv` is untracked and must NOT be committed (patient data).
-The PsA workflow is a manual validation, not an automated fixture.
+Private scratch data is untracked and must NOT be committed.
+The private rare-event workflow is a manual validation, not an automated fixture.
 If a synthetic stand-in can reproduce the same four-stratum structure it may
 be added as a smoke-tier fixture.
 

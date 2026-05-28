@@ -210,17 +210,17 @@ A first implementation using `sda_mode = "unioda_max_ess"` (Mode 1) is
 acceptable **only if** it is explicitly documented as a legacy/iterative UniODA
 staging approximation and not presented as MPE novometric SDA.
 
-### PsA example status
+### Private rare-event example status
 
-The private PsA tree begins with upstream/pre-admission propensity staging.
-`PsA_prior_year` may have been selected by univariate max ESS at step 1 (Mode 1).
+A private staged analysis begins with upstream/pre-exposure baseline propensity staging.
+A baseline indicator attribute may have been selected by univariate max ESS at step 1 (Mode 1).
 
 MPE novometric SDA (Mode 2) would require verifying per-attribute EO-CTA/MDSA
 with MINDENOM, p, and min-D gates before declaring step-1 selection. That
 verification has not been performed.
 
-**Do not call the PsA tree "MPE SDA canon."**
-State instead: *PsA supports the need for SDA/staging; exact canon mode
+**Do not call the private staged tree "MPE SDA canon."**
+State instead: *the private example supports the need for SDA/staging; exact canon mode
 remains to be implemented and validated.*
 
 After upstream staging establishes initial propensity strata, later-stage or
@@ -228,7 +228,7 @@ time-varying attributes may be used within strata to rebalance or refine
 classification — provided their timing is valid and their role is explicitly
 declared as assignment-mechanism correction, not outcome prediction.
 
-The divergence between greedy min-D ORT and the PsA SDA tree is expected and
+The divergence between greedy min-D ORT and the private SDA staging tree is expected and
 correct. They are outputs of different methods with different objectives.
 
 **Do not make `cta_fit(recursive = TRUE)` chase the SDA tree.** SDA needs
@@ -314,46 +314,46 @@ requiring marginal confounding adjustment — not only medicine.
 
 ## 5. What the Recent Tests Showed
 
-### 5.1 Root family audit — 6-variable PsA frame
+### 5.1 Root family audit — 6-variable private rare-event frame
 
-n = 9,014 | p = 6 | target_n = 99 | outcome = `case_pa_first72`
+n = 9,014 | p = 6 | target_n = 99 | outcome = `target_event`
 
-Candidates: `PsA_prior_year`, `Antibiotics_90days_prior`, `mech_vent_1yr_prior`,
-`immunosuppression_prior_year`, `Lung_disease_prior_year`, `tube_feeding_prior_year`.
+Candidates: `baseline_signal_A`, `baseline_covariate_E`, `baseline_covariate_D`,
+`baseline_covariate_C`, `baseline_covariate_B`, `baseline_covariate_F`.
 
 Root family (seed = 42, mc_iter = 25,000, max_steps = 20):
 
 | MINDENOM | root_split | S | ESS | D | min_term_denom |
 |---|---|---|---|---|---|
-| 1 | Antibiotics_90days_prior | 12 | 38.28% | 19.3464 | 3 |
-| 4 | Antibiotics_90days_prior | 11 | 38.14% | 17.8441 | 16 |
-| 17 | Antibiotics_90days_prior | 6 | 37.38% | 10.0497 | 39 |
-| 40 | PsA_prior_year | 4 | 35.35% | 7.3168 | 116 |
-| **117** | **mech_vent_1yr_prior** | **3** | **30.51%** | **6.8333** | 206 |
-| 207 | Lung_disease_prior_year | 3 | 25.28% | 8.8654 | 940 |
-| 941 | immunosuppression_prior_year | 3 | 25.28% | 8.8654 | 1390 |
-| 1391 | Lung_disease_prior_year | 2 | 22.55% | 6.8690 | 2269 |
-| 2270 | Antibiotics_90days_prior | 2 | 11.24% | 15.7941 | 2640 |
+| 1 | baseline_covariate_E | 12 | 38.28% | 19.3464 | 3 |
+| 4 | baseline_covariate_E | 11 | 38.14% | 17.8441 | 16 |
+| 17 | baseline_covariate_E | 6 | 37.38% | 10.0497 | 39 |
+| 40 | baseline_signal_A | 4 | 35.35% | 7.3168 | 116 |
+| **117** | **baseline_covariate_D** | **3** | **30.51%** | **6.8333** | 206 |
+| 207 | baseline_covariate_B | 3 | 25.28% | 8.8654 | 940 |
+| 941 | baseline_covariate_C | 3 | 25.28% | 8.8654 | 1390 |
+| 1391 | baseline_covariate_B | 2 | 22.55% | 6.8690 | 2269 |
+| 2270 | baseline_covariate_E | 2 | 11.24% | 15.7941 | 2640 |
 | 2641 | no_tree | — | — | — | — |
 
-**Current greedy min-D ORT winner: MINDENOM = 117, root = `mech_vent_1yr_prior`,
+**Current greedy min-D ORT winner: MINDENOM = 117, root = `baseline_covariate_D`,
 D = 6.8333.**
 
-Key constraint: at MINDENOM = 117, `PsA_prior_year` is ineligible — its Pa+
-branch has n = 116 < 117. At MINDENOM = 40 it is eligible but D = 7.317 >
-6.833, so it loses under min-D selection.
+Key constraint: at MINDENOM = 117, `baseline_signal_A` is ineligible — its
+positive-class branch has n = 116 < 117. At MINDENOM = 40 it is eligible but
+D = 7.317 > 6.833, so it loses under min-D selection.
 
 ### 5.2 Black-box ORT test result
 
-Current greedy ORT (root = `mech_vent_1yr_prior`, D = 6.8333) failed all
-structural checks for the PsA SDA target tree. Wide-newdata prediction passed.
+Current greedy ORT (root = `baseline_covariate_D`, D = 6.8333) failed all
+structural checks for the private SDA staging target tree. Wide-newdata prediction passed.
 
 **Conclusion:** Implementation predicts safely from wide newdata. Greedy
 min-D ORT is not and should not be expected to reproduce the SDA staging tree.
 
-### 5.3 Spreadsheet / manual final-tree distinction
+### 5.3 Manual final-tree distinction
 
-The Excel/manual PsA staging tree is a **five-stratum SDA/staging final tree**:
+The private manual staged tree is a **five-stratum SDA/staging final tree**:
 
 | TN | FP | FN | TP | Specificity | Sensitivity | ESS | D | S |
 |---|---|---|---|---|---|---|---|---|
@@ -363,7 +363,7 @@ D check: `5 × (100 / 35.716 − 1) ≈ 8.999` ✓
 
 This is **not** the MINDENOM = 40 CTA family member:
 
-| | MINDENOM = 40 family member | Excel/manual tree |
+| | MINDENOM = 40 family member | Private manual tree |
 |---|---|---|
 | Object | Single CTA/MDSA family member | Final five-stratum SDA staging tree |
 | S | 4 | 5 |
@@ -379,16 +379,16 @@ committing, score by D_product, D_sum, ESS_min, ESS_hmean.
 
 | Criterion | Best A |
 |---|---|
-| min D_product | `mech_vent_1yr_prior` |
-| min D_sum | `mech_vent_1yr_prior` |
-| max ESS_min | `Lung_disease_prior_year` |
-| max ESS_hmean | `Lung_disease_prior_year` |
-| Target | `PsA_prior_year` — not recovered |
+| min D_product | `baseline_covariate_D` |
+| min D_sum | `baseline_covariate_D` |
+| max ESS_min | `baseline_covariate_B` |
+| max ESS_hmean | `baseline_covariate_B` |
+| Target | `baseline_signal_A` — not recovered |
 
-For `PsA_prior_year`: all four endpoints returned no-tree. Not competitive
+For `baseline_signal_A`: all four endpoints returned no-tree. Not competitive
 under any global score.
 
-**Conclusion:** A×B×C lookahead does not explain or recover the PsA staging
+**Conclusion:** A×B×C lookahead does not explain or recover the private SDA staging
 tree. Do not implement ORT-level A×B×C.
 
 ---
@@ -419,7 +419,5 @@ Method-neutral, canon-safe changes only:
 - SDA implementation (either mode)
 - ORT-level A×B×C (tested; not explanatory; do not implement)
 - Global/lookahead ORT (unresolved; no canonical anchor)
-- Private tmp scripts (leave untracked):
-  `tmp_root_family_audit.R`, `tmp_ort_blackbox_psa_test.R`,
-  `tmp_ort_manual_equivalence.R`, `tmp_ort_enumerate_abc_test.R`
-- Any claim that current greedy min-D ORT reproduces the PsA SDA staging tree
+- Private tmp scripts (deleted, gitignored — see Checkpoint 9 cleanup)
+- Any claim that current greedy min-D ORT reproduces the private SDA staging tree
