@@ -81,8 +81,12 @@ to retrieve stratum assignments.
 }
 \note{
 \code{oda_cta_fit()} is the internal engine name; \code{cta_fit()} is the
-preferred public entry point.  Both are exported and functionally equivalent
-for non-recursive use.
+preferred public entry point for non-recursive CTA.  Both are exported and
+functionally equivalent for non-recursive use.
+
+\code{cta_fit(..., recursive = TRUE)} is a legacy-compatible interface for
+the LORT workflow layer.  Prefer \code{\link{lort_fit}()} for new code.
+SORT and GORT are reserved and not implemented.
 }
 \examples{
 # Small synthetic two-class example (non-recursive)

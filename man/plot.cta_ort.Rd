@@ -9,7 +9,7 @@
   target_class = NULL,
   class_labels = NULL,
   digits = 1L,
-  main = "ORT",
+  main = "LORT",
   split_fill = "#D9EAF7",
   endpoint_fill = "#D9F7E6",
   endpoint_palette = NULL,

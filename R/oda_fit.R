@@ -306,3 +306,99 @@ cta_fit <- function(X, y, verbose = FALSE,
   }
   oda_cta_fit(X = X, y = y, verbose = verbose, ...)
 }
+
+# ---- lort_fit: preferred explicit entry point for LORT ----------------------
+
+#' Fit a Locally Optimal Recursive Tree (LORT)
+#'
+#' Preferred explicit entry point for the LORT workflow layer.  LORT is a
+#' non-canonical workflow composition: at each recursive endpoint it runs a
+#' full MDSA family scan (\code{\link{cta_descendant_family}}), selects the
+#' min-D member, and recurses until no further structure is found or a compute
+#' guard fires.  It uses canon CTA/MDSA components but is not itself a canon
+#' CTA.exe behavior.
+#'
+#' \code{lort_fit()} is functionally equivalent to
+#' \code{cta_fit(..., recursive = TRUE)}.  \code{cta_fit(..., recursive = TRUE)}
+#' is retained as a legacy-compatible alias and will continue to work; prefer
+#' \code{lort_fit()} for new code.  SORT and GORT are reserved and not
+#' implemented.
+#'
+#' @param X Data frame or matrix of candidate predictor columns.
+#' @param y Integer class variable vector.  Must have exactly two distinct values.
+#' @param w Optional numeric case-weight vector.  Default \code{NULL} (unit weights).
+#' @param mc_iter Integer; maximum Monte Carlo iterations per node.  Default \code{5000L}.
+#' @param mc_seed Integer or \code{NULL}; RNG seed set once at LORT start.
+#'   Child-node MDSA scans consume the stream in deterministic right-then-left
+#'   traversal order without resetting the seed.  Default \code{42L}.
+#' @param mc_stop Numeric; confidence bound for lower-tail early MC stopping
+#'   (percent).  Default \code{99.9}.
+#' @param mc_stopup Numeric; confidence bound for upper-tail early MC stopping
+#'   (percent).  Default \code{20}.
+#' @param alpha_split Numeric; node-level significance threshold.  Default \code{0.05}.
+#' @param prune_alpha Numeric; pruning significance threshold.  Default \code{0.05}.
+#' @param loo LOO gate mode per node: \code{"off"} (no gate), \code{"stable"}
+#'   (MegaODA LOO STABLE; accept when |WESSL − WESS| ≤ 0.01 pp; default),
+#'   \code{"pvalue"} (Fisher p strictly less than 0.05), or a single numeric
+#'   in (0, 1) (Fisher p strictly less than the supplied threshold).
+#' @param min_n Integer; minimum endpoint n to attempt recursion.  Endpoints
+#'   smaller than \code{min_n} become terminal (stop reason \code{"min_n"}).
+#'   Default \code{30L}.
+#' @param max_depth Integer; safety cap on recursion depth.  Nodes at
+#'   \code{depth >= max_depth} become terminal (stop reason
+#'   \code{"max_depth"}).  Default \code{8L}.
+#' @param max_nodes Integer; safety cap on total ORT nodes.  When node count
+#'   exceeds \code{max_nodes} the current endpoint becomes terminal (stop
+#'   reason \code{"max_nodes"}).  Default \code{31L}.
+#' @param family_max_steps Integer; maximum MDSA family members evaluated at
+#'   each recursive node.  Default \code{20L}.
+#' @param verbose Logical; emit \code{[ORT]} progress messages.  Default
+#'   \code{FALSE}.
+#' @return A dual-tagged \code{cta_ort} / \code{cta_tree} object.
+#'   \code{cta_ort}-aware methods (\code{predict.cta_ort},
+#'   \code{print.cta_ort}, \code{summary.cta_ort}, \code{plot.cta_ort},
+#'   \code{\link{cta_ort_node_table}}) operate on the full composite tree.
+#'   \code{ort_settings$method} is always \code{"lort"}.
+#' @seealso \code{\link{cta_fit}}, \code{\link{predict.cta_ort}},
+#'   \code{\link{cta_ort_node_table}}, \code{\link{ort_plot_data}}
+#' @examples
+#' X <- data.frame(
+#'   A = c(rep(0L, 20), rep(1L, 20), rep(1L, 20)),
+#'   B = c(rep(0L, 20), rep(0L, 20), rep(1L, 20))
+#' )
+#' y <- c(rep(0L, 20), rep(0L, 20), rep(1L, 20))
+#' fit <- lort_fit(X, y, mc_iter = 100L, mc_seed = 42L, loo = "off", min_n = 5L)
+#' print(fit)
+#' @export
+lort_fit <- function(X, y, w = NULL,
+                     mc_iter          = 5000L,
+                     mc_seed          = 42L,
+                     mc_stop          = 99.9,
+                     mc_stopup        = 20,
+                     alpha_split      = 0.05,
+                     prune_alpha      = 0.05,
+                     loo              = "stable",
+                     min_n            = 30L,
+                     max_depth        = 8L,
+                     max_nodes        = 31L,
+                     family_max_steps = 20L,
+                     verbose          = FALSE) {
+  cta_fit(
+    X                = X,
+    y                = y,
+    w                = w,
+    mc_iter          = mc_iter,
+    mc_seed          = mc_seed,
+    mc_stop          = mc_stop,
+    mc_stopup        = mc_stopup,
+    alpha_split      = alpha_split,
+    prune_alpha      = prune_alpha,
+    loo              = loo,
+    min_n            = min_n,
+    max_depth        = max_depth,
+    max_nodes        = max_nodes,
+    family_max_steps = family_max_steps,
+    verbose          = verbose,
+    recursive        = TRUE
+  )
+}
