@@ -39,6 +39,13 @@ syn_ort_args <- list(
   min_n       = 5L
 )
 
+# Module-level fixture: computed once and reused across all tests that share
+# these args.  Eliminates repeated identical fits (37 calls → 1) to keep
+# the file CRAN-safe (< ~30 s instead of ~96 s).
+# Tests that need variant args (max_depth, max_nodes, family_max_steps,
+# different seed, non-recursive, etc.) continue to call cta_fit() directly.
+syn_ort <- do.call(cta_fit, syn_ort_args)
+
 # ---------------------------------------------------------------------------
 # Test 1: mindenom error when recursive = TRUE
 # ---------------------------------------------------------------------------
@@ -67,7 +74,7 @@ test_that("cta_fit recursive: min_n guard at root gives 1 stratum", {
 # Test 3: class guard — inherits both cta_ort and cta_tree
 # ---------------------------------------------------------------------------
 test_that("cta_fit recursive: object inherits cta_ort and cta_tree", {
-  ort <- do.call(cta_fit, syn_ort_args)
+  ort <- syn_ort
   expect_s3_class(ort, "cta_ort")
   expect_s3_class(ort, "cta_tree")
   expect_true(isTRUE(ort$recursive))
@@ -77,7 +84,7 @@ test_that("cta_fit recursive: object inherits cta_ort and cta_tree", {
 # Test 4: two-level synthetic tree — 3 terminal strata
 # ---------------------------------------------------------------------------
 test_that("cta_fit recursive: two-level synthetic tree has 3 strata", {
-  ort <- do.call(cta_fit, syn_ort_args)
+  ort <- syn_ort
   expect_equal(ort$n_strata, 3L)
   expect_equal(nrow(ort$strata), 3L)
   # Strata sorted ascending by prop_class1
@@ -88,7 +95,7 @@ test_that("cta_fit recursive: two-level synthetic tree has 3 strata", {
 # Test 5: strata n sums to total N
 # ---------------------------------------------------------------------------
 test_that("cta_fit recursive: strata n values sum to N", {
-  ort <- do.call(cta_fit, syn_ort_args)
+  ort <- syn_ort
   expect_equal(sum(ort$strata$n), nrow(syn_X))
 })
 
@@ -96,7 +103,7 @@ test_that("cta_fit recursive: strata n values sum to N", {
 # Test 6: strata_check_passed is TRUE
 # ---------------------------------------------------------------------------
 test_that("cta_fit recursive: strata_check_passed is TRUE", {
-  ort <- do.call(cta_fit, syn_ort_args)
+  ort <- syn_ort
   expect_true(isTRUE(ort$strata_check_passed))
 })
 
@@ -104,7 +111,7 @@ test_that("cta_fit recursive: strata_check_passed is TRUE", {
 # Test 7: predict type = "class" returns integer vector of length N
 # ---------------------------------------------------------------------------
 test_that("cta_fit recursive: predict type='class' has correct length and type", {
-  ort  <- do.call(cta_fit, syn_ort_args)
+  ort  <- syn_ort
   pred <- predict(ort, syn_X, type = "class")
   expect_true(is.integer(pred))
   expect_equal(length(pred), nrow(syn_X))
@@ -114,7 +121,7 @@ test_that("cta_fit recursive: predict type='class' has correct length and type",
 # Test 8: predict type = "all" returns data.frame with correct columns
 # ---------------------------------------------------------------------------
 test_that("cta_fit recursive: predict type='all' returns correct data.frame", {
-  ort <- do.call(cta_fit, syn_ort_args)
+  ort <- syn_ort
   df  <- predict(ort, syn_X, type = "all")
   expect_s3_class(df, "data.frame")
   expect_equal(nrow(df), nrow(syn_X))
@@ -126,7 +133,7 @@ test_that("cta_fit recursive: predict type='all' returns correct data.frame", {
 # Test 9: predict stratum counts match strata$n
 # ---------------------------------------------------------------------------
 test_that("cta_fit recursive: predict stratum row counts match strata$n", {
-  ort <- do.call(cta_fit, syn_ort_args)
+  ort <- syn_ort
   df  <- predict(ort, syn_X, type = "all")
   for (sid in ort$strata$stratum_id) {
     predicted_n <- sum(!is.na(df$stratum_id) & df$stratum_id == sid)
@@ -154,7 +161,7 @@ test_that("cta_fit recursive: max_depth = 1 produces depth-1 terminals only", {
 # Test 11: print and summary work without error
 # ---------------------------------------------------------------------------
 test_that("cta_fit recursive: print and summary run without error", {
-  ort <- do.call(cta_fit, syn_ort_args)
+  ort <- syn_ort
   expect_silent(capture.output(print(ort)))
   sm  <- summary(ort)
   expect_s3_class(sm, "cta_ort_summary")
@@ -165,7 +172,7 @@ test_that("cta_fit recursive: print and summary run without error", {
 # Test 12: ort_plot_data returns valid structure
 # ---------------------------------------------------------------------------
 test_that("ort_plot_data: returns list with nodes, edges, strata", {
-  ort <- do.call(cta_fit, syn_ort_args)
+  ort <- syn_ort
   pd  <- ort_plot_data(ort)
   expect_type(pd, "list")
   expect_true(all(c("nodes","edges","strata") %in% names(pd)))
@@ -183,7 +190,7 @@ test_that("ort_plot_data: returns list with nodes, edges, strata", {
 # Test 13: plot.cta_ort produces no error
 # ---------------------------------------------------------------------------
 test_that("plot.cta_ort: runs without error (no file output)", {
-  ort <- do.call(cta_fit, syn_ort_args)
+  ort <- syn_ort
   pdf(nullfile())
   on.exit(dev.off())
   expect_silent(plot(ort))
@@ -196,14 +203,14 @@ test_that("plot.cta_ort: runs without error (no file output)", {
 
 # Test 14: top-level mc_seed stored in ort_settings
 test_that("cta_fit recursive: ort_settings$mc_seed equals supplied seed", {
-  ort <- do.call(cta_fit, syn_ort_args)   # syn_ort_args uses mc_seed = 42L
+  ort <- syn_ort   # syn_ort_args uses mc_seed = 42L
   expect_equal(ort$ort_settings$mc_seed, 42L)
 })
 
 # Test 15: reproducibility -- same seed gives identical strata and predictions
 test_that("cta_fit recursive: same mc_seed gives identical strata and predictions", {
-  ort1 <- do.call(cta_fit, syn_ort_args)
-  ort2 <- do.call(cta_fit, syn_ort_args)
+  ort1 <- syn_ort
+  ort2 <- do.call(cta_fit, syn_ort_args)  # independent refit to verify reproducibility
 
   # Strata table identical (n, path, prop_class1, stop_reason)
   expect_equal(ort1$strata$n,           ort2$strata$n)
@@ -219,7 +226,7 @@ test_that("cta_fit recursive: same mc_seed gives identical strata and prediction
 
 # Test 16: different mc_seed stores a different top-level seed
 test_that("cta_fit recursive: different mc_seed stored in ort_settings", {
-  ort_a <- do.call(cta_fit, syn_ort_args)                                   # seed 42
+  ort_a <- syn_ort                                                           # seed 42 (module fixture)
   ort_b <- do.call(cta_fit, modifyList(syn_ort_args, list(mc_seed = 99L)))  # seed 99
   expect_equal(ort_a$ort_settings$mc_seed, 42L)
   expect_equal(ort_b$ort_settings$mc_seed, 99L)
@@ -231,7 +238,7 @@ test_that("cta_fit recursive: different mc_seed stored in ort_settings", {
 
 # Test 17: predict type = "stratum" and type = "path" return correct types
 test_that("predict.cta_ort: type='stratum' is integer, type='path' is character", {
-  ort <- do.call(cta_fit, syn_ort_args)
+  ort <- syn_ort
   expect_true(is.integer(predict(ort, syn_X, type = "stratum")))
   expect_equal(length(predict(ort, syn_X, type = "stratum")), nrow(syn_X))
   expect_true(is.character(predict(ort, syn_X, type = "path")))
@@ -240,7 +247,7 @@ test_that("predict.cta_ort: type='stratum' is integer, type='path' is character"
 
 # Test 18: predict with NA in split attribute returns NA (missing_action = "na")
 test_that("predict.cta_ort: NA in root-split attribute returns NA with missing_action='na'", {
-  ort     <- do.call(cta_fit, syn_ort_args)
+  ort     <- syn_ort
   new_row <- syn_X[1L, ]
   new_row$A <- NA_integer_   # A is the root split attribute
   pred <- predict(ort, new_row, type = "all", missing_action = "na")
@@ -302,7 +309,7 @@ test_that("cta_fit recursive: mc_stop and mc_stopup stored in ort_settings", {
 
 # Test 32: mc_stop / mc_stopup default values stored when not supplied
 test_that("cta_fit recursive: mc_stop/mc_stopup default to oda_cta_fit canonical values", {
-  ort <- do.call(cta_fit, syn_ort_args)   # no mc_stop / mc_stopup supplied
+  ort <- syn_ort   # no mc_stop / mc_stopup supplied
   expect_equal(ort$ort_settings$mc_stop,   99.9)
   expect_equal(ort$ort_settings$mc_stopup, 20)
 })
@@ -319,7 +326,7 @@ test_that("cta_fit recursive: family_max_steps stored in ort_settings", {
 
 # Test 34: default family_max_steps = 20L stored when not supplied
 test_that("cta_fit recursive: family_max_steps defaults to 20L in ort_settings", {
-  ort <- do.call(cta_fit, syn_ort_args)   # no family_max_steps supplied
+  ort <- syn_ort   # no family_max_steps supplied
   expect_equal(ort$ort_settings$family_max_steps, 20L)
 })
 
@@ -431,9 +438,7 @@ test_that("cta_assign_endpoints: wide newdata with non-matching auto-names error
 })
 
 test_that("predict.cta_ort: wide named newdata gives same result as narrow newdata (T44)", {
-  ort <- cta_fit(syn_X, syn_y, recursive = TRUE,
-                 mc_iter = 100L, mc_seed = 42L, loo = "off",
-                 min_n   = 5L)
+  ort <- syn_ort  # same as syn_ort_args
   # default type = "class" returns integer vector
   pred_narrow <- predict(ort, syn_X)
   pred_wide   <- predict(ort, syn_X_wide)
@@ -446,61 +451,61 @@ test_that("predict.cta_ort: wide named newdata gives same result as narrow newda
 # ---------------------------------------------------------------------------
 
 test_that("LORT metadata: method == 'lort' (T45)", {
-  ort <- do.call(cta_fit, syn_ort_args)
+  ort <- syn_ort
   expect_equal(ort$ort_settings$method, "lort")
 })
 
 test_that("LORT metadata: method_label correct (T46)", {
-  ort <- do.call(cta_fit, syn_ort_args)
+  ort <- syn_ort
   expect_equal(ort$ort_settings$method_label, "Locally Optimal Recursive Tree")
 })
 
 test_that("LORT metadata: global_optimization is FALSE (T47)", {
-  ort <- do.call(cta_fit, syn_ort_args)
+  ort <- syn_ort
   expect_false(isTRUE(ort$ort_settings$global_optimization))
 })
 
 test_that("LORT metadata: global_lookahead is FALSE (T48)", {
-  ort <- do.call(cta_fit, syn_ort_args)
+  ort <- syn_ort
   expect_false(isTRUE(ort$ort_settings$global_lookahead))
 })
 
 test_that("LORT metadata: sda_anchored is FALSE (T49)", {
-  ort <- do.call(cta_fit, syn_ort_args)
+  ort <- syn_ort
   expect_false(isTRUE(ort$ort_settings$sda_anchored))
 })
 
 test_that("LORT metadata: recursive_selection == 'greedy_local_min_d' (T50)", {
-  ort <- do.call(cta_fit, syn_ort_args)
+  ort <- syn_ort
   expect_equal(ort$ort_settings$recursive_selection, "greedy_local_min_d")
 })
 
 test_that("LORT print: header contains 'Locally Optimal Recursive Tree' (T51)", {
-  ort <- do.call(cta_fit, syn_ort_args)
+  ort <- syn_ort
   out <- capture.output(print(ort))
   expect_true(any(grepl("Locally Optimal Recursive Tree", out, fixed = TRUE)))
 })
 
 test_that("LORT print: contains 'greedy local min-D' (T52)", {
-  ort <- do.call(cta_fit, syn_ort_args)
+  ort <- syn_ort
   out <- capture.output(print(ort))
   expect_true(any(grepl("greedy local min-D", out, fixed = TRUE)))
 })
 
 test_that("LORT print: contains 'global optimization: no' (T53)", {
-  ort <- do.call(cta_fit, syn_ort_args)
+  ort <- syn_ort
   out <- capture.output(print(ort))
   expect_true(any(grepl("global optimization: no", out, fixed = TRUE)))
 })
 
 test_that("LORT print: contains 'SDA anchored: no' (T54)", {
-  ort <- do.call(cta_fit, syn_ort_args)
+  ort <- syn_ort
   out <- capture.output(print(ort))
   expect_true(any(grepl("SDA anchored: no", out, fixed = TRUE)))
 })
 
 test_that("LORT summary: method metadata fields present (T55)", {
-  ort <- do.call(cta_fit, syn_ort_args)
+  ort <- syn_ort
   sm  <- summary(ort)
   expect_equal(sm$method,              "lort")
   expect_equal(sm$method_label,        "Locally Optimal Recursive Tree")
@@ -515,14 +520,14 @@ test_that("LORT summary: method metadata fields present (T55)", {
 # ---------------------------------------------------------------------------
 
 test_that("cta_ort_node_table: returns data.frame with correct row count (T56)", {
-  ort <- do.call(cta_fit, syn_ort_args)
+  ort <- syn_ort
   tbl <- cta_ort_node_table(ort)
   expect_s3_class(tbl, "data.frame")
   expect_equal(nrow(tbl), length(ort$ort_nodes))
 })
 
 test_that("cta_ort_node_table: required columns present (T57)", {
-  ort <- do.call(cta_fit, syn_ort_args)
+  ort <- syn_ort
   tbl <- cta_ort_node_table(ort)
   required <- c("ort_node_id", "parent_ort_node_id", "depth", "n",
                 "class_counts", "terminal", "stop_reason",
@@ -536,25 +541,25 @@ test_that("cta_ort_node_table: required columns present (T57)", {
 })
 
 test_that("cta_ort_node_table: method column is always 'lort' (T58)", {
-  ort <- do.call(cta_fit, syn_ort_args)
+  ort <- syn_ort
   tbl <- cta_ort_node_table(ort)
   expect_true(all(tbl$method == "lort"))
 })
 
 test_that("cta_ort_node_table: global_optimization is FALSE for all rows (T59)", {
-  ort <- do.call(cta_fit, syn_ort_args)
+  ort <- syn_ort
   tbl <- cta_ort_node_table(ort)
   expect_true(all(!tbl$global_optimization))
 })
 
 test_that("cta_ort_node_table: sda_anchored is FALSE for all rows (T60)", {
-  ort <- do.call(cta_fit, syn_ort_args)
+  ort <- syn_ort
   tbl <- cta_ort_node_table(ort)
   expect_true(all(!tbl$sda_anchored))
 })
 
 test_that("cta_ort_node_table: root has NA parent, non-root has integer parent (T61)", {
-  ort <- do.call(cta_fit, syn_ort_args)
+  ort <- syn_ort
   tbl <- cta_ort_node_table(ort)
   root_row <- tbl[tbl$ort_node_id == 1L, ]
   expect_true(is.na(root_row$parent_ort_node_id))
@@ -563,7 +568,7 @@ test_that("cta_ort_node_table: root has NA parent, non-root has integer parent (
 })
 
 test_that("cta_ort_node_table: non-terminal nodes expose selected_ess and root_attr (T62)", {
-  ort <- do.call(cta_fit, syn_ort_args)
+  ort <- syn_ort
   tbl <- cta_ort_node_table(ort)
   non_term <- tbl[!tbl$terminal, ]
   expect_true(nrow(non_term) >= 1L)
@@ -576,7 +581,7 @@ test_that("cta_ort_node_table: multi-level recursion visible — max depth >= 1 
   # leaving endpoint children at depth=1.  ORT depth is 0-indexed, so a
   # root-plus-children structure has max depth = 1.  Asserting >= 1L proves that
   # recursion actually ran (non-trivial structure exists beyond the root node).
-  ort <- do.call(cta_fit, syn_ort_args)
+  ort <- syn_ort
   tbl <- cta_ort_node_table(ort)
   expect_true(max(tbl$depth) >= 1L,
               info = sprintf("max depth was %d; expected >= 1 for two-level synthetic (root=0, children=1)", max(tbl$depth)))
