@@ -1405,7 +1405,7 @@ print.cta_tree <- function(x, ...) {
     cat(sprintf(
       "\nCTA Tree  alpha_split=%.3f  mindenom=%d  prune=%.3f  max_depth=%d  loo=%s\n\n",
       x$alpha_split, x$mindenom, x$prune_alpha, x$max_depth, x$loo))
-    cat("No tree found (leaf-only): no valid split passed significance, LOO STABLE, and MINDENOM constraints.\n")
+    cat("No tree found (leaf-only): no valid split passed significance, LOO gate, and MINDENOM constraints.\n")
     return(invisible(x))
   }
   cat(sprintf(
