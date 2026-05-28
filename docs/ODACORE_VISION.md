@@ -112,9 +112,8 @@ fields; it knows nothing about the internal structure of either ODA engine.
 | myeloma    | 30       | CTA (WEIGHT V2)    | ✓ green  | V17 stump, WESS 16.51%, n=186     |
 | myeloma    | 56       | CTA (WEIGHT V2)    | ✓ green  | No tree (all child sizes < 56)    |
 
-**Validation status as of f0328e2:**
-- Fast suite: 941 pass / 163 skip / 0 fail / 0 warn
-- Targeted smoke: 173 pass / 0 skip / 0 fail / 0 warn
+**Validation status as of fbaaa85 (2026-05-27):**
+- Fast suite (ODACORE_TEST_TIER=fast, filter=cta): 688 pass / 140 skip / 0 fail / 0 warn
 - `devtools::check()`: 0 errors / 0 warnings / 1 known Windows clock NOTE
   (environment timing issue, not a package defect)
 
@@ -518,8 +517,26 @@ min-D selection works once D statistic is stable.
 - Summary/print must flag degeneracy clearly.
 - D statistic for no_tree/degenerate/ESS≤0 is NA with reason.
 
-**Tests:** no_tree CTA; ODA degenerate/fail object; D statistic diagnostic
-flags.
+**Partially complete (commit fbaaa85, 2026-05-27):**
+- Post-pruning CTA degeneracy gate implemented: ENUMERATE loop rejects any
+  candidate tree where all terminal predictions cover fewer than C classes
+  after `.prune_tree()`. Applies to both expanded phase and root-only stump
+  phase.
+- Family-level invariant: degenerate trees surface as `no_tree = TRUE`;
+  `min_d_idx` is `NA` when all members are degenerate.
+- ORT-level invariant: no degenerate node models; each `ort_nodes` entry must
+  be non-degenerate or `no_tree`.
+- Canon and CLAUDE.md updated: `degen = TRUE` does not exist for CTA or ORT.
+
+**Still open in 2F:**
+- Full status taxonomy on `cta_tree` S3 object (`degenerate` status field).
+- ODA failed/degenerate prediction policy and S3 object status field.
+- Summary/print degeneracy flagging for ODA objects.
+- D statistic diagnostic flags for ESS <= 0 edge cases.
+
+**Tests (complete for CTA/ORT/family degeneracy gate):** degeneracy predicate
+unit test; all-degenerate family min_d_idx=NA; ORT non-degenerate node model
+check. Full 2F taxonomy tests blocked until ODA S3 contract (2A) exists.
 
 #### Phase 2G — Model comparison
 
@@ -804,8 +821,13 @@ inside nested closures.
 
 ## 7. Reference index
 
+See `docs/DOCS_INDEX.md` for the full navigable index with status, staleness
+notes, and current next-slice order. The table below covers the most-referenced
+files.
+
 | Document | Purpose |
 |----------|---------|
+| `docs/DOCS_INDEX.md` | **Start here** — navigable index of all active docs, production checkpoints, and next-slice order |
 | `CLAUDE.md` | Operational guardrails for Claude Code sessions |
 | `README.md` | Public package overview and quick-start |
 | `docs/ODA_CANON.md` | ODA engine canonical behavior spec |
@@ -813,6 +835,10 @@ inside nested closures.
 | `docs/CTA_ORDERED_CUT_AUDIT.md` | Weighted ordered scan / LOO STABLE audit evidence |
 | `docs/CTA_TRANSLATION_STACK.md` | CTA reporting/translation pipeline navigation map |
 | `docs/myeloma-cta-translation.md` | Myeloma CTA translation walkthrough (worked example with actual computed values) |
+| `docs/CTA_ORT_DESIGN.md` | Finalized ORT design: API, MDSA per level, RNG streaming, traversal, object structure |
+| `docs/ORT_SELECTION_METHODS.md` | Decision memo: three-role method stack; canon uncertainty; private rare-event probe results |
+| `docs/SDA_AUTO_SDA_PLAN.md` | SDA and auto-SDA comprehensive design (SDA-1 through SDA-4B complete; weighted/staged adjustment deferred) |
+| `docs/STAGED_CTA_WORKFLOW_PLAN.md` | Staged CTA workflow lessons and design (SCTA-0 evidence capture complete; no implementation yet) |
 | `.github/copilot-instructions.md` | AI code review policy (10 rules) |
 | `data-raw/README.md` | Fixture provenance (MegaODA.exe and CTA.exe run settings) |
 | `docs/theory/jep12538.pdf` | **Local-only canon/theory archive** (untracked by git): Linden/Yarnold JEP covariate-balance paper; canon-adjacent reference for future balance-diagnostic design; not current implementation. |
