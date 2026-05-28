@@ -125,26 +125,35 @@ implementation decisions from them.
 | MDSA descendant family (`cta_descendant_family`, `cta_family_table`) | complete | Phase 2E |
 | SDA-4B novometric_min_d mode | complete | 2026-05-27 |
 | Post-pruning degeneracy gate (CTA + ORT + family) | complete | fbaaa85 |
-| CRAN check: 0 errors / 0 warnings / 1 note (clock) | current | fbaaa85 |
+| LORT/SORT/GORT taxonomy (LORT implemented; SORT/GORT reserved) | complete | fbaaa85 |
+| Synthetic no_tree / non-degenerate regression tests (Slice B) | complete | fbaaa85 |
+| LOO semantics fix: numeric gate, pvalue mode, loo_status (Slice C) | complete | 9b542b4 |
+| LOO gate docs alignment: ODA_CANON, CTA_CANON, man pages (Slice D-docs) | complete | 34d0fd2 |
+| CRAN timing fix: test-cta-ort.R fixture caching 96s→7.4s (Slice D-test) | complete | 89605b7 |
+| Full fast suite: FAIL 0 / WARN 0 / SKIP 165 / PASS 1439 | current | 89605b7 |
+| CRAN check: 0 errors / 0 warnings / 1 note (clock) | current | 89605b7 |
 
 ---
 
 ## Current Next-Slice Order
 
 ```
-A. Docs index / coherence pass                      <- current (this file)
-B. Synthetic degeneracy regression fixture          <- next hardening slice
-C. CTA endpoint map + print clarity
-D. Balance diagnostics v1 design
-E. Graphics v3 plot-data contract
-F. SDA -> CTA/ORT anchor
-G. Staged CTA workflow implementation
-H. Weighted/staged adjustment design
-I. Vignettes / pkgdown
-J. Release hardening
+[done] A. Docs index / coherence pass
+[done] B. Synthetic degeneracy regression fixture
+[done] C. LOO semantics hardening (numeric gate, pvalue mode, loo_status)
+[done] D. LOO docs alignment + CRAN timing fix (test-cta-ort.R)
+       E. Production validation checkpoint          <- current (PROD_CHECKPOINT.md)
+       F. CTA endpoint map + print clarity
+       G. Balance diagnostics v1 design
+       H. Graphics v3 plot-data contract
+       I. SDA -> CTA/ORT anchor
+       J. Staged CTA workflow implementation
+       K. Weighted/staged adjustment design
+       L. Vignettes / pkgdown
+       M. Release hardening
 ```
 
-Slices D–J are ordered by dependency; do not skip ahead without completing
+Slices F–M are ordered by dependency; do not skip ahead without completing
 upstream prerequisites.
 
 ---

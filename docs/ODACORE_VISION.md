@@ -112,8 +112,10 @@ fields; it knows nothing about the internal structure of either ODA engine.
 | myeloma    | 30       | CTA (WEIGHT V2)    | ✓ green  | V17 stump, WESS 16.51%, n=186     |
 | myeloma    | 56       | CTA (WEIGHT V2)    | ✓ green  | No tree (all child sizes < 56)    |
 
-**Validation status as of fbaaa85 (2026-05-27):**
-- Fast suite (ODACORE_TEST_TIER=fast, filter=cta): 688 pass / 140 skip / 0 fail / 0 warn
+**Validation status as of 89605b7 (2026-05-28):**
+- Fast suite (ODACORE_TEST_TIER=fast): FAIL 0 / WARN 0 / SKIP 165 / PASS 1439
+- Targeted CTA/LOO/LORT (filter=cta|cta-ort|cta-loo-gate|oda-fit): FAIL 0 / WARN 0 / SKIP 142 / PASS 841
+- Smoke canon (ODACORE_TEST_TIER=smoke, myeloma/cta-demo/loo/confusion): FAIL 0 / WARN 0 / SKIP 15 / PASS 98
 - `devtools::check()`: 0 errors / 0 warnings / 1 known Windows clock NOTE
   (environment timing issue, not a package defect)
 
