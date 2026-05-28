@@ -33,6 +33,17 @@
   paste0(n, ".", sum(idx), ".", (sum(idx * seq_len(n)) %% 999983L))
 }
 
+# .cta_predictions_degenerate(preds, required_classes)
+#
+# Returns TRUE when a prediction vector does not contain at least
+# `required_classes` distinct non-NA classes.  Used in two places:
+#   1. Expanded ENUMERATE post-prune gate: candidate is skipped.
+#   2. Root-only stump defensive guard.
+.cta_predictions_degenerate <- function(preds, required_classes = 2L) {
+  vals <- unique(preds[!is.na(preds)])
+  length(vals) < required_classes
+}
+
 # ---- CTA-specific ordered-cut selection ------------------------------------ #
 
 # .cta_ordered_scan()
@@ -1151,13 +1162,10 @@ oda_cta_fit <- function(
         # Reject degenerate trees: pruning may collapse a class-1 branch to a
         # class-0 majority node, leaving all terminals predicting the same class.
         # Such a tree is invalid regardless of its WESS value.
-        if (!is.null(preds)) {
-          pred_classes_here <- unique(preds[!is.na(preds)])
-          if (length(pred_classes_here) < 2L) {
-            .vmsg("    -> degenerate (all predictions class ",
-                  pred_classes_here, ") - skipped")
-            next
-          }
+        if (!is.null(preds) && .cta_predictions_degenerate(preds)) {
+          .vmsg("    -> degenerate (all predictions class ",
+                unique(preds[!is.na(preds)]), ") - skipped")
+          next
         }
 
         if (wess_cand > best_wess) {
@@ -1211,7 +1219,7 @@ oda_cta_fit <- function(
     # Canonical guard: stump predictions must cover both classes.
     # sl_A already has >= 2 levels (checked above), so this should never fire
     # in practice; the check is retained as a defensive invariant.
-    if (length(unique(stump_preds[ok])) < 2L) {
+    if (.cta_predictions_degenerate(stump_preds)) {
       .vmsg("  [root-only] ", A_cand$name,
             " degenerate stump (all predictions same class) - skipped")
       next

@@ -711,25 +711,64 @@ test_that("cta_descendant_family: myeloma summary has required columns and shape
 # ---- Unit test: degeneracy predicate logic (no CTA fit required) ------------
 
 test_that("degeneracy predicate correctly identifies all-same-class predictions", {
-  # All predict class 0 — degenerate
+  # All predict class 0 - degenerate
   preds_0 <- c(0L, 0L, NA_integer_, 0L)
   expect_lt(length(unique(preds_0[!is.na(preds_0)])), 2L,
             label = "all-class-0 vector is degenerate")
 
-  # All predict class 1 — degenerate
+  # All predict class 1 - degenerate
   preds_1 <- c(NA_integer_, 1L, 1L, 1L)
   expect_lt(length(unique(preds_1[!is.na(preds_1)])), 2L,
             label = "all-class-1 vector is degenerate")
 
-  # Mixed predictions — non-degenerate
+  # Mixed predictions - non-degenerate
   preds_ok <- c(0L, 1L, 0L, NA_integer_, 1L)
   expect_gte(length(unique(preds_ok[!is.na(preds_ok)])), 2L,
              label = "mixed-class vector is non-degenerate")
 
-  # All NA (no scored obs) — boundary: < 2 unique non-NA values
+  # All NA (no scored obs) - boundary: < 2 unique non-NA values
   preds_na <- c(NA_integer_, NA_integer_)
   expect_lt(length(unique(preds_na[!is.na(preds_na)])), 2L,
             label = "all-NA vector treated as degenerate (no classified obs)")
+})
+
+# ---- Helper unit tests: .cta_predictions_degenerate() ----------------------
+#
+# Direct regression of the internal helper used by both the expanded ENUMERATE
+# post-prune gate and the root-only stump defensive guard.
+#
+# "Post-prune all-same-class prediction vector is degenerate and must be
+# skipped before best-tree competition."  No full fit is required to lock
+# this invariant.
+
+test_that(".cta_predictions_degenerate: all class 0 is degenerate", {
+  expect_true(odacore:::.cta_predictions_degenerate(c(0L, 0L, NA_integer_, 0L)))
+})
+
+test_that(".cta_predictions_degenerate: all class 1 is degenerate", {
+  expect_true(odacore:::.cta_predictions_degenerate(c(NA_integer_, 1L, 1L, 1L)))
+})
+
+test_that(".cta_predictions_degenerate: all NA is degenerate", {
+  expect_true(odacore:::.cta_predictions_degenerate(c(NA_integer_, NA_integer_)))
+})
+
+test_that(".cta_predictions_degenerate: mixed 0/1 is non-degenerate", {
+  expect_false(odacore:::.cta_predictions_degenerate(c(0L, 1L, 0L, NA_integer_, 1L)))
+})
+
+test_that(".cta_predictions_degenerate: mixed with NA is non-degenerate", {
+  expect_false(odacore:::.cta_predictions_degenerate(c(0L, NA_integer_, 1L)))
+})
+
+test_that(".cta_predictions_degenerate: required_classes=3, two classes present is degenerate", {
+  expect_true(odacore:::.cta_predictions_degenerate(c(1L, 2L, NA_integer_),
+                                                     required_classes = 3L))
+})
+
+test_that(".cta_predictions_degenerate: required_classes=3, three classes present is non-degenerate", {
+  expect_false(odacore:::.cta_predictions_degenerate(c(1L, 2L, 3L, NA_integer_),
+                                                      required_classes = 3L))
 })
 
 # ---- Integration: basic property ------------------------------------------
@@ -753,12 +792,12 @@ test_that("cta_fit non-no_tree result always predicts both classes", {
 # Failure mode (previously exposed by MINDENOM=117 private case):
 # An expanded ENUMERATE candidate can be pruned such that a class-1-predicting
 # branch collapses to majority_class = 0 (local majority in imbalanced data).
-# All terminal leaves then predict class 0 → WESS = 0% → degenerate tree.
+# All terminal leaves then predict class 0 -> WESS = 0% -> degenerate tree.
 # With the gate, such a candidate is skipped; the stump phase rescues.
 #
-# Direct reproduction requires controlling MC stochasticity.  The test below
-# verifies the behavioral invariant: heavily imbalanced data + aggressive
-# pruning must not yield an all-same-class result.
+# No compact synthetic full-fit reproducer was found in the quick probe.
+# This is an invariant regression.  The private failure path was post-pruning
+# degeneracy; this test verifies public outputs cannot expose that state.
 
 test_that("cta_fit with aggressive pruning yields non-degenerate tree or no_tree", {
   # 97 class-0 vs 3 class-1: severe imbalance triggers the post-pruning degen
