@@ -449,11 +449,23 @@ oda_cta_fit <- function(
                            predicted = as.character(levels)))
   }
 
-  # LOO metadata from a fit result
+  # LOO metadata from a fit result.
+  # status vocabulary:
+  #   "OFF"    — LOO mode is "off" or LOO did not run
+  #   "STABLE" — candidate passed the LOO STABLE gate (|WESSL - WESS| <= 0.01 pp)
+  #   "PVALUE" — candidate passed the LOO p-value gate
+  # Uses enclosing loo_arg (closure over oda_cta_fit scope).
   .loo_info <- function(fit) {
     lr <- fit$loo
+    status <- if (is.null(lr) || !isTRUE(lr$allowed)) {
+      "OFF"
+    } else if (identical(loo_arg, "stable")) {
+      "STABLE"
+    } else {
+      "PVALUE"
+    }
     list(
-      status  = if (!is.null(lr) && isTRUE(lr$allowed)) "STABLE" else "OFF",
+      status  = status,
       ess_loo = if (!is.null(lr)) lr$ess_loo %||% NA_real_ else NA_real_,
       p_value = if (!is.null(lr)) lr$p_value %||% NA_real_ else NA_real_
     )
@@ -574,6 +586,20 @@ oda_cta_fit <- function(
           .vmsg("  -> rejected (CTA path): LOO UNSTABLE",
                 "  WESS=", round(obs_ess, 4), "%",
                 "  WESSL=", round(wessl %||% NA_real_, 4), "%")
+          return(NULL)
+        }
+      } else if (identical(loo_arg, "pvalue")) {
+        # Numeric loo passes loo_arg = "pvalue"; threshold is the original numeric
+        # value when is.numeric(loo), otherwise the default 0.05.
+        loo_pv     <- if (!is.null(loo_result)) loo_result$p_value %||% NA_real_
+                      else NA_real_
+        loo_thresh <- if (is.numeric(loo)) as.double(loo) else 0.05
+        .vmsg("  [CTA-scan] LOO p=", round(loo_pv %||% NA_real_, 4),
+              "  threshold=", loo_thresh)
+        if (is.na(loo_pv) || loo_pv >= loo_thresh) {
+          .vmsg("  -> rejected (CTA path): LOO P_FAIL  p=",
+                round(loo_pv %||% NA_real_, 4),
+                "  threshold=", loo_thresh)
           return(NULL)
         }
       }

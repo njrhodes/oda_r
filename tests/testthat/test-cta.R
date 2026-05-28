@@ -787,7 +787,115 @@ test_that("cta_fit non-no_tree result always predicts both classes", {
   }
 })
 
-# ---- Regression: post-pruning degeneracy ------------------------------------
+# ---- Synthetic no_tree and non-degenerate-output regression tests -----------
+#
+# These tests lock denominator-admissibility, LORT recursion-guard, argument-
+# contract, and public-output invariant behavior using a deterministic file-free
+# synthetic dataset.  They do NOT assert the candidate-level degeneracy gate
+# fired; see the stochastic test below for that coverage.
+#
+# Synthetic dataset: n=10, perfectly separable, one ordered attribute.
+#   X_nd <- data.frame(V1 = 1:10)
+#   y_nd <- c(rep(0L,5L), rep(1L,5L))
+# Only valid cut: V1 <= 5.5 → left n=5 (all class-0) / right n=5 (all class-1).
+# MINDENOM <= 5: split admissible → valid tree (deterministic, no MC needed).
+# MINDENOM >= 6: both children n=5 < MINDENOM → no admissible root → no_tree.
+# These are denominator-admissibility outcomes, not degeneracy-gate outcomes.
+
+test_that("B1 (denom-admissibility): no_tree when MINDENOM exceeds all child sizes", {
+  X_nd <- data.frame(V1 = 1:10)
+  y_nd <- c(rep(0L, 5L), rep(1L, 5L))
+  fit  <- oda_cta_fit(X_nd, y_nd,
+                      mindenom = 6L, mc_iter = 500L, mc_seed = 1L,
+                      loo = "off")
+  expect_true(isTRUE(fit$no_tree),
+              label = "MINDENOM=6 > n_child=5 must produce no_tree")
+})
+
+test_that("B2 (denom-admissibility): valid non-degenerate tree when MINDENOM admits split", {
+  X_nd <- data.frame(V1 = 1:10)
+  y_nd <- c(rep(0L, 5L), rep(1L, 5L))
+  fit  <- oda_cta_fit(X_nd, y_nd,
+                      mindenom = 4L, mc_iter = 500L, mc_seed = 1L,
+                      loo = "off")
+  expect_false(isTRUE(fit$no_tree),
+               label = "MINDENOM=4 <= n_child=5 must produce a valid tree")
+  preds    <- predict(fit, X_nd)
+  pred_cls <- unique(preds[!is.na(preds)])
+  expect_gte(length(pred_cls), 2L,
+             label = "valid CTA tree must predict both classes")
+})
+
+test_that("B3a (arg contract): cta_fit recursive=TRUE rejects explicit mindenom", {
+  X_nd <- data.frame(V1 = 1:10)
+  y_nd <- c(rep(0L, 5L), rep(1L, 5L))
+  # LORT selects MINDENOM per-node via the MDSA family scan.
+  # Supplying mindenom is a hard error; catch the message prefix.
+  expect_error(
+    cta_fit(X_nd, y_nd, recursive = TRUE, mindenom = 4L,
+            mc_iter = 100L, mc_seed = 1L, loo = "off"),
+    regexp = "mindenom",
+    info   = "recursive=TRUE must reject a caller-supplied mindenom argument"
+  )
+})
+
+test_that("B3b (LORT min_n guard): root is terminal with stop_reason='min_n' when n < min_n", {
+  # n=10, min_n=20: guard fires before MDSA scan -> root is terminal.
+  # This is a recursion-guard outcome, not a degeneracy-gate outcome.
+  X_nd <- data.frame(V1 = 1:10)
+  y_nd <- c(rep(0L, 5L), rep(1L, 5L))
+  ort  <- cta_fit(X_nd, y_nd, recursive = TRUE,
+                  min_n = 20L, mc_iter = 100L, mc_seed = 1L, loo = "off")
+  root <- ort$ort_nodes[["1"]]
+  expect_true(isTRUE(root$is_terminal),
+              label = "root must be terminal when n < min_n")
+  expect_equal(root$stop_reason, "min_n",
+               label = "stop_reason must be 'min_n'")
+})
+
+test_that("B4 (no_tree contract): no_tree object structure is well-formed and predict() does not crash", {
+  X_nd <- data.frame(V1 = 1:10)
+  y_nd <- c(rep(0L, 5L), rep(1L, 5L))
+  fit  <- oda_cta_fit(X_nd, y_nd,
+                      mindenom = 6L, mc_iter = 500L, mc_seed = 1L,
+                      loo = "off")
+  expect_true(isTRUE(fit$no_tree))
+  expect_true(is.list(fit$nodes))
+  expect_equal(fit$root_id, 1L)
+  expect_equal(fit$n,       10L)
+  expect_equal(fit$C,       2L)
+  # predict() on a no_tree fit must not crash and must return a vector of length n
+  preds <- predict(fit, X_nd)
+  expect_equal(length(preds), 10L)
+})
+
+test_that("B5 (output invariant): every non-no_tree CTA result on synthetic data predicts >= 2 classes", {
+  # Sweep three MINDENOM values on the same deterministic data.
+  # md=1,3: both children n=5 >= md -> valid tree expected (deterministic).
+  # md=6:   both children n=5 < 6  -> no_tree expected (deterministic).
+  # For each valid tree, predictions must cover both classes (non-degenerate invariant).
+  # This is a public-output contract test, not a candidate-level gate test.
+  X_nd <- data.frame(V1 = 1:10)
+  y_nd <- c(rep(0L, 5L), rep(1L, 5L))
+  for (md in c(1L, 3L, 6L)) {
+    fit <- oda_cta_fit(X_nd, y_nd,
+                       mindenom = md, mc_iter = 500L, mc_seed = 1L,
+                       loo = "off")
+    if (!isTRUE(fit$no_tree)) {
+      preds    <- predict(fit, X_nd)
+      pred_cls <- unique(preds[!is.na(preds)])
+      expect_gte(length(pred_cls), 2L,
+                 label = sprintf("MINDENOM=%d valid tree must predict both classes", md))
+    }
+  }
+  # Cross-check: md=6 must be no_tree, md=1 must not be no_tree
+  fit6 <- oda_cta_fit(X_nd, y_nd, mindenom = 6L, mc_iter = 500L, mc_seed = 1L, loo = "off")
+  fit1 <- oda_cta_fit(X_nd, y_nd, mindenom = 1L, mc_iter = 500L, mc_seed = 1L, loo = "off")
+  expect_true(isTRUE(fit6$no_tree),  label = "MINDENOM=6 must be no_tree")
+  expect_false(isTRUE(fit1$no_tree), label = "MINDENOM=1 must produce a valid tree")
+})
+
+# ---- Regression: post-pruning degeneracy (expanded-phase gate) ---------------
 #
 # Failure mode (previously exposed by MINDENOM=117 private case):
 # An expanded ENUMERATE candidate can be pruned such that a class-1-predicting
@@ -795,9 +903,12 @@ test_that("cta_fit non-no_tree result always predicts both classes", {
 # All terminal leaves then predict class 0 -> WESS = 0% -> degenerate tree.
 # With the gate, such a candidate is skipped; the stump phase rescues.
 #
-# No compact synthetic full-fit reproducer was found in the quick probe.
-# This is an invariant regression.  The private failure path was post-pruning
-# degeneracy; this test verifies public outputs cannot expose that state.
+# The expanded-phase degeneracy gate (cta_core.R line ~1165) fires only when
+# Sidak pruning collapses a class-1 branch.  Sidak pruning requires MC p-values
+# (p_mc >= alpha_k); without MC there is no pruning path and the gate cannot
+# fire deterministically.  A deterministic synthetic reproducer is therefore
+# not feasible without engine instrumentation.  This stochastic test (set.seed)
+# is the current coverage vehicle for the candidate-level gate.
 
 test_that("cta_fit with aggressive pruning yields non-degenerate tree or no_tree", {
   # 97 class-0 vs 3 class-1: severe imbalance triggers the post-pruning degen

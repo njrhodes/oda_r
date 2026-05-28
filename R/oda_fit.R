@@ -147,19 +147,39 @@ oda_fit <- function(
       )
     }
 
-    loo_binary <- switch(as.character(loo),
-      "off"    = "off",
-      "on"     = "pvalue",
-      "stable" = "stable",
-      "pvalue" = "pvalue",
-      "off"
-    )
+    # Numeric loo means "pvalue gate with this threshold" — do not convert to "off".
+    # Validate numeric loo: must be a single finite value strictly in (0, 1).
+    if (is.numeric(loo)) {
+      if (length(loo) != 1L || is.na(loo) || !is.finite(loo) || loo <= 0 || loo >= 1)
+        stop(
+          "Numeric loo must be a single finite value strictly in (0, 1).",
+          call. = FALSE
+        )
+    }
+    # loo_alpha_val: the p-value threshold passed to oda_univariate_core().
+    #   - numeric loo: threshold IS the supplied value
+    #   - loo = "pvalue" string: default threshold 0.05
+    #   - all other modes: 0.05 (unused by oda_univariate_core when loo = "off"/"stable")
+    # Pass requires p < threshold (rejection is p >= threshold).
+    loo_alpha_val <- if (is.numeric(loo)) as.double(loo) else 0.05
+    loo_binary <- if (is.numeric(loo)) {
+      "pvalue"
+    } else {
+      switch(as.character(loo),
+        "off"    = "off",
+        "on"     = "pvalue",
+        "stable" = "stable",
+        "pvalue" = "pvalue",
+        "off"
+      )
+    }
     fit <- oda_univariate_core(
       x = x, y = y_coded, w = w,
       attr_type     = attr_type,
       priors_on     = priors_on,
       miss_codes    = miss_codes,
       loo           = loo_binary,
+      loo_alpha     = loo_alpha_val,
       mcarlo        = isTRUE(mcarlo),
       mc_iter       = as.integer(mc_iter),
       mc_target     = mc_target,

@@ -196,3 +196,98 @@ test_that("multiclass categorical direction_map: fixed-partition overrides searc
   expect_true(fit$ok)
   expect_equal(as.integer(fit$rule$level_class), c(4L, 3L, 2L, 1L))
 })
+
+# ---- LOO semantics: numeric loo must not become "off" -----------------------
+#
+# Bug fixed: oda_fit(..., loo = numeric) was silently converted to "off" by
+# switch(as.character(0.05), ...) hitting the default branch.  After the fix,
+# numeric loo maps to loo = "pvalue" with loo_alpha = the numeric value.
+#
+# Threshold semantics:
+#   loo = "pvalue"  -> pvalue gate; default threshold 0.05; pass requires p < 0.05
+#   loo = numeric   -> pvalue gate; threshold = supplied value; pass requires p < loo
+#   loo = "stable"  -> STABLE gate; |WESSL - WESS| <= 0.01 pp
+#   loo = "off"     -> no LOO; fit$loo will be NULL
+#
+# Fixture: n=20, x=1:20, y=10×0 + 10×1. Probe confirms:
+#   loo=0.99 -> ok=TRUE, p_loo=1e-4 (passes)
+#   loo="pvalue" -> ok=TRUE, p_loo=1e-4 (passes default 0.05)
+#   loo=1e-9  -> ok=FALSE, reason=loo_p_not_significant (gate rejects deterministically)
+#   loo="stable" -> ok=FALSE (LOO genuinely unstable on integer-separable data — not a bug)
+#   loo="off" -> fit$loo = NULL (LOO never runs)
+
+.loo_sem_xy <- function() {
+  list(x = seq_len(20L), y = c(rep(0L, 10L), rep(1L, 10L)))
+}
+
+test_that("oda_fit: loo='off' leaves fit$loo NULL (no LOO computation)", {
+  d   <- .loo_sem_xy()
+  fit <- oda_fit(d$x, d$y, loo = "off", mcarlo = TRUE, mc_iter = 1000L, mc_seed = 1L)
+  expect_true(isTRUE(fit$ok), label = "loo='off' fit must succeed")
+  expect_null(fit$loo,        label = "loo='off' must leave fit$loo NULL")
+})
+
+test_that("oda_fit: numeric loo=0.99 runs LOO and produces non-NULL fit$loo", {
+  # loo=0.99 passes the gate (p_loo=1e-4 < 0.99) — proves LOO ran, not silently 'off'.
+  d   <- .loo_sem_xy()
+  fit <- oda_fit(d$x, d$y, loo = 0.99, mcarlo = TRUE, mc_iter = 1000L, mc_seed = 1L)
+  expect_true(isTRUE(fit$ok),
+              label = "loo=0.99 must succeed on n=20 fixture (p_loo=1e-4 << 0.99)")
+  expect_false(is.null(fit$loo),
+               label = "fit$loo must be non-NULL when numeric loo ran (not 'off')")
+})
+
+test_that("oda_fit: loo=1e-9 rejects via LOO p-value gate with correct reason", {
+  # p_loo=1e-4 for this fixture; 1e-4 >= 1e-9 is TRUE -> gate rejects.
+  # ok=FALSE with reason="loo_p_not_significant" proves the gate ran and rejected.
+  # This is behaviorally different from loo="off" which never runs the gate.
+  d   <- .loo_sem_xy()
+  fit <- oda_fit(d$x, d$y, loo = 1e-9, mcarlo = TRUE, mc_iter = 1000L, mc_seed = 1L)
+  expect_false(isTRUE(fit$ok),
+               label = "loo=1e-9 must be rejected by LOO gate (p_loo=1e-4 >= 1e-9)")
+  expect_equal(fit$reason, "loo_p_not_significant",
+               label = "rejection reason must be 'loo_p_not_significant'")
+})
+
+test_that("oda_fit: loo=0.99 and loo='pvalue' produce same LOO ESS (same computation, different threshold)", {
+  # Both pass on n=20 fixture (p_loo=1e-4 < min(0.99, 0.05)).
+  # They must produce identical ess_loo because the underlying LOO computation
+  # is the same regardless of threshold.
+  d       <- .loo_sem_xy()
+  fit_num <- oda_fit(d$x, d$y, loo = 0.99,     mcarlo = TRUE, mc_iter = 1000L, mc_seed = 1L)
+  fit_pv  <- oda_fit(d$x, d$y, loo = "pvalue", mcarlo = TRUE, mc_iter = 1000L, mc_seed = 1L)
+  expect_true(isTRUE(fit_num$ok), label = "loo=0.99 must succeed on n=20 fixture")
+  expect_true(isTRUE(fit_pv$ok),  label = "loo='pvalue' must succeed on n=20 fixture")
+  expect_equal(fit_num$loo$ess_loo, fit_pv$loo$ess_loo, tolerance = 1e-9,
+               label = "loo=0.99 and loo='pvalue' must produce same LOO ESS")
+})
+
+# ---- Numeric loo validation: invalid inputs must error ----------------------
+#
+# oda_fit() validates numeric loo: must be length 1, non-NA, finite, in (0, 1).
+# Rejection message contains "strictly in (0, 1)".
+
+test_that("oda_fit: loo=NA_real_ errors", {
+  x <- 1:8; y <- c(0L,0L,0L,0L,1L,1L,1L,1L)
+  expect_error(oda_fit(x, y, loo = NA_real_), regexp = "strictly in .0, 1.")
+})
+
+test_that("oda_fit: loo=c(0.01, 0.05) (length > 1) errors", {
+  x <- 1:8; y <- c(0L,0L,0L,0L,1L,1L,1L,1L)
+  expect_error(oda_fit(x, y, loo = c(0.01, 0.05)), regexp = "strictly in .0, 1.")
+})
+
+test_that("oda_fit: loo=-0.1 (negative) errors", {
+  x <- 1:8; y <- c(0L,0L,0L,0L,1L,1L,1L,1L)
+  expect_error(oda_fit(x, y, loo = -0.1), regexp = "strictly in .0, 1.")
+})
+
+test_that("oda_fit: loo=1 (boundary, not strictly < 1) errors", {
+  x <- 1:8; y <- c(0L,0L,0L,0L,1L,1L,1L,1L)
+  expect_error(oda_fit(x, y, loo = 1), regexp = "strictly in .0, 1.")
+})
+
+test_that("oda_fit: loo=Inf errors", {
+  x <- 1:8; y <- c(0L,0L,0L,0L,1L,1L,1L,1L)
+  expect_error(oda_fit(x, y, loo = Inf), regexp = "strictly in .0, 1.")
+})
