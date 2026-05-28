@@ -21,9 +21,9 @@ A solution is **degenerate** when the predicted labels cover fewer than C classe
 
 **CTA (`cta_fit()`, `oda_cta_fit()`):** CTA never produces degenerate trees. `degen = TRUE` is not an option for CTA. A CTA tree in which all terminal endpoints predict the same class is not a valid result — it represents a model failure (no discriminating split was found), which is reported as `no_tree`. A CTA member that selects a degenerate split must be rejected at the node level, not post-hoc.
 
-**ORT (`cta_fit(recursive = TRUE)`):** Same rule. Each recursive MDSA level must produce a non-degenerate split or terminate as `no_tree` at that node.
+**LORT / recursive CTA (`cta_fit(recursive = TRUE)`):** Same rule. Each recursive MDSA level must produce a non-degenerate split or terminate as `no_tree` at that node.
 
-Do not treat a degenerate CTA or ORT result as a "canonical" outcome. It is a sign that no admissible split existed under the current MINDENOM, LOO, and alpha constraints.
+Do not treat a degenerate CTA or LORT result as a "canonical" outcome. It is a sign that no admissible split existed under the current MINDENOM, LOO, and alpha constraints.
 
 ---
 

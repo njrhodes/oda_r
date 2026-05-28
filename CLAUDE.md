@@ -109,7 +109,7 @@ In multiclass ordered rules: SAMPLEREP operates **within** a cut position (acros
 - UniODA ordered: `$rule$cut_value`, `$rule$direction`
 - MultiODA ordered: `$rule$cut_values` (vector), `$rule$seg_classes` (integer vector)
 
-**`degen` flag (UniODA/MultiODA only):** When `FALSE` (default), all C classes must appear in the predicted labels — degenerate solutions (where only one class is ever predicted) are rejected. When `TRUE`, degenerate solutions are allowed and `priors_on` is forced `FALSE`. `degen = TRUE` is available only for `oda_fit()`, `oda_univariate_core()`, and `oda_multiclass_unioda_core()`. It does not exist for `cta_fit()` or `oda_cta_fit()`. CTA never produces degenerate trees: a candidate split that predicts only one class is ineligible at the node gate. A CTA or ORT result in which all endpoints predict the same class is not a valid tree — it is a model failure and must surface as `no_tree`.
+**`degen` flag (UniODA/MultiODA only):** When `FALSE` (default), all C classes must appear in the predicted labels — degenerate solutions (where only one class is ever predicted) are rejected. When `TRUE`, degenerate solutions are allowed and `priors_on` is forced `FALSE`. `degen = TRUE` is available only for `oda_fit()`, `oda_univariate_core()`, and `oda_multiclass_unioda_core()`. It does not exist for `cta_fit()` or `oda_cta_fit()`. CTA never produces degenerate trees: a candidate split that predicts only one class is ineligible at the node gate. A CTA or recursive CTA (LORT) result in which all endpoints predict the same class is not a valid tree — it is a model failure and must surface as `no_tree`.
 
 **`boundary_mode`:** Controls how ordered cut values map to segment boundaries.
 - `"right_closed"` — matches MegaODA.exe golden outputs used in tests.
@@ -274,6 +274,27 @@ Gold values in tests come from MegaODA.exe output. When a test checks confusion 
     - cta_demo: uniform weights → CTA path bypassed entirely → root=V2, cut=4.5, ESS=52.63%. Unaffected by stump phase.
   - **Do not globally apply path-local scoring to expanded ENUMERATE candidates.** Doing so causes V17's deeper MC-grown tree to score > 27.69% for MINDENOM=1, incorrectly displacing V14→V15. This was attempted twice and reverted.
 
+## Recursive CTA method taxonomy — LORT / SORT / GORT
+
+Full contract in `docs/LORT_SORT_GORT_TAXONOMY.md`. Summary rules:
+
+- **LORT** = Locally Optimal Recursive Tree. Current `cta_fit(recursive = TRUE)`.
+  Greedy local min-D at each node. No lookahead. No SDA anchor.
+  Object metadata: `ort_settings$method == "lort"`, `global_optimization == FALSE`, `sda_anchored == FALSE`.
+- **SORT** = Sequentially Optimal Recursive Tree. Reserved. Requires SDA source object.
+  Do not implement SORT inside `recursive = TRUE`. Reserved entry: `sort_fit()`.
+- **GORT** = Globally Optimal Recursive Tree. Reserved. Future design only. Reserved entry: `gort_fit()`.
+
+Agent rules for recursive CTA tasks:
+1. Any task touching recursive CTA must explicitly say LORT, SORT, or GORT.
+2. LORT task: do not add lookahead, SDA anchoring, or global search to `recursive = TRUE`.
+3. SORT task: require an SDA result or equivalent anchor before starting. Do not begin without it.
+4. GORT task: do not modify LORT or SORT behavior. Require approved design doc first.
+5. Do not use "ORT" alone in new docs. Prefer LORT/SORT/GORT.
+6. Do not change `ort_settings$method` from `"lort"` for current `recursive = TRUE` fits.
+7. Do not export or stub SORT/GORT reserved names without explicit approval.
+8. Do not rename S3 class `cta_ort` or break existing dispatch in this or future slices.
+
 ## Rules for Claude
 
 - Do not run CTA.exe unless explicitly instructed.
@@ -289,7 +310,7 @@ Gold values in tests come from MegaODA.exe output. When a test checks confusion 
 - Do not touch the weighted ordered scan / LOO STABLE gate (`cta_ordered_scan`, `.cta_mc_ordered`, `.cta_full_fit_ordered`, `.full_fit_one`) unless a regression in the node-selection tests proves it is involved.
 - Do not add fit-time storage to `cta_tree` for reporting or translation convenience. The lean-fit invariant (tree nodes + `training_confusion` + per-leaf `class_counts_raw`/`class_counts_weighted` only) must be preserved. All translation/reporting artifacts are computed on explicit function call.
 - Do not add redundant weight validation outside `.validate_case_weights()` in `utils.R`. It is already wired into all public fit entrypoints.
-- Do not accept or label a CTA or ORT result as valid when all terminal endpoints predict the same class. That is a degenerate solution. CTA never produces degenerate trees; such a result means no admissible split existed and the correct output is `no_tree`. `degen = TRUE` does not exist for CTA or ORT — it is a UniODA/MultiODA-only option.
+- Do not accept or label a CTA or recursive CTA (LORT) result as valid when all terminal endpoints predict the same class. That is a degenerate solution. CTA never produces degenerate trees; such a result means no admissible split existed and the correct output is `no_tree`. `degen = TRUE` does not exist for CTA or LORT — it is a UniODA/MultiODA-only option.
 
 ## Implementation policy
 

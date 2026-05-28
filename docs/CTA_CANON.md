@@ -23,9 +23,9 @@ Rules:
 - A candidate attribute that yields only one predicted class label across the node is **ineligible**, regardless of its ESS/WESS value.
 - A CTA tree in which all terminal endpoints predict the same class is not a valid tree. It signals that no admissible split existed; the correct result is `no_tree`.
 - `degen = TRUE` does not exist for `cta_fit()` or `oda_cta_fit()`. It is a UniODA/MultiODA-only option.
-- ORT (`cta_fit(recursive = TRUE)`) follows the same rule at every recursive MDSA level.
+- LORT / recursive CTA (`cta_fit(recursive = TRUE)`) follows the same rule at every recursive MDSA level.
 
-Do not treat an all-same-class CTA or ORT result as canonical output. It is a model failure that should surface as `no_tree` or a rejected candidate, not as a valid tree with ESS > 0.
+Do not treat an all-same-class CTA or LORT result as canonical output. It is a model failure that should surface as `no_tree` or a rejected candidate, not as a valid tree with ESS > 0.
 
 ---
 

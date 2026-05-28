@@ -1,6 +1,15 @@
-# Staged CTA Workflow Plan (SCTA)
+# SORT / Staged CTA Workflow Plan (SCTA)
 
-_Created: 2026-05-27. Lessons ingested from data-raw scratch artifacts before deletion._
+_Created: 2026-05-27. Updated 2026-05-28: method renamed SORT._
+
+**Method name (updated 2026-05-28):** The workflow described in this document
+is now named **SORT (Sequentially Optimal Recursive Trees)**. "Staged CTA" may
+remain as a generic descriptive phrase, but **SORT** is the specific method name.
+
+SORT begins from an SDA result or an explicitly declared sequential anchor (the
+SDA-discovered root/sequence), then recurses R-to-L using EO-CTA/MDSA within
+the allowed branch-specific candidate universe. See
+`docs/LORT_SORT_GORT_TAXONOMY.md` for the full LORT/SORT/GORT contract.
 
 ---
 

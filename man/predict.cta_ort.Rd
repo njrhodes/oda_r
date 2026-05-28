@@ -2,7 +2,7 @@
 % Please edit documentation in R/cta_ort.R
 \name{predict.cta_ort}
 \alias{predict.cta_ort}
-\title{Predict method for Optimal Recursive Tree}
+\title{Predict method for Locally Optimal Recursive Tree (LORT)}
 \usage{
 \method{predict}{cta_ort}(
   object,
@@ -36,7 +36,12 @@ For \code{type = "class"}: integer vector of predicted class labels
   \code{prop_class1}, \code{stop_reason}.
 }
 \description{
-Routes each row of \code{newdata} down the composite ORT by recursively
+Routes each row of \code{newdata} down the composite LORT by recursively
 applying each node's \code{cta_tree} model via
 \code{\link{cta_assign_endpoints}}.
+}
+\note{
+\code{predict.cta_ort} is a legacy compatibility name; the class
+\code{cta_ort} and all \code{*.cta_ort} methods refer to the implemented
+LORT method.  New docs and APIs should use LORT terminology.
 }

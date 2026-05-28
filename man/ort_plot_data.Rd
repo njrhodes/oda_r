@@ -2,7 +2,7 @@
 % Please edit documentation in R/cta_ort.R
 \name{ort_plot_data}
 \alias{ort_plot_data}
-\title{Renderer-independent layout data for an ORT composite tree}
+\title{Renderer-independent layout data for a LORT composite tree (legacy name: ort_plot_data)}
 \usage{
 ort_plot_data(object, target_class = NULL, class_labels = NULL, digits = 1L)
 }

@@ -2,7 +2,7 @@
 % Please edit documentation in R/cta_ort.R
 \name{print.cta_ort}
 \alias{print.cta_ort}
-\title{Print method for Optimal Recursive Tree}
+\title{Print method for Locally Optimal Recursive Tree (LORT)}
 \usage{
 \method{print}{cta_ort}(x, ...)
 }
@@ -15,5 +15,10 @@
 \code{invisible(x)}.
 }
 \description{
-Print method for Optimal Recursive Tree
+Print method for Locally Optimal Recursive Tree (LORT)
+}
+\note{
+\code{print.cta_ort} is a legacy compatibility name for the LORT method.
+The class \code{cta_ort} and all \code{*.cta_ort} methods refer to LORT;
+do not introduce new bare-\code{ort} public names.
 }

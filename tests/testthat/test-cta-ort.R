@@ -9,18 +9,19 @@
 # Synthetic two-level dataset
 #
 # 60 observations, 2 attributes (A, B):
-#   A = 0 (n=20): all y = 0  → no discrimination; C=1 → no_tree at level 1
+#   A = 0, B = 0 (n=20): y = 0
 #   A = 1, B = 0 (n=20): y = 0
 #   A = 1, B = 1 (n=20): y = 1
 #
-# Expected structure:
-#   Root ORT node 1: MDSA finds split on A
-#   Right child ORT node 2 (A > 0.5, n=40): MDSA finds split on B
-#     Right grandchild ORT node 3 (A>0.5 AND B>0.5, n=20): no_tree (pure y=1)
-#     Left  grandchild ORT node 4 (A>0.5 AND B<=0.5, n=20): no_tree (pure y=0)
-#   Left  child ORT node 5 (A <= 0.5, n=20): no_tree (pure y=0)
+# B perfectly separates the full dataset (B>0.5 → all y=1; B<=0.5 → all y=0),
+# so MDSA selects B as the root split with D=0. LORT produces a 2-level
+# structure (ORT depth 0-indexed: root at 0, terminal children at 1):
 #
-# 3 terminal strata (nodes 3, 4, 5).
+#   Root LORT node 1 (depth=0): MDSA finds B stump; is_terminal = FALSE
+#   Right child LORT node 2 (B > 0.5, depth=1): no_tree (pure y=1)
+#   Left  child LORT node 3 (B <= 0.5, depth=1): no_tree (pure y=0)
+#
+# 2 terminal strata (nodes 2, 3). Max ORT depth = 1.
 # ---------------------------------------------------------------------------
 syn_X <- data.frame(
   A = c(rep(0, 20), rep(1, 20), rep(1, 20)),
@@ -437,4 +438,149 @@ test_that("predict.cta_ort: wide named newdata gives same result as narrow newda
   pred_narrow <- predict(ort, syn_X)
   pred_wide   <- predict(ort, syn_X_wide)
   expect_identical(pred_narrow, pred_wide)
+})
+
+# ---------------------------------------------------------------------------
+# LORT method taxonomy tests (T45-T55)
+# Confirm recursive=TRUE fits identify as LORT, not generic ORT/SORT/GORT.
+# ---------------------------------------------------------------------------
+
+test_that("LORT metadata: method == 'lort' (T45)", {
+  ort <- do.call(cta_fit, syn_ort_args)
+  expect_equal(ort$ort_settings$method, "lort")
+})
+
+test_that("LORT metadata: method_label correct (T46)", {
+  ort <- do.call(cta_fit, syn_ort_args)
+  expect_equal(ort$ort_settings$method_label, "Locally Optimal Recursive Tree")
+})
+
+test_that("LORT metadata: global_optimization is FALSE (T47)", {
+  ort <- do.call(cta_fit, syn_ort_args)
+  expect_false(isTRUE(ort$ort_settings$global_optimization))
+})
+
+test_that("LORT metadata: global_lookahead is FALSE (T48)", {
+  ort <- do.call(cta_fit, syn_ort_args)
+  expect_false(isTRUE(ort$ort_settings$global_lookahead))
+})
+
+test_that("LORT metadata: sda_anchored is FALSE (T49)", {
+  ort <- do.call(cta_fit, syn_ort_args)
+  expect_false(isTRUE(ort$ort_settings$sda_anchored))
+})
+
+test_that("LORT metadata: recursive_selection == 'greedy_local_min_d' (T50)", {
+  ort <- do.call(cta_fit, syn_ort_args)
+  expect_equal(ort$ort_settings$recursive_selection, "greedy_local_min_d")
+})
+
+test_that("LORT print: header contains 'Locally Optimal Recursive Tree' (T51)", {
+  ort <- do.call(cta_fit, syn_ort_args)
+  out <- capture.output(print(ort))
+  expect_true(any(grepl("Locally Optimal Recursive Tree", out, fixed = TRUE)))
+})
+
+test_that("LORT print: contains 'greedy local min-D' (T52)", {
+  ort <- do.call(cta_fit, syn_ort_args)
+  out <- capture.output(print(ort))
+  expect_true(any(grepl("greedy local min-D", out, fixed = TRUE)))
+})
+
+test_that("LORT print: contains 'global optimization: no' (T53)", {
+  ort <- do.call(cta_fit, syn_ort_args)
+  out <- capture.output(print(ort))
+  expect_true(any(grepl("global optimization: no", out, fixed = TRUE)))
+})
+
+test_that("LORT print: contains 'SDA anchored: no' (T54)", {
+  ort <- do.call(cta_fit, syn_ort_args)
+  out <- capture.output(print(ort))
+  expect_true(any(grepl("SDA anchored: no", out, fixed = TRUE)))
+})
+
+test_that("LORT summary: method metadata fields present (T55)", {
+  ort <- do.call(cta_fit, syn_ort_args)
+  sm  <- summary(ort)
+  expect_equal(sm$method,              "lort")
+  expect_equal(sm$method_label,        "Locally Optimal Recursive Tree")
+  expect_equal(sm$recursive_selection, "greedy_local_min_d")
+  expect_false(isTRUE(sm$global_optimization))
+  expect_false(isTRUE(sm$global_lookahead))
+  expect_false(isTRUE(sm$sda_anchored))
+})
+
+# ---------------------------------------------------------------------------
+# cta_ort_node_table tests (T56-T63)
+# ---------------------------------------------------------------------------
+
+test_that("cta_ort_node_table: returns data.frame with correct row count (T56)", {
+  ort <- do.call(cta_fit, syn_ort_args)
+  tbl <- cta_ort_node_table(ort)
+  expect_s3_class(tbl, "data.frame")
+  expect_equal(nrow(tbl), length(ort$ort_nodes))
+})
+
+test_that("cta_ort_node_table: required columns present (T57)", {
+  ort <- do.call(cta_fit, syn_ort_args)
+  tbl <- cta_ort_node_table(ort)
+  required <- c("ort_node_id", "parent_ort_node_id", "depth", "n",
+                "class_counts", "terminal", "stop_reason",
+                "selected_mindenom", "selected_ess", "selected_d",
+                "selected_root_attribute", "selected_tree_nodes",
+                "selected_tree_leaves", "selected_endpoint_count",
+                "child_ids", "method", "selection_scope",
+                "global_optimization", "sda_anchored")
+  expect_true(all(required %in% names(tbl)),
+              info = paste("missing:", paste(setdiff(required, names(tbl)), collapse = ", ")))
+})
+
+test_that("cta_ort_node_table: method column is always 'lort' (T58)", {
+  ort <- do.call(cta_fit, syn_ort_args)
+  tbl <- cta_ort_node_table(ort)
+  expect_true(all(tbl$method == "lort"))
+})
+
+test_that("cta_ort_node_table: global_optimization is FALSE for all rows (T59)", {
+  ort <- do.call(cta_fit, syn_ort_args)
+  tbl <- cta_ort_node_table(ort)
+  expect_true(all(!tbl$global_optimization))
+})
+
+test_that("cta_ort_node_table: sda_anchored is FALSE for all rows (T60)", {
+  ort <- do.call(cta_fit, syn_ort_args)
+  tbl <- cta_ort_node_table(ort)
+  expect_true(all(!tbl$sda_anchored))
+})
+
+test_that("cta_ort_node_table: root has NA parent, non-root has integer parent (T61)", {
+  ort <- do.call(cta_fit, syn_ort_args)
+  tbl <- cta_ort_node_table(ort)
+  root_row <- tbl[tbl$ort_node_id == 1L, ]
+  expect_true(is.na(root_row$parent_ort_node_id))
+  non_root <- tbl[tbl$ort_node_id != 1L, ]
+  expect_true(all(!is.na(non_root$parent_ort_node_id)))
+})
+
+test_that("cta_ort_node_table: non-terminal nodes expose selected_ess and root_attr (T62)", {
+  ort <- do.call(cta_fit, syn_ort_args)
+  tbl <- cta_ort_node_table(ort)
+  non_term <- tbl[!tbl$terminal, ]
+  expect_true(nrow(non_term) >= 1L)
+  expect_true(all(!is.na(non_term$selected_ess)))
+  expect_true(all(!is.na(non_term$selected_root_attribute)))
+})
+
+test_that("cta_ort_node_table: multi-level recursion visible — max depth >= 1 (T63)", {
+  # syn_X produces a 2-level ORT: root MDSA selects the best attribute (depth=0),
+  # leaving endpoint children at depth=1.  ORT depth is 0-indexed, so a
+  # root-plus-children structure has max depth = 1.  Asserting >= 1L proves that
+  # recursion actually ran (non-trivial structure exists beyond the root node).
+  ort <- do.call(cta_fit, syn_ort_args)
+  tbl <- cta_ort_node_table(ort)
+  expect_true(max(tbl$depth) >= 1L,
+              info = sprintf("max depth was %d; expected >= 1 for two-level synthetic (root=0, children=1)", max(tbl$depth)))
+  # At least one non-terminal node (the root ORT node) must exist
+  non_term <- tbl[!tbl$terminal, ]
+  expect_true(nrow(non_term) >= 1L)
 })

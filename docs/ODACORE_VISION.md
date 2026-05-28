@@ -526,7 +526,7 @@ min-D selection works once D statistic is stable.
   `min_d_idx` is `NA` when all members are degenerate.
 - ORT-level invariant: no degenerate node models; each `ort_nodes` entry must
   be non-degenerate or `no_tree`.
-- Canon and CLAUDE.md updated: `degen = TRUE` does not exist for CTA or ORT.
+- Canon and CLAUDE.md updated: `degen = TRUE` does not exist for CTA or LORT (recursive CTA).
 
 **Still open in 2F:**
 - Full status taxonomy on `cta_tree` S3 object (`degenerate` status field).

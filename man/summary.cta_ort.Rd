@@ -2,7 +2,7 @@
 % Please edit documentation in R/cta_ort.R
 \name{summary.cta_ort}
 \alias{summary.cta_ort}
-\title{Summary method for Optimal Recursive Tree}
+\title{Summary method for Locally Optimal Recursive Tree (LORT)}
 \usage{
 \method{summary}{cta_ort}(object, ...)
 }
@@ -16,5 +16,9 @@ A list of class \code{"cta_ort_summary"}.
 }
 \description{
 Returns a structured list of class \code{"cta_ort_summary"} capturing
-tree-level metadata for the composite ORT.
+tree-level metadata for the composite LORT.
+}
+\note{
+\code{summary.cta_ort} is a legacy compatibility name for the LORT method.
+See \code{\link{print.cta_ort}} for the naming note.
 }

@@ -21,7 +21,7 @@ from these specs is a **bug**, not an alternative interpretation.
 **Degeneracy boundary (added 2026-05-27):** Post-pruning degeneracy gate is
 now production. CTA never returns a tree where all terminals predict the same
 class — such candidates are rejected in the ENUMERATE loop before entering
-best-tree competition. `degen = TRUE` is not an option for CTA or ORT.
+best-tree competition. `degen = TRUE` is not an option for CTA or LORT (recursive CTA).
 
 ---
 
@@ -39,17 +39,38 @@ These files cover the on-demand reporting pipeline that runs on top of fitted
 
 ---
 
-## ORT and Recursive CTA Design Docs
+## LORT / SORT / GORT Method Taxonomy
 
 | File | Covers | Status |
 |------|--------|--------|
-| [CTA_ORT_DESIGN.md](CTA_ORT_DESIGN.md) | Finalized design for `cta_fit(recursive = TRUE)` (ORT): API, MDSA per-level MINDENOM, single seed / RNG streaming, right-then-left traversal, recursion guards, object structure, prediction/plot semantics, testing plan | Active design — implementation complete in `R/cta_ort.R` |
+| [LORT_SORT_GORT_TAXONOMY.md](LORT_SORT_GORT_TAXONOMY.md) | **Agent handoff contract:** LORT/SORT/GORT definitions, method relationships, confirmed LORT object metadata, reserved names, what agents may/may not modify, future SORT/GORT task templates, canon boundary | **Active — read before any recursive CTA task** |
+
+Key distinctions:
+- **LORT** (implemented): greedy local min-D recursion; `method = "lort"`; `global_optimization = FALSE`; `sda_anchored = FALSE`.
+- **SORT** (reserved): SDA-anchored sequential recursive CTA/MDSA; requires SDA source object; replaces generic "staged CTA" as a specific method name.
+- **GORT** (future design only): global recursive search over all configurations; not implemented; reserved namespace.
+
+---
+
+## Recursive CTA Design Docs
+
+| File | Covers | Status |
+|------|--------|--------|
+| [CTA_ORT_DESIGN.md](CTA_ORT_DESIGN.md) | Finalized design for `cta_fit(recursive = TRUE)` (LORT): API, MDSA per-level MINDENOM, single seed / RNG streaming, right-then-left traversal, recursion guards, object structure, prediction/plot semantics, testing plan | Active design — implementation complete in `R/cta_ort.R` |
 | [ORT_SELECTION_METHODS.md](ORT_SELECTION_METHODS.md) | Decision memo: three-role method stack (EO-CTA/MDSA → SDA staging → imbalanced recursive CTA); canon uncertainty notes; private rare-event test results; stale/invalid MINDENOM=117 case documented | Active design memo — **not implementation spec**; do not code from it without explicit approval |
 
 **ORT_SELECTION_METHODS §5.1 note:** The MINDENOM=117 root member is explicitly
 marked `INVALID — exposed as degenerate (2025-05)`. Sections §5.2–5.4 discuss
 this result as a historical probe, not a current production outcome. The
 degeneracy gate (2026-05-27) prevents this from recurring.
+
+**Terminology note (2026-05-28):** `recursive = TRUE` is now named LORT internally.
+"ORT" may appear in legacy code — the names `cta_ort`, `predict.cta_ort`,
+`print.cta_ort`, `summary.cta_ort`, `plot.cta_ort`, `ort_plot_data()`, and
+`cta_ort_node_table()` are **legacy compatibility names for LORT**.
+They are retained for backward compatibility. New docs and agent instructions
+should use LORT/SORT/GORT; do not introduce new bare-`ort` public names.
+See `LORT_SORT_GORT_TAXONOMY.md §Legacy API Naming` for the full table and rules.
 
 ---
 
@@ -61,11 +82,11 @@ degeneracy gate (2026-05-27) prevents this from recurring.
 
 ---
 
-## Staged CTA Workflow Docs
+## SORT / Staged CTA Workflow Docs
 
 | File | Covers | Status |
 |------|--------|--------|
-| [STAGED_CTA_WORKFLOW_PLAN.md](STAGED_CTA_WORKFLOW_PLAN.md) | Lessons-ingested design: FORCENODE (node-level) vs. staged EX CTA (workflow-level) differences, artifact inventory, model comparison table, proposed `staged_cta_workflow` object, implementation sequence, cleanup plan for data-raw artifacts | Active design — SCTA-0 (evidence capture) complete; SCTA-1+ deferred; **no implementation yet** |
+| [STAGED_CTA_WORKFLOW_PLAN.md](STAGED_CTA_WORKFLOW_PLAN.md) | Lessons-ingested design for **SORT** (Sequentially Optimal Recursive Trees): FORCENODE (node-level) vs. staged EX CTA (workflow-level) differences, artifact inventory, model comparison table, proposed `staged_cta_workflow` object, implementation sequence, cleanup plan for data-raw artifacts | Active design — SCTA-0 (evidence capture) complete; SCTA-1+ deferred; **no implementation yet** |
 
 ---
 
@@ -150,7 +171,7 @@ Do not reference it in tests or as a canon anchor.
   `ODACORE_VISION.md` covers invariants and phase context.
 - **Understanding the reporting stack:** `CTA_TRANSLATION_STACK.md` then
   `myeloma-cta-translation.md`.
-- **ORT / recursive CTA:** `CTA_ORT_DESIGN.md` then `ORT_SELECTION_METHODS.md`
+- **LORT / recursive CTA:** `CTA_ORT_DESIGN.md` then `ORT_SELECTION_METHODS.md`
   (memo only, not spec).
 - **SDA / auto-SDA:** `SDA_AUTO_SDA_PLAN.md`.
 - **Staged CTA workflows:** `STAGED_CTA_WORKFLOW_PLAN.md`.

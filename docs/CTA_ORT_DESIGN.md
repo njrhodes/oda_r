@@ -1,8 +1,15 @@
-# CTA Optimal Recursive Tree (ORT) — Design Document
+# LORT (Locally Optimal Recursive Tree) — Design Document
+
+_Formerly: "CTA Optimal Recursive Tree (ORT)"_
 
 **Status:** Finalized design. Implementation in R/cta_ort.R.
-**Date:** 2026-05-26
+**Date:** 2026-05-26. **Updated:** 2026-05-28 (named LORT).
 **Motivation:** Private rare-event staged workflow example (2026-05-25/26).
+
+**Method taxonomy (2026-05-28):** `cta_fit(recursive = TRUE)` implements **LORT**
+— greedy local min-D recursive CTA/MDSA. "ORT" remains as legacy S3 class name
+(`cta_ort`). New code and docs use LORT/SORT/GORT. See
+`docs/LORT_SORT_GORT_TAXONOMY.md` for the full agent handoff contract.
 
 ---
 

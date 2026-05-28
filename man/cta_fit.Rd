@@ -7,7 +7,7 @@ variables only.
 
 When \code{recursive = FALSE} (default), validates the class variable and
 delegates to \code{\link{oda_cta_fit}}.  When \code{recursive = TRUE},
-runs the Optimal Recursive Tree (ORT) engine: at each endpoint a full MDSA
+runs the Locally Optimal Recursive Tree (LORT) engine: at each endpoint a full MDSA
 family scan (\code{\link{cta_descendant_family}}) is performed, the min-D
 member is selected, and recursion continues until no further structure is
 found or a compute guard fires.  Returns a dual-tagged
@@ -30,7 +30,7 @@ cta_fit(X, y, verbose = FALSE,
   \item{y}{Integer class variable vector. Must have exactly two distinct values.}
   \item{verbose}{Logical; if \code{TRUE}, emit \code{[CTA]} and \code{[ORT]}
     progress messages. Default \code{FALSE}.}
-  \item{recursive}{Logical; if \code{TRUE}, run the Optimal Recursive Tree
+  \item{recursive}{Logical; if \code{TRUE}, run the Locally Optimal Recursive Tree (LORT)
     engine.  Default \code{FALSE}.  Cannot be combined with an explicit
     \code{mindenom} argument (error).}
   \item{min_n}{Integer; minimum endpoint n to attempt recursion.  Endpoints

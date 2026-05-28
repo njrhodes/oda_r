@@ -1,13 +1,14 @@
 ###############################################################################
-# R/cta_ort.R -- Optimal Recursive Tree (ORT) engine and S3 methods
+# R/cta_ort.R -- LORT (Locally Optimal Recursive Tree) engine and S3 methods
 #
 # Entry point: cta_fit(X, y, ..., recursive = TRUE) in R/oda_fit.R
 # Internal engine: .cta_ort_fit_internal()
 #
 # Classes:
-#   cta_ort -- composite recursive tree; also inherits cta_tree for backward compat
+#   cta_ort -- composite LORT; also inherits cta_tree for backward compat
+#   (Legacy class name "cta_ort" retained for API compatibility.)
 #
-# Lean-fit invariant extends to ORT:
+# Lean-fit invariant extends to LORT:
 #   - No training X/y stored at any ORT node
 #   - Each ort_node$model is a lean cta_tree
 #   - $strata table is computed at fit time and stored
@@ -449,6 +450,17 @@
       strata       = strata,
       n_strata     = nrow(strata),
       ort_settings = list(
+        # Method taxonomy metadata (LORT/SORT/GORT)
+        method              = "lort",
+        method_label        = "Locally Optimal Recursive Tree",
+        selection_scope     = "local_node",
+        objective           = "min_d_within_node_family",
+        recursive_selection = "greedy_local_min_d",
+        global_lookahead    = FALSE,
+        global_optimization = FALSE,
+        sda_anchored        = FALSE,
+        sort_compatible     = TRUE,
+        # Fit settings
         mc_seed          = mc_seed,
         mc_iter          = mc_iter,
         mc_stop          = mc_stop,
@@ -487,9 +499,9 @@
 
 # ---- predict.cta_ort -------------------------------------------------------- #
 
-#' Predict method for Optimal Recursive Tree
+#' Predict method for Locally Optimal Recursive Tree (LORT)
 #'
-#' Routes each row of \code{newdata} down the composite ORT by recursively
+#' Routes each row of \code{newdata} down the composite LORT by recursively
 #' applying each node's \code{cta_tree} model via
 #' \code{\link{cta_assign_endpoints}}.
 #'
@@ -508,6 +520,9 @@
 #'   For \code{type = "all"}: data.frame with columns
 #'   \code{predicted_class}, \code{stratum_id}, \code{path},
 #'   \code{prop_class1}, \code{stop_reason}.
+#' @note \code{predict.cta_ort} is a legacy compatibility name; the class
+#'   \code{cta_ort} and all \code{*.cta_ort} methods refer to the implemented
+#'   LORT method.  New docs and APIs should use LORT terminology.
 #' @export
 predict.cta_ort <- function(object, newdata,
                              type           = c("class", "stratum", "path", "all"),
@@ -599,17 +614,23 @@ predict.cta_ort <- function(object, newdata,
 
 # ---- print.cta_ort ---------------------------------------------------------- #
 
-#' Print method for Optimal Recursive Tree
+#' Print method for Locally Optimal Recursive Tree (LORT)
 #'
 #' @param x A \code{cta_ort} object.
 #' @param ... Unused.
 #' @return \code{invisible(x)}.
+#' @note \code{print.cta_ort} is a legacy compatibility name for the LORT
+#'   method.  The class \code{cta_ort} and all \code{*.cta_ort} methods refer
+#'   to LORT; do not introduce new bare-\code{ort} public names.
 #' @export
 print.cta_ort <- function(x, ...) {
   strata <- x$strata
   ns     <- x$n_strata   %||% 0L
   s      <- x$ort_settings %||% list()
-  cat("Optimal Recursive Tree (cta_ort)\n")
+  cat("Locally Optimal Recursive Tree (LORT)\n")
+  cat("  selection: greedy local min-D per recursive node\n")
+  cat("  global optimization: no\n")
+  cat("  SDA anchored: no\n")
   cat(sprintf("  Strata: %d terminal strata\n", ns))
   if (!is.null(s$min_n))
     cat(sprintf("  Guards: min_n=%d, max_depth=%d, max_nodes=%d\n",
@@ -636,14 +657,16 @@ print.cta_ort <- function(x, ...) {
 
 # ---- summary.cta_ort -------------------------------------------------------- #
 
-#' Summary method for Optimal Recursive Tree
+#' Summary method for Locally Optimal Recursive Tree (LORT)
 #'
 #' Returns a structured list of class \code{"cta_ort_summary"} capturing
-#' tree-level metadata for the composite ORT.
+#' tree-level metadata for the composite LORT.
 #'
 #' @param object A \code{cta_ort} object.
 #' @param ... Unused.
 #' @return A list of class \code{"cta_ort_summary"}.
+#' @note \code{summary.cta_ort} is a legacy compatibility name for the LORT
+#'   method.  See \code{\link{print.cta_ort}} for the naming note.
 #' @export
 summary.cta_ort <- function(object, ...) {
   ort_nodes <- object$ort_nodes %||% list()
@@ -654,6 +677,7 @@ summary.cta_ort <- function(object, ...) {
   depths     <- vapply(ort_nodes, function(nd) nd$depth %||% NA_integer_, integer(1L))
   max_d_obs  <- if (length(depths) > 0L) max(depths, na.rm = TRUE) else NA_integer_
 
+  s <- object$ort_settings %||% list()
   out <- list(
     n_strata            = object$n_strata %||% 0L,
     n_nodes_total       = n_total,
@@ -661,8 +685,18 @@ summary.cta_ort <- function(object, ...) {
     n_terminal_nodes    = n_terminal,
     max_depth_observed  = max_d_obs,
     strata              = object$strata,
-    ort_settings        = object$ort_settings,
-    strata_check_passed = object$strata_check_passed
+    ort_settings        = s,
+    strata_check_passed = object$strata_check_passed,
+    # LORT/SORT/GORT method taxonomy metadata
+    method              = s$method              %||% "lort",
+    method_label        = s$method_label        %||% "Locally Optimal Recursive Tree",
+    selection_scope     = s$selection_scope     %||% "local_node",
+    objective           = s$objective           %||% "min_d_within_node_family",
+    recursive_selection = s$recursive_selection %||% "greedy_local_min_d",
+    global_lookahead    = s$global_lookahead    %||% FALSE,
+    global_optimization = s$global_optimization %||% FALSE,
+    sda_anchored        = s$sda_anchored        %||% FALSE,
+    sort_compatible     = s$sort_compatible     %||% TRUE
   )
   class(out) <- "cta_ort_summary"
   out
@@ -675,7 +709,13 @@ summary.cta_ort <- function(object, ...) {
 #' @return \code{invisible(x)}.
 #' @export
 print.cta_ort_summary <- function(x, ...) {
-  cat("ORT Summary\n")
+  lbl <- x$method_label %||% "Locally Optimal Recursive Tree"
+  cat(sprintf("LORT Summary (%s)\n", lbl))
+  cat(sprintf("  method: %s | selection: %s | global optimization: %s | SDA anchored: %s\n",
+              x$method %||% "lort",
+              x$recursive_selection %||% "greedy_local_min_d",
+              if (isTRUE(x$global_optimization)) "yes" else "no",
+              if (isTRUE(x$sda_anchored)) "yes" else "no"))
   cat(sprintf("  %d terminal strata, %d total nodes (%d split + %d terminal)\n",
               x$n_strata, x$n_nodes_total, x$n_split_nodes, x$n_terminal_nodes))
   cat(sprintf("  Max depth observed: %d\n", x$max_depth_observed %||% NA_integer_))
@@ -698,9 +738,162 @@ print.cta_ort_summary <- function(x, ...) {
   invisible(x)
 }
 
+# ---- cta_ort_node_table ----------------------------------------------------- #
+
+#' Node-level summary table for a fitted LORT
+#'
+#' Returns one row per ORT node from a \code{cta_ort} (LORT) object.  Each row
+#' exposes the embedded CTA member selected at that node (MINDENOM, ESS, D,
+#' root attribute, split/leaf counts, endpoint count) plus the LORT method
+#' taxonomy metadata (\code{method}, \code{selection_scope},
+#' \code{global_optimization}, \code{sda_anchored}).
+#'
+#' Terminal nodes have \code{NA} for all selected-model columns.  Non-terminal
+#' nodes have \code{NA} for \code{stop_reason} and non-empty \code{child_ids}.
+#'
+#' @param object A \code{cta_ort} from \code{cta_fit(..., recursive = TRUE)}.
+#' @return A \code{data.frame} with one row per ORT node and columns:
+#' \describe{
+#'   \item{\code{ort_node_id}}{Integer ORT node identifier.}
+#'   \item{\code{parent_ort_node_id}}{Integer parent ORT node id; \code{NA} for root.}
+#'   \item{\code{depth}}{Integer recursion depth (root = 0).}
+#'   \item{\code{n}}{Integer observations at this ORT node.}
+#'   \item{\code{class_counts}}{Character; named class counts, e.g. \code{"0=60, 1=40"}.}
+#'   \item{\code{terminal}}{Logical; \code{TRUE} for terminal leaf ORT nodes.}
+#'   \item{\code{stop_reason}}{Character stop reason for terminal nodes;
+#'     \code{NA} for non-terminal.}
+#'   \item{\code{selected_mindenom}}{Integer MINDENOM of the embedded CTA member.}
+#'   \item{\code{selected_ess}}{Numeric ESS of the embedded CTA member (\%).}
+#'   \item{\code{selected_d}}{Numeric D-statistic of the embedded CTA member.}
+#'   \item{\code{selected_root_attribute}}{Character root attribute of the embedded
+#'     CTA member.}
+#'   \item{\code{selected_tree_nodes}}{Integer split-node count in the embedded CTA
+#'     member.}
+#'   \item{\code{selected_tree_leaves}}{Integer leaf count in the embedded CTA
+#'     member.}
+#'   \item{\code{selected_endpoint_count}}{Integer endpoint (terminal leaf) count of
+#'     the embedded CTA member; equals number of ORT child nodes.}
+#'   \item{\code{child_ids}}{Character comma-separated child ORT node ids;
+#'     empty string for terminal nodes.}
+#'   \item{\code{method}}{Character; always \code{"lort"} for current fits.}
+#'   \item{\code{selection_scope}}{Character; always \code{"local_node"} for LORT.}
+#'   \item{\code{global_optimization}}{Logical; always \code{FALSE} for LORT.}
+#'   \item{\code{sda_anchored}}{Logical; always \code{FALSE} for LORT.}
+#' }
+#' @note \code{cta_ort_node_table} is a legacy compatibility name; the class
+#'   \code{cta_ort} and all \code{*.cta_ort} methods refer to the implemented
+#'   LORT method.  New docs and APIs should use LORT terminology.
+#' @seealso \code{\link{cta_fit}}, \code{\link{predict.cta_ort}},
+#'   \code{\link{summary.cta_ort}}
+#' @examples
+#' X <- data.frame(A = c(rep(0L, 20), rep(1L, 20), rep(1L, 20)),
+#'                 B = c(rep(0L, 20), rep(0L, 20), rep(1L, 20)))
+#' y <- c(rep(0L, 20), rep(0L, 20), rep(1L, 20))
+#' ort <- cta_fit(X, y, recursive = TRUE, mc_iter = 100L, mc_seed = 42L,
+#'                loo = "off", min_n = 5L)
+#' cta_ort_node_table(ort)
+#' @export
+cta_ort_node_table <- function(object) {
+  stopifnot(inherits(object, "cta_ort"))
+  nodes <- object$ort_nodes %||% list()
+  s     <- object$ort_settings %||% list()
+  method_val       <- s$method              %||% "lort"
+  scope_val        <- s$selection_scope     %||% "local_node"
+  global_opt_val   <- s$global_optimization %||% FALSE
+  sda_val          <- s$sda_anchored        %||% FALSE
+
+  empty_df <- function() {
+    data.frame(
+      ort_node_id             = integer(0),
+      parent_ort_node_id      = integer(0),
+      depth                   = integer(0),
+      n                       = integer(0),
+      class_counts            = character(0),
+      terminal                = logical(0),
+      stop_reason             = character(0),
+      selected_mindenom       = integer(0),
+      selected_ess            = double(0),
+      selected_d              = double(0),
+      selected_root_attribute = character(0),
+      selected_tree_nodes     = integer(0),
+      selected_tree_leaves    = integer(0),
+      selected_endpoint_count = integer(0),
+      child_ids               = character(0),
+      method                  = character(0),
+      selection_scope         = character(0),
+      global_optimization     = logical(0),
+      sda_anchored            = logical(0),
+      stringsAsFactors = FALSE
+    )
+  }
+  if (length(nodes) == 0L) return(empty_df())
+
+  # Build parent lookup: child_id -> parent_id
+  parent_map <- setNames(rep(NA_integer_, length(nodes)), names(nodes))
+  for (pk in names(nodes)) {
+    pnd <- nodes[[pk]]
+    if (!isTRUE(pnd$is_terminal)) {
+      for (cid in pnd$child_ids) {
+        ck <- as.character(cid)
+        if (ck %in% names(parent_map)) parent_map[ck] <- pnd$node_id
+      }
+    }
+  }
+
+  rows <- lapply(names(nodes), function(k) {
+    nd   <- nodes[[k]]
+    mdl  <- nd$model
+    is_tree <- !is.null(mdl) && inherits(mdl, "cta_tree") && !isTRUE(mdl$no_tree)
+
+    n_snodes  <- NA_integer_
+    n_leaves  <- NA_integer_
+    n_ep      <- NA_integer_
+    root_attr <- NA_character_
+    if (is_tree) {
+      all_nd   <- mdl$nodes
+      is_leaf  <- vapply(all_nd, function(x) isTRUE(x$leaf), logical(1L))
+      n_leaves <- sum(is_leaf)
+      n_snodes <- sum(!is_leaf)
+      root_nd  <- all_nd[[mdl$root_id]]
+      root_attr <- root_nd$attribute %||% NA_character_
+      ep_tbl   <- tryCatch(cta_endpoint_table(mdl), error = function(e) NULL)
+      n_ep     <- if (!is.null(ep_tbl)) nrow(ep_tbl) else NA_integer_
+    }
+
+    cc     <- nd$class_counts
+    cc_str <- if (length(cc) == 0L) NA_character_
+              else paste(names(cc), cc, sep = "=", collapse = ", ")
+
+    list(
+      ort_node_id             = nd$node_id,
+      parent_ort_node_id      = parent_map[k] %||% NA_integer_,
+      depth                   = nd$depth,
+      n                       = nd$n,
+      class_counts            = cc_str,
+      terminal                = isTRUE(nd$is_terminal),
+      stop_reason             = nd$stop_reason    %||% NA_character_,
+      selected_mindenom       = nd$level_mindenom %||% NA_integer_,
+      selected_ess            = nd$level_ess      %||% NA_real_,
+      selected_d              = nd$level_d        %||% NA_real_,
+      selected_root_attribute = root_attr,
+      selected_tree_nodes     = n_snodes,
+      selected_tree_leaves    = n_leaves,
+      selected_endpoint_count = n_ep,
+      child_ids               = paste(nd$child_ids, collapse = ","),
+      method                  = method_val,
+      selection_scope         = scope_val,
+      global_optimization     = global_opt_val,
+      sda_anchored            = sda_val
+    )
+  })
+
+  df <- do.call(rbind, lapply(rows, as.data.frame, stringsAsFactors = FALSE))
+  df[order(df$ort_node_id), ]
+}
+
 # ---- ort_plot_data ---------------------------------------------------------- #
 
-#' Renderer-independent layout data for an ORT composite tree
+#' Renderer-independent layout data for a LORT composite tree
 #'
 #' Computes node positions and edge metadata for \code{\link{plot.cta_ort}}.
 #' Terminal nodes receive integer x-slot positions (left-to-right in DFS
@@ -718,8 +911,10 @@ print.cta_ort_summary <- function(x, ...) {
 #'     \code{stop_reason}.}
 #'   \item{\code{edges}}{data.frame: \code{from_id}, \code{to_id},
 #'     \code{x0}, \code{y0}, \code{x1}, \code{y1}, \code{label}.}
-#'   \item{\code{strata}}{The strata table from the ORT object.}
+#'   \item{\code{strata}}{The strata table from the LORT object.}
 #' }
+#' @note \code{ort_plot_data} is a legacy compatibility name for the LORT method.
+#'   See \code{\link{print.cta_ort}} for the naming note.
 #' @export
 ort_plot_data <- function(object, target_class = NULL,
                           class_labels = NULL, digits = 1L) {
@@ -894,9 +1089,9 @@ ort_plot_data <- function(object, target_class = NULL,
 
 # ---- plot.cta_ort ----------------------------------------------------------- #
 
-#' Plot method for Optimal Recursive Tree
+#' Plot method for Locally Optimal Recursive Tree (LORT)
 #'
-#' Renders the composite ORT using G1 base-R conventions: ellipses for split
+#' Renders the composite LORT using G1 base-R conventions: ellipses for split
 #' nodes, rectangles for terminal nodes, directed arrows for edges.
 #'
 #' @param x A \code{cta_ort} object.
@@ -918,6 +1113,9 @@ ort_plot_data <- function(object, target_class = NULL,
 #' @param cex Text expansion factor.  Default \code{0.75}.
 #' @param ... Unused.
 #' @return \code{invisible(pd)}, the layout list from \code{\link{ort_plot_data}}.
+#' @note \code{plot.cta_ort} and \code{ort_plot_data} are legacy compatibility
+#'   names for the LORT method.  See \code{\link{print.cta_ort}} for the naming
+#'   note.
 #' @seealso \code{\link{ort_plot_data}}, \code{\link{plot.cta_tree}}
 #' @export
 plot.cta_ort <- function(x,

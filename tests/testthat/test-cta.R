@@ -880,9 +880,9 @@ test_that("cta_descendant_family: min_d_idx is NA when all members are no_tree",
               label = "min_d_idx must be NA when no non-degenerate member exists")
 })
 
-# ---- ORT: node models must not be all-same-class ----------------------------
+# ---- LORT: node models must not be all-same-class ---------------------------
 
-test_that("ORT recursive CTA node models are non-degenerate", {
+test_that("LORT (recursive CTA) node models are non-degenerate", {
   # bin_data() is perfectly separable (4 class-0, 4 class-1, one informative
   # attribute).  cta_fit(recursive=TRUE) must fit without error.  mindenom is
   # selected automatically by the per-node MDSA family scan (do not supply it).

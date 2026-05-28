@@ -1,4 +1,4 @@
-# ORT Selection Methods — Design Memo
+# LORT / SORT / GORT Selection Methods — Design Memo
 
 **Status:** Decision memo. Not implementation specification.
 Do not code from this document without explicit approval.
