@@ -7,31 +7,149 @@ output: rmarkdown::html_vignette
 knitr::opts_chunk$set(collapse = TRUE, comment = "#>")
 ```
 
-**Purpose:** Explain `novo_boot_ci()` and the fixed-confusion NOVOmetric
-bootstrap. The model is treated as fixed; only sampling variation in the
-confusion matrix is modelled. Cover what this CI does and does not capture (no
-model-selection uncertainty; no refit uncertainty), the `nboot` parameter, and
-how to interpret the lower and upper ESS bounds.
-
-**Source material:**
-- `README.md` — `novo_boot_ci()` example
-- `docs/ODACORE_VISION.md` — NOVOboot section
-
-**Eval policy:** Live with nboot = 500 for CRAN speed. Canonical nboot = 5000
-result shown as a verbatim output block (not live-computed).
-
----
-
-*This article is not yet expanded. Placeholder sections are listed below.*
+`novo_boot_ci()` estimates the precision of an observed binary classification
+effect by resampling the confusion matrix. The model is held fixed; only
+sampling variation in the classification outcome is modelled.
 
 ## Fixed-confusion bootstrap: concept and scope
 
+Standard bootstrap confidence intervals for classification performance resample
+observations and refit the model on each resample — capturing both sampling
+variation and model-selection variability. The fixed-confusion NOVOmetric
+bootstrap takes a different position: once the model is trained and the
+confusion matrix is observed, the question is how precisely that matrix
+characterises the true classification performance in the population.
+
+The **fixed-confusion** approach:
+
+1. Expands the C × C confusion matrix to a row-per-observation table of
+   (actual, predicted) pairs.
+2. On each bootstrap replicate, resamples *k* rows with replacement from that
+   table (preserving the observed joint distribution).
+3. Computes ESS, sensitivity, specificity, and other metrics for each
+   replicate, yielding a **model distribution**.
+4. Separately resamples actual and predicted labels *independently* (breaking
+   their association) to build a **chance distribution**.
+5. Declares novometric significance (Axiom 1) when the model 95% CI lower
+   bound exceeds the chance 95% CI upper bound.
+
+What this CI captures:
+
+- Sampling precision of the observed confusion matrix proportions.
+- Whether the observed effect could plausibly be a chance result.
+
+What it does not capture:
+
+- Model-selection variability (different data → different rule).
+- Overfitting: if the model was overfit, the confusion matrix used as input
+  understates the true error rate.
+- Uncertainty in the confusion matrix structure (cells are treated as fixed
+  parameters, not as random variables with their own uncertainty).
+
 ## `novo_boot_ci()` call structure
+
+```r
+novo_boot_ci(
+  x,                       # 2x2 integer matrix: actual (rows) x predicted (cols)
+  nboot       = 5000L,     # bootstrap replicates
+  seed        = NULL,      # integer seed for reproducibility
+  sample_frac = 0.5,       # fraction of n sampled per replicate (NOVOboot default)
+  probs       = c(0, .025, .05, .25, .5, .75, .95, .975, 1),
+  alternative = "two.sided"
+)
+```
+
+The input `x` must be a 2 × 2 integer matrix constructed with
+`byrow = TRUE` using the `[actual, predicted]` convention:
+
+```
+         Predicted 0   Predicted 1
+Actual 0     TN            FP
+Actual 1     FN            TP
+```
 
 ## Worked example: myeloma MINDENOM=1 confusion
 
-## Interpreting the CI: ESS lower and upper bounds
+The myeloma MINDENOM=1 pruned tree produces this confusion matrix (verified
+against CTA.exe):
+
+```{r conf-matrix}
+library(odacore)
+
+# Myeloma MINDENOM=1 pruned tree confusion (actual x predicted, byrow = TRUE)
+# Rows: actual class (0 and 1). Columns: predicted class (0 and 1).
+conf <- matrix(
+  c(92, 43,   # actual 0: 92 correct (TN), 43 wrong (FP)
+    21, 30),  # actual 1: 21 wrong (FN), 30 correct (TP)
+  nrow = 2L, byrow = TRUE,
+  dimnames = list(Actual    = c("0", "1"),
+                  Predicted = c("0", "1"))
+)
+print(conf)
+```
+
+Note: no myeloma fit is needed — the confusion matrix is hardcoded from the
+known CTA.exe canonical output.
+
+```{r novoboot}
+set.seed(42L)
+ci <- novo_boot_ci(conf, nboot = 500L, seed = 42L)
+print(ci)
+```
+
+## Interpreting the CI: ESS bounds
+
+The `$ci` element provides fixed 95% CI bounds for each metric under both
+model and chance distributions:
+
+```{r ci-table}
+ci$ci[ci$ci$metric == "ess", ]
+```
+
+- **`model_lower`** and **`model_upper`**: 2.5th and 97.5th percentiles of ESS
+  under the model bootstrap (resampling the observed confusion).
+- **`chance_lower`** and **`chance_upper`**: same, under the chance bootstrap
+  (independent resampling of actual and predicted labels).
+- **`overlap`**: logical; TRUE if the two 95% CIs overlap.
+
+**Novometric significance (Axiom 1):** `ci$significant == TRUE` when the model
+95% CI lower bound exceeds the chance 95% CI upper bound — the intervals are
+entirely non-overlapping, providing strong evidence that the observed effect
+is not a chance result.
+
+```{r significant}
+cat("Significant (Axiom 1 CI non-overlap):", ci$significant, "\n")
+```
+
+## The `sample_frac` parameter
+
+`sample_frac = 0.5` (the NOVOboot default) samples half the observations per
+replicate. This conservatively widens the CIs, making the non-overlap
+criterion harder to satisfy and reducing the false-positive rate in small
+samples.
+
+For large n, `sample_frac` can be increased toward 1.0 (standard bootstrap).
+For publication analyses use `nboot = 5000L` (the default).
 
 ## What this CI does not capture
 
-## Canonical nboot = 5000 results
+**Model-selection variability:** `novo_boot_ci()` takes the confusion matrix as
+fixed input. If the model was chosen based on a data-driven search (as it was
+in CTA), the reported confusion matrix reflects in-sample performance. The CI
+does not adjust for the fact that a different sample would have selected a
+different rule.
+
+**Refit uncertainty:** No refitting occurs. For out-of-sample performance
+estimates, use LOO (`loo = "on"` in `oda_fit()` or `cta_fit()`) or held-out
+validation before calling `novo_boot_ci()` on the out-of-sample confusion.
+
+**Multi-class extension:** `novo_boot_ci()` operates on 2 × 2 confusion
+matrices only (binary class). Multi-class extension is not yet implemented.
+
+## Further reading
+
+- `?novo_boot_ci` — complete function documentation with the myeloma example
+- `articles/cta-basics` — CTA fitting and confusion table
+- Yarnold PR (2020). Reformulating the First Axiom of Novometric Theory.
+  *Optimal Data Analysis* **9**, 7–8.
+- Yarnold PR, Soltysik RC (2016). *Maximizing Predictive Accuracy*. ODA Books.

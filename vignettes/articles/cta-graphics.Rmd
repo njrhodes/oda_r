@@ -1,5 +1,5 @@
 ---
-title: "CTA Tree Diagrams"
+title: "CTA Tree Diagrams (base-R and ggplot2)"
 output: rmarkdown::html_vignette
 ---
 
@@ -7,41 +7,121 @@ output: rmarkdown::html_vignette
 knitr::opts_chunk$set(collapse = TRUE, comment = "#>")
 ```
 
-**Purpose:** Show how to visualise CTA trees using the current native base-R
-renderer. Explain `cta_plot_data()` as the renderer-independent data contract
-and `plot.cta_tree()` as the current renderer. Demonstrate structural mode and
-target-enriched mode. Note what endpoint colours encode (relative target-class
-proportion within the tree only) and what they do not imply. Describe planned
-future ggplot/grid renderer.
+<!-- TODO (Slice L artifact pipeline):
+  The ggplot2 target-enriched tree example and the myeloma plots depend on
+  inst/extdata/articles/myeloma_fits.rds. To unblock:
+    1. Build the artifact (see myeloma-cta.Rmd TODO).
+    2. Add live ggplot2 tree examples (plot_cta_tree with target_class,
+       color_by = "target_rate" vs "prediction") using the myeloma fit.
+    3. Update the "v3 renderers" section with full worked examples.
 
-**Source material:**
-- `docs/ODACORE_VISION.md` — graphics section
-- `docs/CTA_TRANSLATION_STACK.md` — `cta_plot_data()` / `plot.cta_tree()` entries
+  The synthetic example below is already live and demonstrates the v3 API.
+-->
 
-**Eval policy:** CTA_DEMO structural plot is live (small dataset, mc_iter = 500).
-Myeloma target-enriched plot is live on precomputed fit loaded from
-`inst/extdata/articles/myeloma_fits.rds`. Both plots render inline via base-R;
-no separate figure artifacts needed.
+`odacore` provides two levels of CTA tree visualisation:
 
-**Precomputed artifacts needed:** `inst/extdata/articles/myeloma_fits.rds`
-(not yet generated — Slice 3E).
+- **Base-R renderers** (`plot.cta_tree`, `plot.cta_ort`): no external
+  dependencies; structural diagram via base graphics.
+- **ggplot2 renderers** (`plot_cta_tree`, `plot_lort_tree`): requires the
+  ggplot2 package; richer control over colour and layout.
 
----
-
-*This article is not yet expanded. Placeholder sections are listed below.*
+Both share the same data contract: `cta_plot_data()` (for CTA trees) and
+`ort_plot_data()` (for LORT trees) produce renderer-independent plot-data
+objects. You can pass either the fit object directly or a pre-computed
+plot-data object to any renderer.
 
 ## `cta_plot_data()`: the renderer-independent data contract
 
+`cta_plot_data()` extracts node/edge geometry, split rules, class counts, and
+terminal predictions from a fitted `cta_tree` object. The result is a
+self-contained plot-data object usable by any renderer.
+
+```{r synthetic}
+library(odacore)
+
+set.seed(1L)
+n <- 60L
+X <- data.frame(
+  x1 = c(rnorm(30, mean = 2), rnorm(30, mean = 5)),
+  x2 = c(rnorm(30, mean = 1), rnorm(30, mean = 3))
+)
+y <- c(rep(1L, 30), rep(2L, 30))
+
+tree <- cta_fit(X, y,
+  mindenom   = 12L,
+  mc_iter    = 300L,
+  mc_seed    = 42L,
+  loo        = "off",
+  attr_names = c("x1", "x2")
+)
+
+pd <- cta_plot_data(tree)
+```
+
 ## `plot.cta_tree()`: native base-R renderer
 
-## Structural mode (no `target_class`)
+```{r base-r-plot, fig.width = 6, fig.height = 4}
+plot(tree)
+```
 
-## Target-enriched mode (`target_class`)
+## Graphics v3: ggplot2 renderers
 
-### What endpoint colours encode
+`plot_cta_tree()` requires ggplot2 (in Suggests). The function accepts either
+the fit object or pre-computed plot-data. `color_by` controls node colouring:
 
-### What endpoint colours do not imply
+- `"prediction"`: discrete fill by predicted class.
+- `"target_rate"`: continuous gradient by target-class proportion.
+- `"none"`: no fill.
+
+```{r ggplot2-tree, eval = requireNamespace("ggplot2", quietly = TRUE), fig.width = 6, fig.height = 4}
+plot_cta_tree(pd, color_by = "prediction")
+```
+
+```{r ggplot2-tree-rate, eval = requireNamespace("ggplot2", quietly = TRUE), fig.width = 6, fig.height = 4}
+# target_rate: gradient showing proportion of class 1 per node
+plot_cta_tree(pd, color_by = "target_rate", target_class = 1L)
+```
+
+**Saving to file:**
+
+```{r ggsave-example, eval = FALSE}
+if (requireNamespace("ggplot2", quietly = TRUE)) {
+  p <- plot_cta_tree(pd)
+  ggplot2::ggsave("cta_tree.png", p, width = 8, height = 5, dpi = 150)
+}
+```
 
 ## Endpoint label content
 
-## Current limitations and future renderer (v3)
+Each leaf label shows the predicted class, total n at the endpoint, and
+(when `target_class` is set) the raw target-class count and proportion. These
+values come directly from the per-leaf `class_counts_raw` stored at fit time
+— no recomputation occurs inside the renderer.
+
+Endpoint colouring encodes relative target-class proportion *within this tree*
+only. It does not imply prevalence, risk, or any external reference standard.
+
+## LORT trees
+
+LORT (Locally Optimal Recursive Trees) use `ort_plot_data()` and
+`plot_lort_tree()` with the same API:
+
+```{r lort-example, eval = FALSE}
+lort  <- lort_fit(X, y, mc_iter = 300L, mc_seed = 42L, min_n = 12L)
+lort_pd <- ort_plot_data(lort)
+plot_lort_tree(lort_pd, color_by = "prediction")
+```
+
+## Myeloma examples
+
+*(To be expanded with artifact pipeline — see TODO at top of this file.)*
+
+With the myeloma fit loaded, the full target-enriched tree for MINDENOM=1 and
+the stump for MINDENOM=30 will be rendered here with `target_class = 1L` and
+`color_by = "target_rate"`.
+
+## Further reading
+
+- `docs/GRAPHICS_V3.md` — full v3 function reference, examples, and
+  `ggsave` usage
+- `articles/cta-basics` — CTA fitting and `predict.cta_tree()`

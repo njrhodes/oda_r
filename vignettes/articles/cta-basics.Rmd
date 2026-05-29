@@ -7,37 +7,200 @@ output: rmarkdown::html_vignette
 knitr::opts_chunk$set(collapse = TRUE, comment = "#>")
 ```
 
-**Purpose:** Introduce `cta_fit()` for binary-class Classification Tree
-Analysis. Cover the recursive ODA-node structure, MINDENOM endpoint
-constraints, ENUMERATE root selection, LOO STABLE candidate screening, pruning,
-and path-local missingness. Use a small live example and reference the CTA_DEMO
-fixture.
-
-**Source material:**
-- `docs/CTA_CANON.md` — canonical CTA behavior specification
-- `tests/testthat/fixtures/cta_demo/` — CTA_DEMO fixture (uniform weights)
-- `man/cta_fit.Rd` — function documentation
-
-**Eval policy:** Small synthetic or CTA_DEMO example live with mc_iter = 500.
-CTA_DEMO canonical ESS = 52.63% (root V2, cut = 4.5) stated as text; not
-live-computed at mc_iter = 25000.
-
----
-
-*This article is not yet expanded. Placeholder sections are listed below.*
+Classification Tree Analysis (CTA) grows a binary classification tree in which
+every internal node is an ODA model. Each split divides observations into two
+branches based on a single attribute cutpoint, and the process recurs until no
+further splits pass the MINDENOM, LOO STABLE, and significance criteria. This
+article introduces the key concepts and parameters.
 
 ## CTA as sequential ODA
 
+CTA answers the question: after the best single ODA rule is applied and
+observations are divided into two branches, is there additional discriminating
+signal in either branch?
+
+Each node in the tree is an independent ODA fit on the observations routed to
+that node. The tree grows top-down, one split at a time. Growth stops at a
+node when:
+
+1. The minimum endpoint size `mindenom` is not met by any candidate split.
+2. No candidate split passes the LOO STABLE gate (LOO ESS ≈ training ESS).
+3. No candidate split reaches significance (MC p < `alpha_split`).
+
+After growing, a backward **pruning** step removes nodes whose sub-tree does
+not improve the full-tree ESS relative to the Sidak-adjusted significance
+threshold.
+
 ## `cta_fit()` arguments
+
+| Argument | Default | Purpose |
+|----------|---------|---------|
+| `X` | — | Data frame of attribute columns |
+| `y` | — | Integer class variable |
+| `mindenom` | 10L | Minimum observations at any terminal endpoint |
+| `mc_iter` | 5000L | Monte Carlo permutations for significance screening |
+| `mc_seed` | 42L | Seed for MC reproducibility |
+| `alpha_split` | 0.05 | Significance threshold for accepting a split |
+| `loo` | `"stable"` | `"stable"` = LOO STABLE gate; `"off"` = skip LOO |
+| `priors_on` | TRUE | Balance class frequencies in objective |
+| `attr_names` | NULL | Optional names for attribute columns |
 
 ## MINDENOM: controlling endpoint size
 
+`mindenom` sets the minimum number of observations at any terminal leaf. It is
+the primary complexity control in CTA: a larger `mindenom` forces broader,
+simpler trees; a smaller value allows deeper, more granular trees.
+
+```{r synthetic-data}
+library(odacore)
+
+set.seed(1L)
+n <- 60L
+X <- data.frame(
+  x1 = c(rnorm(30, mean = 2), rnorm(30, mean = 5)),
+  x2 = c(rnorm(30, mean = 1), rnorm(30, mean = 3))
+)
+y <- c(rep(1L, 30), rep(2L, 30))
+```
+
+```{r fit-mindenom}
+# mindenom = 15: at least 15 obs per terminal endpoint
+tree <- cta_fit(X, y,
+  mindenom    = 15L,
+  mc_iter     = 300L,
+  mc_seed     = 42L,
+  loo         = "off",
+  priors_on   = TRUE,
+  attr_names  = c("x1", "x2")
+)
+print(tree)
+```
+
+Increasing `mindenom` produces simpler (shallower) trees. Decreasing it allows
+more splits but risks overfitting and small-endpoint instability. The
+MINDENOM descendant family (see `articles/mdsa-family`) systematically
+explores this tradeoff.
+
 ## ENUMERATE: root candidate selection
 
-## LOO STABLE: generalizability gate
+CTA does not simply split on the best attribute and recurse. Instead, it uses
+an ENUMERATE phase to evaluate every valid root candidate:
+
+1. **Expanded phase:** for each candidate root attribute, CTA grows the full
+   HO-CTA tree below that root and scores the complete tree.
+2. **Stump phase:** each root candidate is also scored as a two-leaf stump
+   (root split only, path-local scoring).
+3. The root with the highest overall ESS (or WESS when weights are active)
+   wins.
+
+This ensures the selected root is globally best for the full-tree objective,
+not just locally best at the root node.
+
+## LOO STABLE: generalisability gate
+
+`loo = "stable"` (the default) screens candidate splits using the jackknife:
+
+- The full-node model is fit (training ESS).
+- For each observation at the node, the model is refit on the remaining n − 1
+  cases, and the held-out observation is predicted.
+- If |LOO ESS − training ESS| > 1 pp, the split is **UNSTABLE** and rejected.
+- Only STABLE splits are eligible for inclusion in the tree.
+
+This prevents the tree from retaining splits that depend critically on
+individual observations.
+
+```{r fit-loo}
+tree_loo <- cta_fit(X, y,
+  mindenom    = 15L,
+  mc_iter     = 300L,
+  mc_seed     = 42L,
+  loo         = "stable",   # default — LOO STABLE gate active
+  priors_on   = TRUE,
+  attr_names  = c("x1", "x2")
+)
+print(tree_loo)
+```
 
 ## Pruning: backward complexity reduction
 
+After the tree is grown, CTA applies a backward pruning step. Starting from
+the deepest nodes, each non-terminal sub-tree is removed if it does not
+improve the full-tree ESS beyond what a Sidak-adjusted significance threshold
+requires. This is analogous to cost-complexity pruning in CART but uses ESS
+gain and the Sidak correction for the number of splits evaluated.
+
+The result stored in `$tree` is the **pruned** tree. The pre-pruning
+(enumerated) tree is not stored separately.
+
 ## `predict.cta_tree()`: path-local missingness
 
+Prediction in CTA is path-local: an observation is routed at each node using
+only the attribute at that node. If the attribute is missing for an observation
+at the node it is actually traversing, two strategies are available:
+
+```{r predict}
+preds_na  <- predict(tree_loo, X, missing_action = "na")       # NA for missing
+preds_maj <- predict(tree_loo, X, missing_action = "majority") # legacy majority route
+
+# All non-NA predictions agree:
+agree <- sum(preds_na == preds_maj, na.rm = TRUE)
+cat("Predictions agree (non-NA):", agree, "of", sum(!is.na(preds_na)), "\n")
+```
+
+- `"na"` (canonical): observations with a missing root attribute receive
+  `NA_integer_`. They are excluded from scoring.
+- `"majority"` (legacy): missing observations are routed to the majority class
+  at the node, so all observations receive a prediction.
+
+For scoring and confusion tables the canonical `"na"` mode is used; the
+observation count reported by `cta_confusion_table()` excludes unclassified
+observations.
+
 ## `plot.cta_tree()`: structural diagram
+
+`plot()` dispatches to the base-R tree renderer. It shows the split rule,
+node size, and terminal class predictions at each leaf:
+
+```{r plot, fig.width=6, fig.height=4}
+plot(tree_loo)
+```
+
+For ggplot2 renderers, see `plot_cta_tree()` (requires the ggplot2 package):
+
+```{r ggplot-tree, eval = requireNamespace("ggplot2", quietly = TRUE)}
+pd <- cta_plot_data(tree_loo)
+plot_cta_tree(pd)
+```
+
+## Confusion table
+
+`cta_confusion_table()` extracts the training confusion from the fitted object
+without refitting. The confusion is stored as a C × C raw integer matrix at
+fit time:
+
+```{r confusion}
+cta_confusion_table(tree_loo)
+```
+
+## Canonical benchmark: CTA_DEMO
+
+The CTA_DEMO dataset (n = 200, 5 attributes, uniform weights) is the primary
+regression fixture for the package. The canonical result with MINDENOM = 1
+and `mc_iter = 25000` is:
+
+- Root: V2, cut = 4.5
+- Overall ESS = 52.63%
+- Attributes V1, V3–V5 are not selected
+
+These values are verified against CTA.exe output in `tests/testthat/test-cta.R`.
+See `vignettes/articles/myeloma-cta` for a fully worked MINDENOM family
+walkthrough on a real dataset with case weights.
+
+## Further reading
+
+- `articles/myeloma-cta` — full MINDENOM family example (when precomputed
+  artifacts are available)
+- `articles/cta-translation` — endpoint staging and the translation pipeline
+- `articles/mdsa-family` — MINDENOM family and minimum-D model selection
+- `articles/cta-graphics` — tree diagram renderers (base-R and ggplot2)
+- `docs/CTA_CANON.md` — canonical CTA behavior specification

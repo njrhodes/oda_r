@@ -7,38 +7,130 @@ output: rmarkdown::html_vignette
 knitr::opts_chunk$set(collapse = TRUE, comment = "#>")
 ```
 
-**Purpose:** Introduce MDSA (Model/Descriptor/Scenario Analysis) via
-`cta_descendant_family()`. Show how increasing MINDENOM produces a sequence of
-progressively simpler trees. Explain the D statistic, `cta_family_table()`,
-and minimum-D selection. Use the myeloma family (MINDENOM 1 → 30 → 56) as the
-canonical example.
+<!-- TODO (Slice L artifact pipeline):
+  The myeloma family example depends on inst/extdata/articles/myeloma_family.rds.
+  To unblock:
+    1. Build the artifact (see myeloma-cta.Rmd TODO and build_article_artifacts.R).
+    2. Replace the synthetic example below with the myeloma family loaded from
+       inst/extdata/articles/myeloma_family.rds.
+    3. Verify cta_family_table() values against docs/myeloma-cta-translation.md.
 
-**Source material:**
-- `docs/ODACORE_VISION.md` — MDSA section
-- `docs/CTA_TRANSLATION_STACK.md` — family table and D statistic
-- `docs/myeloma-cta-translation.md` — myeloma family table values
+  The synthetic MDSA example below demonstrates the API but uses small n.
+-->
 
-**Eval policy:** Load precomputed myeloma family object from
-`inst/extdata/articles/myeloma_family.rds`. `cta_family_table()` and
-`summary.cta_family()` calls are live on the precomputed object.
-
-**Precomputed artifacts needed:** `inst/extdata/articles/myeloma_family.rds`
-(not yet generated — Slice 3E).
-
----
-
-*This article is not yet expanded. Placeholder sections are listed below.*
+MDSA (Model/Descriptor/Scenario Analysis) systematically explores how
+classification performance changes as the minimum endpoint size (MINDENOM)
+increases. Each MINDENOM value produces a family member — a distinct tree
+ranging from a complex multi-split model (small MINDENOM) to a simple stump or
+no-tree terminal (large MINDENOM).
 
 ## What is MDSA?
 
+Given a fixed dataset, incrementing MINDENOM progressively constrains the
+tree structure. The resulting sequence of trees forms a **descendant family**.
+Each member represents a valid, self-contained CTA model; the family as a whole
+shows the complexity-accuracy tradeoff.
+
+MDSA is used to:
+
+- Identify the simplest model that retains clinically or scientifically
+  meaningful classification performance.
+- Explore sensitivity to MINDENOM choice.
+- Select a model via minimum-D (see below).
+
 ## `cta_descendant_family()`: the MINDENOM sequence
+
+`cta_descendant_family()` calls `cta_fit()` at each MINDENOM value in a
+user-supplied vector. It returns a `cta_family` object (a list of `cta_tree`
+objects plus metadata).
+
+```{r synthetic-family}
+library(odacore)
+
+set.seed(1L)
+n <- 80L
+X <- data.frame(
+  x1 = c(rnorm(40, mean = 2), rnorm(40, mean = 6)),
+  x2 = c(rnorm(40, mean = 1), rnorm(40, mean = 4))
+)
+y <- c(rep(1L, 40), rep(2L, 40))
+
+family <- cta_descendant_family(
+  X              = X,
+  y              = y,
+  start_mindenom = 5L,    # first member MINDENOM
+  max_steps      = 8L,    # maximum members to produce
+  mc_iter        = 300L,
+  mc_seed        = 42L,
+  loo            = "off",
+  attr_names     = c("x1", "x2")
+)
+print(family)
+```
 
 ## The D statistic: complexity vs. accuracy
 
+The **D statistic** trades off model complexity against classification
+performance. Smaller D is better: it favours simpler models that retain
+adequate accuracy.
+
+```{r family-table}
+cta_family_table(family)
+```
+
+The family table shows D, ESS, the number of terminal endpoints, and the
+selected MINDENOM level for each family member.
+
 ## `cta_family_table()`: comparing family members
+
+`cta_family_table()` summarises all family members in a single data frame.
+Key columns:
+
+| Column | Description |
+|--------|-------------|
+| `mindenom` | MINDENOM value for this member |
+| `strata` | Number of terminal endpoints (NA for no_tree) |
+| `overall_ess` | Training ESS (or WESS if weights active) |
+| `d` | D statistic |
+| `selected_min_d` | TRUE for the family member with minimum D |
 
 ## Minimum-D selection
 
+The family member with the smallest D is selected as the **minimum-D model**:
+the simplest model consistent with maximum available accuracy. When two members
+have equal D, the simpler (larger MINDENOM) member is preferred.
+
+```{r min-d}
+ft <- cta_family_table(family)
+min_d_row <- ft[which(ft$selected_min_d), ]
+cat("Minimum-D member: MINDENOM =", min_d_row$mindenom, "\n")
+cat("D statistic:     ", round(min_d_row$d, 4), "\n")
+cat("ESS:             ", round(min_d_row$overall_ess, 2), "%\n")
+```
+
 ## The myeloma family: MINDENOM 1 → 30 → 56
 
-## Terminal state: no tree at MINDENOM = 56
+*(To be expanded with artifact pipeline — see TODO at top of this file.)*
+
+The canonical myeloma family demonstrates the full MDSA trajectory:
+
+- **MINDENOM = 1:** V14 → V15 two-split tree (or V17 → V15 after pruning).
+  WESS = 27.69% (pruned: 25.43%).
+- **MINDENOM = 30:** V17 stump. WESS = 16.51%.
+- **MINDENOM = 56:** No admissible splits — leaf only.
+
+All canonical values are in `docs/myeloma-cta-translation.md`.
+
+## Terminal state: no tree
+
+When no MINDENOM candidate produces a valid split (all child sizes < MINDENOM),
+the family member is a leaf node — the model predicts the majority class for
+all observations. In `cta_family_table()`, this appears as `n_terminals = 1`
+and ESS = 0%.
+
+## Further reading
+
+- `articles/myeloma-cta` — full myeloma MINDENOM family walkthrough (when
+  precomputed artifacts are available)
+- `articles/cta-basics` — CTA fitting fundamentals
+- `docs/myeloma-cta-translation.md` — canonical myeloma computed values

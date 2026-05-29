@@ -1,5 +1,7 @@
 url: https://njrhodes.github.io/oda_rcore/
 
+destination: _site   # pkgdown output; docs/ is reserved for design docs
+
 template:
   bootstrap: 5
 
@@ -55,11 +57,13 @@ reference:
   - title: "CTA — fitting and prediction"
     desc: >
       Classification Tree Analysis: public entry point, internal engine,
-      prediction, MDSA family fitting.
+      prediction, and MDSA family fitting.
     contents:
       - cta_fit
       - oda_cta_fit
       - predict.cta_tree
+      - print.cta_tree
+      - summary.cta_tree
       - cta_descendant_family
 
   - title: "CTA — tree structure"
@@ -74,7 +78,7 @@ reference:
     desc: >
       On-demand translation functions for endpoints, staging, propensity
       weights, observation weights, and confusion tables. All computed on
-      explicit call; nothing extra is stored at fit time.
+      explicit call; nothing extra is stored at fit time (lean-fit invariant).
     contents:
       - cta_endpoint_summary
       - cta_endpoint_counts
@@ -86,16 +90,78 @@ reference:
       - cta_confusion_table
 
   - title: "MDSA — family summary"
+    desc: >
+      MINDENOM descendant family: sequence of progressively simpler trees,
+      D-statistic complexity measure, and minimum-D model selection.
     contents:
       - cta_family_table
 
-  - title: "Graphics"
+  - title: "LORT — Locally Optimal Recursive Trees"
     desc: >
-      `cta_plot_data()` produces the renderer-independent tree diagram data
-      contract. `plot.cta_tree()` is the current native base-R renderer.
+      Greedy recursive CTA: LORT builds a sequence of CTA models, one per
+      stratum of a prior tree. `lort_fit()` is the convenience entry point;
+      `cta_fit(recursive = TRUE)` is the equivalent internal path.
+    contents:
+      - lort_fit
+      - predict.cta_ort
+      - print.cta_ort
+      - summary.cta_ort
+      - plot.cta_ort
+      - cta_ort_node_table
+      - ort_plot_data
+
+  - title: "SDA — Sequential Discriminant Analysis"
+    desc: >
+      SDA fits a sequence of ODA models, removing correctly classified
+      observations after each step. `auto_sda_plan()` produces a staged
+      workflow plan; helpers convert SDA output for downstream CTA use.
+    contents:
+      - sda_fit
+      - predict.sda_fit
+      - print.sda_fit
+      - summary.sda_fit
+      - auto_sda_plan
+      - sda_candidate_table
+      - sda_selected_attributes
+      - sda_step_table
+      - sda_to_cta_data
+      - as_cta_candidates
+
+  - title: "Covariate balance diagnostics"
+    desc: >
+      Univariate ODA balance table, SMD companion, CTA multivariate balance
+      table, and plot-data transforms. All balance functions treat the outcome
+      variable as out of scope; group (treatment/exposure) is the classifier.
+    contents:
+      - oda_balance_table
+      - smd_balance_table
+      - oda_balance_plot_data
+      - cta_balance_table
+      - cta_balance_plot_data
+
+  - title: "Graphics — base-R renderers"
+    desc: >
+      `cta_plot_data()` and `ort_plot_data()` produce the renderer-independent
+      tree diagram data contract. `plot.cta_tree()` and `plot.cta_ort()` are
+      the native base-R renderers.
     contents:
       - cta_plot_data
+      - ort_plot_data
       - plot.cta_tree
+      - plot.cta_ort
+
+  - title: "Graphics v3 — ggplot2 renderers"
+    desc: >
+      ggplot2-based tree diagrams and balance plots. Requires ggplot2 (in
+      Suggests). All six functions are pure renderers: they never call fitting
+      functions. Pass pre-computed plot-data or the fit object directly.
+    contents:
+      - plot_cta_tree
+      - plot_lort_tree
+      - plot_oda_balance
+      - plot_smd_balance
+      - plot_balance_love
+      - plot_cta_balance
 
   - title: "NOVOboot"
     desc: Fixed-confusion NOVOmetric bootstrap confidence intervals.

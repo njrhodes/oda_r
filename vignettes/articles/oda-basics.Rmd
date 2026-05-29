@@ -7,28 +7,200 @@ output: rmarkdown::html_vignette
 knitr::opts_chunk$set(collapse = TRUE, comment = "#>")
 ```
 
-**Purpose:** Introduce `oda_fit()` for binary-class ODA. Cover the attribute,
-class variable, cutpoint, rule direction, PAC per class, Mean PAC, ESS, LOO
-validity, and the chance benchmark. Use a worked example to show how to read
-and interpret output fields.
-
-**Source material:** `vignettes/migraine-attacks-oda.Rmd` (expand and
-annotate); MPE MegaODA training examples 1–4
-(`tests/testthat/fixtures/vignettes/data/`).
-
-**Eval policy:** Live, CRAN-safe. Small `mc_iter` (≤ 500) for all evaluated
-chunks. Canonical mc_iter = 25000 results stated as text, not live-computed.
-
----
-
-*This article is not yet expanded. Placeholder sections are listed below.*
+Optimal Data Analysis (ODA) finds the single classification rule — a cutpoint
+for ordered attributes, or a partition for categorical attributes — that
+maximises Mean Percentage of Accurate Classifications (Mean PAC) across all
+class values. This article walks through the core concepts using a concrete
+binary example.
 
 ## The ODA problem
 
+Given a class variable **y** (the outcome to classify) and an attribute **x**
+(the predictor), ODA asks: what single rule on **x** best separates the classes
+in **y**?
+
+For an ordered attribute the rule is a cutpoint *c*:
+
+- observations with x ≤ *c* → assigned to one class
+- observations with x > *c* → assigned to the other class
+
+The "best" rule maximises **Mean PAC**: the average, over all classes, of the
+per-class accuracy (PAC = percentage of observations in that class correctly
+classified). Using the per-class average — rather than overall accuracy —
+ensures that a minority class is not ignored when one class is much larger
+than the other.
+
+**ESS (Effect Strength for Sensitivity)** scales Mean PAC against the chance
+benchmark of 50%:
+
+$$\text{ESS} = \frac{\text{Mean PAC} - 0.5}{0.5} \times 100\%$$
+
+A model that does no better than random chance has ESS = 0%; perfect
+classification has ESS = 100%.
+
 ## Fitting with `oda_fit()`
+
+The dataset below reconstructs cell frequencies from Appleton (1995), a
+clinical trial in which 67 patients with migraine were randomised to two
+treatments and the number of attacks (0–7) recorded.^[Appleton DR (1995).
+Pitfalls in the interpretation of studies: III. *Journal of the Royal Society
+of Medicine*, 88, 241–243.] The class variable is treatment arm (0 or 1);
+the attribute is the ordered attack count.
+
+```{r data}
+library(odacore)
+
+# Cross-classification: rows = attacks (0-7), cols = treatment arm.
+#          T1 (0)  T2 (1)
+#  0 att:    13       5
+#  1 att:     9      13
+#  2 att:     4       6
+#  3 att:     2       1
+#  4 att:     1       2
+#  5 att:     1       3
+#  6 att:     3       3
+#  7 att:     0       1
+
+treatment <- c(
+  rep(0L, 13), rep(1L,  5),   # attacks = 0
+  rep(0L,  9), rep(1L, 13),   # attacks = 1
+  rep(0L,  4), rep(1L,  6),   # attacks = 2
+  rep(0L,  2), rep(1L,  1),   # attacks = 3
+  rep(0L,  1), rep(1L,  2),   # attacks = 4
+  rep(0L,  1), rep(1L,  3),   # attacks = 5
+  rep(0L,  3), rep(1L,  3),   # attacks = 6
+  rep(0L,  0), rep(1L,  1)    # attacks = 7
+)
+attacks <- c(
+  rep(0L, 18), rep(1L, 22), rep(2L, 10),
+  rep(3L,  3), rep(4L,  3), rep(5L,  4),
+  rep(6L,  6), rep(7L,  1)
+)
+```
+
+`oda_fit()` takes `x` (attribute), `y` (class variable), and an `attr_type`
+indicating whether `x` is `"ordered"`, `"binary"`, or `"categorical"`.
+
+```{r fit}
+fit <- oda_fit(
+  x         = attacks,
+  y         = treatment,
+  attr_type = "ordered",
+  mc_iter   = 500L,    # CRAN-safe; use 25000L for publication
+  mc_seed   = 42L,
+  loo       = "on"
+)
+```
 
 ## Reading the output: rule, PAC, ESS
 
+```{r print-fit}
+print(fit)
+```
+
+ODA identified a cut at 0.5 (zero attacks vs. one or more). The `$rule`
+element records the classification rule:
+
+```{r rule}
+fit$rule$cut_value   # cutpoint
+fit$rule$direction   # which side maps to which class
+```
+
+`"right_class_1"` means observations with attacks > 0.5 are assigned to
+class 1 (Treatment 2); observations ≤ 0.5 (zero attacks) are assigned to
+class 0 (Treatment 1).
+
+The full `summary()` displays per-class PAC, Mean PAC, ESS, and the MC
+p-value:
+
+```{r summary}
+summary(fit)
+```
+
+**Interpreting PAC and ESS:**
+
+- PAC for class 0 (T1) = percentage of T1 patients correctly classified.
+- PAC for class 1 (T2) = percentage of T2 patients correctly classified.
+- Mean PAC = their unweighted average.
+- ESS = (Mean PAC − 50%) / 50% × 100%. Here ESS ≈ 24.69%.
+
+**Confusion matrix:** The raw integer confusion is in `$confusion` (binary
+form: TN, FP, FN, TP):
+
+```{r confusion}
+cat("TN =", fit$confusion$TN, " FP =", fit$confusion$FP, "\n")
+cat("FN =", fit$confusion$FN, " TP =", fit$confusion$TP, "\n")
+```
+
+**Predictive value (PV):** When the model predicts a class, how often is it
+correct?
+
+```{r pv}
+pv_t1 <- fit$confusion$TN / (fit$confusion$TN + fit$confusion$FN)
+pv_t2 <- fit$confusion$TP / (fit$confusion$TP + fit$confusion$FP)
+cat("PV T1 (0):", round(pv_t1 * 100, 1), "%\n")
+cat("PV T2 (1):", round(pv_t2 * 100, 1), "%\n")
+```
+
 ## Leave-one-out (LOO) validity
 
+`loo = "on"` runs a true jackknife: each observation is dropped in turn, the
+model is refit on the remaining n − 1 cases, and the held-out observation is
+predicted by the refitted rule.
+
+```{r loo}
+cat("Training ESS:", round(fit$ess,     2), "%\n")
+cat("LOO ESS:     ", round(fit$loo_ess, 2), "%\n")
+cat("LOO status:  ", fit$loo_status,        "\n")
+```
+
+`loo_status = "STABLE"` means the LOO ESS matches the training ESS (within a
+small numerical tolerance). Complete LOO stability means no single observation
+drives the rule — the model generalises.
+
+For binary ordered attributes where the cut falls at a sparse boundary (e.g.
+attacks = 0 here), LOO is often trivially stable: every fold produces the same
+cut.
+
 ## Notes on MC p-value calibration
+
+The Monte Carlo p-value tests whether the observed ESS could arise by chance.
+ODA's chance benchmark is 50% Mean PAC (ESS = 0%), not overall accuracy.
+
+The `p(MC)` shown reflects `mc_iter = 500L`. For publication, use
+`mc_iter = 25000L` (the canonical MegaODA reference run). The training ESS
+and confusion matrix are unaffected by `mc_iter`; only the p-value precision
+changes. This is tracked as issue #5 (MC STOP calibration audit) in the
+package repository.
+
+## Accessor functions
+
+`oda_predictions()`, `oda_confusion()`, and `oda_metrics()` provide
+programmatic access to fit components:
+
+```{r accessors}
+m <- oda_metrics(fit)
+cat("Mean PAC:", round(m$mean_pac * 100, 2), "%\n")
+cat("ESS:     ", round(m$ess, 2), "%\n")
+```
+
+## Key ESS thresholds
+
+| ESS range | Conventional interpretation     |
+|-----------|----------------------------------|
+| < 25%     | Relatively weak effect           |
+| 25–50%    | Moderate effect                  |
+| 50–75%    | Relatively strong effect         |
+| > 75%     | Strong effect                    |
+
+The migraine example (ESS ≈ 24.69%) is marginally below the moderate
+threshold — a weak but non-chance association.^[Yarnold, P.R., & Soltysik,
+R.C. (2005). *Optimal Data Analysis: A Guidebook with Software for Windows.*
+Washington, D.C.: APA Books.]
+
+## Further reading
+
+- `vignettes/migraine-attacks-oda.Rmd` — full CRAN vignette for this example
+- `articles/directional-oda` — Chapter 2 and Chapter 4 directional constraints
+- `articles/multiclass-oda` — extending to C ≥ 3 classes
+- `articles/cta-basics` — Classification Tree Analysis

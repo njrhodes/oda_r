@@ -22,7 +22,8 @@ engine. It provides three main tools:
   trees with ENUMERATE, LOO STABLE, and MINDENOM endpoint constraints.
 - **Translation and graphics** — endpoint staging, propensity weights, tree
   plots, and NOVOmetric bootstrap CIs via `cta_staging_table()`,
-  `cta_propensity_weights()`, `novo_boot_ci()`, and `plot.cta_tree()`.
+  `cta_propensity_weights()`, `novo_boot_ci()`, `plot.cta_tree()`, and the
+  ggplot2 renderers `plot_cta_tree()` / `plot_lort_tree()` (requires ggplot2).
 
 ## Binary ODA
 
@@ -95,7 +96,7 @@ examples for each component of the package:
 | Myeloma CTA | MINDENOM family (1 → 30 → 56); canonical computed outputs |
 | CTA translation | `cta_staging_table()`, `cta_propensity_weights()`, endpoint reporting |
 | MDSA family | `cta_descendant_family()`, `cta_family_table()`, minimum-D selection |
-| CTA graphics | `cta_plot_data()` data contract; `plot.cta_tree()` structural and target-enriched diagrams |
+| CTA graphics | `cta_plot_data()` data contract; `plot.cta_tree()` (base-R) and `plot_cta_tree()` (ggplot2) renderers |
 | NOVOboot CI | `novo_boot_ci()`: fixed-confusion NOVOmetric bootstrap |
 | Validation tiers | CRAN / fast / smoke / full tiers; canon parity; package scope |
 

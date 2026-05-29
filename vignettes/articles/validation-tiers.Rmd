@@ -7,39 +7,137 @@ output: rmarkdown::html_vignette
 knitr::opts_chunk$set(collapse = TRUE, comment = "#>")
 ```
 
-**Purpose:** Explain the four test tiers (CRAN / fast / smoke / full), what
-"canonical parity" means (R output matches MegaODA.exe / CTA.exe on covered
-fixtures), which fixtures are currently green, and what remains future scope.
+`odacore` is validated against the original MegaODA.exe and CTA.exe executables
+on a set of covered fixtures. This article explains what "canonical parity"
+means, how tests are organised into tiers, which fixtures are currently passing,
+and what remains in scope for future work.
 
-**Eval policy:** Entirely narrative. No fits, no computations.
-
----
-
-*This article is not yet expanded. Placeholder sections are listed below.*
+*No computations are performed in this article.*
 
 ## Test tiers
 
-| Tier | Variable | When to use |
-|------|----------|-------------|
+Tests are gated by the `ODACORE_TEST_TIER` environment variable:
+
+| Tier | Variable value | When to use |
+|------|---------------|-------------|
 | CRAN (default) | unset | CRAN submission and default `devtools::check()` |
-| fast | `ODACORE_TEST_TIER=fast` | Development loop; same as CRAN but explicit |
-| smoke | `ODACORE_TEST_TIER=smoke` | Required before CTA / MDSA / graphics commits |
+| fast | `ODACORE_TEST_TIER=fast` | Development loop |
+| smoke | `ODACORE_TEST_TIER=smoke` | Required before any CTA / MDSA / graphics commit |
 | full | `ODACORE_TEST_TIER=full` | Release gate and deep canon parity work only |
+
+```bash
+# Default CRAN-safe check (no env var):
+Rscript --vanilla -e "devtools::check(vignettes=FALSE)"
+
+# Fast developer loop:
+ODACORE_TEST_TIER=fast Rscript --vanilla -e "devtools::test(reporter='progress')"
+
+# Production smoke before any CTA commit:
+ODACORE_TEST_TIER=smoke Rscript --vanilla -e "devtools::test(reporter='progress')"
+```
+
+**Do not run `ODACORE_TEST_TIER=full` by default.** It is a release gate only,
+requiring the full canon fixture set including slow myeloma MINDENOM runs.
 
 ## Canonical parity: what it means
 
+A covered fixture is a dataset for which odacore's R output has been verified
+to match the original MegaODA.exe or CTA.exe output:
+
+- **Rule:** the same cutpoint and direction (ordered) or category partition
+  (categorical).
+- **Confusion matrix:** identical raw integer cell counts.
+- **ESS:** matching to two decimal places.
+
+A divergence from a covered fixture is a **bug**, not an alternative
+interpretation. New functionality may extend beyond the executables' scope, but
+extension behavior must be explicitly marked and must not disturb covered
+fixtures.
+
 ## Currently green fixtures
 
-## Current scope: binary CTA only
+All canon fixtures pass as of the current production checkpoint:
 
-## Future scope
+### ODA (UniODA and MultiODA)
 
-### `predict.oda_fit()` / `summary.oda_fit()` — implemented
+| Fixture | n | Type | ESS | Status |
+|---------|---|------|-----|--------|
+| Refugee Act (Ex1) | 407 | Binary ordered (binary attr) | 44.09% | ✓ pass |
+| Gully erosion (Ex2) | 720 | Binary categorical (4-cat) | 56.30% | ✓ pass |
+| Protein type (Ex3) | 325 | 4-class categorical | 50.96% | ✓ pass |
+| Migraine attacks (Ex4) | 67 | Binary ordered (0–7) | 24.69% | ✓ pass |
+| Iris (Petal.Length) | 150 | 3-class ordered | canonical gold | ✓ pass |
 
-### Balance diagnostics — deferred
+### CTA
 
-### Multiclass CTA — not yet scoped
+| Fixture | MINDENOM | Weights | ESS/WESS | Status |
+|---------|----------|---------|----------|--------|
+| CTA_DEMO | 1 | none (ESS) | root V2, ESS 52.63% | ✓ pass |
+| CTA_DEMO | 8 | none (ESS) | root V2, ESS 68.08% | ✓ pass |
+| Myeloma | 1 | V2 (WESS) | V14→V15, WESS 27.69% | ✓ pass |
+| Myeloma | 30 | V2 (WESS) | V17 stump, WESS 16.51% | ✓ pass |
+| Myeloma | 56 | V2 (WESS) | no tree | ✓ pass |
 
-### Full SDA / auto_SDA — not yet scoped
+Full test suite (fast tier): FAIL 0 / WARN 0 / PASS 1566 (checkpoint 1ff8579).
 
-### Political affiliation example — data unavailable
+## Current scope
+
+### Implemented and tested
+
+- **ODA:** binary ordered, binary, categorical, directional (Chapter 2 and 4).
+  Uniform and non-uniform case weights. LOO jackknife. Monte Carlo permutation
+  test (Clopper-Pearson early stopping).
+- **CTA:** binary class, ordered attributes, case weights, MINDENOM enforcement,
+  ENUMERATE root selection, LOO STABLE gate, Sidak-Bonferroni pruning, path-
+  local missingness, post-pruning degeneracy gate.
+- **Translation stack:** `cta_endpoint_summary`, `cta_endpoint_counts`,
+  `cta_staging_table`, `cta_propensity_weights`, `cta_assign_endpoints`,
+  `cta_observation_weights`, `cta_confusion_table`.
+- **MDSA:** `cta_descendant_family`, `cta_family_table`, D statistic,
+  minimum-D selection.
+- **LORT:** `lort_fit` / `cta_fit(recursive = TRUE)` — greedy locally optimal
+  recursive trees. Binary class only.
+- **SDA:** `sda_fit` — sequential discriminant analysis.
+- **Balance diagnostics:** `oda_balance_table`, `smd_balance_table`,
+  `cta_balance_table` and associated plot-data functions.
+- **Graphics:** base-R `plot.cta_tree`, `plot.cta_ort`; ggplot2 tree renderers
+  `plot_cta_tree`, `plot_lort_tree`; ggplot2 balance renderers
+  `plot_oda_balance`, `plot_smd_balance`, `plot_balance_love`,
+  `plot_cta_balance`.
+- **NOVOboot:** `novo_boot_ci` — fixed-confusion NOVOmetric bootstrap CIs.
+
+### Partially implemented / known open items
+
+- **ODA S3 predict/summary:** `predict.oda_fit` and `summary.oda_fit` are
+  implemented. Full S3 class surface (accessor consistency, print formatting)
+  is Phase 2A.
+- **LOO p-value reporting:** The numeric LOO p-value (LOO Fisher exact) is
+  computed. Formal Phase 2C design for LOO p-value display modes is deferred.
+- **MC p-value calibration:** The MC STOP/STOPUP calibration relative to
+  MegaODA.exe is under investigation (issue #5). Training ESS and confusion
+  matrix are unaffected; only p-value precision differs at low mc_iter.
+
+### Out of scope (future)
+
+- **Multiclass CTA:** CTA currently supports binary class variables only.
+  Multiclass CTA is not yet scoped.
+- **SORT / GORT:** SORT (SDA-anchored recursive trees) and GORT (globally
+  optimal recursive trees) are reserved names. SORT requires a completed SDA
+  anchor design (Slice I design done; implementation deferred). GORT requires
+  an approved design document.
+- **Weighted SDA:** `sda_fit()` currently errors on non-uniform case weights.
+  Weighted SDA is deferred.
+- **Full staged CTA workflow:** `staged_cta_workflow` object design is in
+  `docs/STAGED_CTA_WORKFLOW_PLAN.md`; implementation is Slice J.
+- **pkgdown site build:** Article builds require `pkgdown` and are not
+  automatically triggered by `devtools::check()`. Four articles
+  (`myeloma-cta`, `cta-translation`, `mdsa-family`, `cta-graphics`) require
+  precomputed artifacts that are not yet generated (Slice L artifact
+  pipeline deferred to a follow-on slice).
+
+## Further reading
+
+- `docs/ODACORE_VISION.md` — package scope, phase map, production invariants
+- `docs/ODA_CANON.md` — canonical ODA behavior specification
+- `docs/CTA_CANON.md` — canonical CTA behavior specification
+- `docs/PROD_CHECKPOINT.md` — current validation snapshot

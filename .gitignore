@@ -66,3 +66,4 @@ tmp_*.R
 # MegaODA/CTA engine binaries under vignette fixture folders -- never commit
 tests/testthat/fixtures/vignettes/data/**/*.EXE
 tests/testthat/fixtures/vignettes/data/**/*.exe
+_site

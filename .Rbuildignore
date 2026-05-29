@@ -27,5 +27,6 @@
 ^tmp_plot_preview_v2$
 ^tmp_plot_preview_v3$
 ^_pkgdown\.yml$
+^_site$
 
 ^PROD_CHECKPOINT\.md$
