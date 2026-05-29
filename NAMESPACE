@@ -79,6 +79,8 @@ S3method(print,   sda_fit_summary)
 export(oda_balance_table)
 export(smd_balance_table)
 export(oda_balance_plot_data)
+export(cta_balance_table)
+export(cta_balance_plot_data)
 
 # ----- Novometric bootstrap -----
 export(novo_boot_ci)

@@ -212,3 +212,119 @@ test_that("oda_balance_plot_data: does not call oda_fit; takes balance_table onl
   expect_equal(pd$rank_by, "abs_ess")
   expect_equal(pd$p_col_used, "p_mc")
 })
+
+###############################################################################
+# cta_balance_table() / cta_balance_plot_data() — T10–T17
+###############################################################################
+
+# ---- Module-level CTA fixtures --------------------------------------------- #
+
+# Discriminating fixture: B alone perfectly separates the groups.
+X_cta_disc  <- data.frame(
+  A = c(rep(0L, 20), rep(1L, 20), rep(1L, 20)),
+  B = c(rep(0L, 20), rep(0L, 20), rep(1L, 20))
+)
+grp_cta_disc <- c(rep(0L, 40), rep(1L, 20))
+
+# Computed once.
+ct_disc <- cta_balance_table(grp_cta_disc, X_cta_disc,
+                              mindenom = 5L, mc_iter = 200L, mc_seed = 42L)
+
+# no_tree fixture: force no_tree via alpha_split=0 (p < 0 is impossible).
+ct_notree <- cta_balance_table(grp_cta_disc, X_cta_disc,
+                                mindenom = 5L, mc_iter = 50L, mc_seed = 42L,
+                                alpha_split = 0)
+
+# ---------------------------------------------------------------------------
+# T10: discriminating data → status stump or valid_tree, ess_display > 0
+# ---------------------------------------------------------------------------
+test_that("cta_balance_table: discriminating data finds a tree (T10)", {
+  expect_true(ct_disc$status %in% c("stump", "valid_tree"))
+  expect_equal(ct_disc$balance_interpretation, "discriminating")
+  expect_true(!is.na(ct_disc$ess_display) && ct_disc$ess_display > 0)
+  expect_false(is.na(ct_disc$root_attribute))
+  expect_false(is.na(ct_disc$n_endpoints))
+  expect_true(ct_disc$n_endpoints >= 2L)
+})
+
+# ---------------------------------------------------------------------------
+# T11: alpha_split=0 forces no_tree; balance_interpretation correct
+# ---------------------------------------------------------------------------
+test_that("cta_balance_table: no_tree → no_discriminating_combinations (T11)", {
+  expect_equal(ct_notree$status, "no_tree")
+  expect_equal(ct_notree$balance_interpretation, "no_discriminating_combinations")
+  expect_true(is.na(ct_notree$root_attribute))
+  expect_true(is.na(ct_notree$n_endpoints))
+  expect_true(is.na(ct_notree$ess_display))
+  expect_true(is.na(ct_notree$d_stat))
+})
+
+# ---------------------------------------------------------------------------
+# T12: required fields present
+# ---------------------------------------------------------------------------
+test_that("cta_balance_table: required fields all present (T12)", {
+  req_fields <- c("status", "balance_interpretation", "root_attribute",
+                   "n_endpoints", "overall_ess", "overall_wess", "ess_display",
+                   "d_stat", "mindenom", "alpha", "has_weights",
+                   "tree", "endpoint_table", "node_table",
+                   "fit_error", "fit_reason")
+  expect_true(all(req_fields %in% names(ct_disc)),
+              info = paste("Missing:", paste(setdiff(req_fields, names(ct_disc)), collapse = ", ")))
+  expect_s3_class(ct_disc, "cta_balance_table")
+  expect_false(ct_disc$fit_error)
+})
+
+# ---------------------------------------------------------------------------
+# T13: no_tree returns empty endpoint_table (0 rows), tree field present
+# ---------------------------------------------------------------------------
+test_that("cta_balance_table: no_tree has zero-row endpoint_table (T13)", {
+  expect_equal(nrow(ct_notree$endpoint_table), 0L)
+  # tree field is still present (the fitted cta_tree with no_tree flag)
+  expect_true(!is.null(ct_notree$tree))
+  expect_true(isTRUE(ct_notree$tree$no_tree))
+})
+
+# ---------------------------------------------------------------------------
+# T14: weights accepted; has_weights = TRUE in result
+# ---------------------------------------------------------------------------
+test_that("cta_balance_table: weights accepted, has_weights reflected (T14)", {
+  w_cta <- c(rep(1L, 40), rep(2L, 20))
+  ct_w  <- cta_balance_table(grp_cta_disc, X_cta_disc, w = w_cta,
+                               mindenom = 5L, mc_iter = 200L, mc_seed = 42L)
+  expect_true(ct_w$has_weights)
+  expect_true(is.na(ct_w$overall_ess))
+  expect_false(is.na(ct_w$overall_wess))
+})
+
+# ---------------------------------------------------------------------------
+# T15: no_tree → no_tree_message populated, cta_pd = NULL
+# ---------------------------------------------------------------------------
+test_that("cta_balance_plot_data: no_tree → message populated, cta_pd NULL (T15)", {
+  cpd <- cta_balance_plot_data(ct_notree)
+  expect_s3_class(cpd, "cta_balance_plot_data")
+  expect_equal(cpd$status, "no_tree")
+  expect_false(is.na(cpd$no_tree_message))
+  expect_true(nchar(cpd$no_tree_message) > 0)
+  expect_null(cpd$cta_pd)
+  expect_equal(cpd$balance_interpretation, "no_discriminating_combinations")
+})
+
+# ---------------------------------------------------------------------------
+# T16: discriminating tree → cta_pd populated, no_tree_message = NA
+# ---------------------------------------------------------------------------
+test_that("cta_balance_plot_data: valid tree → cta_pd populated, no message (T16)", {
+  cpd <- cta_balance_plot_data(ct_disc)
+  expect_s3_class(cpd, "cta_balance_plot_data")
+  expect_true(cpd$status %in% c("stump", "valid_tree"))
+  expect_true(is.na(cpd$no_tree_message))
+  expect_false(is.null(cpd$cta_pd))
+  expect_true(!is.na(cpd$ess_display) && cpd$ess_display > 0)
+})
+
+# ---------------------------------------------------------------------------
+# T17: cta_balance_plot_data errors on non-cta_balance_table input
+# ---------------------------------------------------------------------------
+test_that("cta_balance_plot_data: errors without cta_balance_table (T17)", {
+  expect_error(cta_balance_plot_data(list()), "cta_balance_table")
+  expect_error(cta_balance_plot_data(ct_disc$tree), "cta_balance_table")
+})

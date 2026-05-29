@@ -549,3 +549,305 @@ oda_balance_plot_data <- function(balance_table,
     rank_by       = rank_by
   ) |> structure(class = "oda_balance_plot_data")
 }
+
+# ---- cta_balance_table ------------------------------------------------------ #
+
+#' Multivariate CTA covariate balance diagnostics
+#'
+#' Fits a single \code{\link{cta_fit}} model with \code{group} as the class
+#' variable and all columns of \code{X} as candidate predictors.  Returns a
+#' structured summary of the CTA balance result.
+#'
+#' A \code{status = "no_tree"} result means no combination of baseline
+#' covariates in \code{X} predicted group membership at the declared
+#' significance level, LOO constraint, and minimum endpoint denominator.
+#' This is \strong{favorable evidence of multivariable covariate balance}
+#' under the declared analytic constraints.  It must not be interpreted as
+#' a model failure; in balance analysis, inability to discriminate groups is
+#' the goal.
+#'
+#' \strong{group vs. outcome:} \code{group} is the binary class variable.
+#' The scientific outcome is strictly out of scope.
+#'
+#' \strong{Implementation constraint:} this function calls \code{\link{cta_fit}}
+#' once; it does not reimplement ENUMERATE or node-growth logic.
+#'
+#' @param group Integer (or coercible) binary group indicator.  Must have
+#'   exactly two distinct non-missing values.
+#' @param X Data frame of baseline covariate columns.
+#' @param w Optional numeric case-weight vector.  When supplied, CTA uses case
+#'   weights and \code{has_weights = TRUE} in the result.
+#' @param mindenom Integer minimum endpoint denominator passed to
+#'   \code{\link{cta_fit}}.  Default \code{1L}.
+#' @param alpha Numeric significance threshold stored in the result and used
+#'   in the \code{no_tree_message} of \code{\link{cta_balance_plot_data}}.
+#'   Default \code{0.05}.  Does not override \code{alpha_split}; pass
+#'   \code{alpha_split} via \code{...} to change the CTA node-level threshold.
+#' @param loo LOO gate mode passed to \code{\link{cta_fit}}.  Default
+#'   \code{"off"}.
+#' @param mc_iter Integer MC iterations per CTA node.  Default \code{5000L}.
+#' @param mc_seed Integer RNG seed; \code{NULL} for unseeded.
+#' @param ... Additional arguments forwarded to \code{\link{cta_fit}} (e.g.,
+#'   \code{alpha_split}, \code{prune_alpha}, \code{priors_on}).
+#' @return A list of class \code{"cta_balance_table"} with fields:
+#' \describe{
+#'   \item{\code{status}}{Character: \code{"valid_tree"}, \code{"stump"},
+#'     \code{"no_tree"}, or \code{"fit_error"}.}
+#'   \item{\code{balance_interpretation}}{Character: \code{"discriminating"} or
+#'     \code{"no_discriminating_combinations"} (when \code{no_tree});
+#'     \code{NA} on fit error.}
+#'   \item{\code{root_attribute}}{Character; root split variable name;
+#'     \code{NA} when \code{no_tree}.}
+#'   \item{\code{n_endpoints}}{Integer; number of terminal endpoints;
+#'     \code{NA} when \code{no_tree}.}
+#'   \item{\code{overall_ess}}{Numeric; full-tree ESS (\%) when weights not
+#'     active; \code{NA} otherwise.}
+#'   \item{\code{overall_wess}}{Numeric; full-tree WESS (\%) when weights
+#'     active; \code{NA} otherwise.}
+#'   \item{\code{ess_display}}{Numeric; operative measure (\code{overall_wess}
+#'     when weights active, else \code{overall_ess}); \code{NA} for no_tree.}
+#'   \item{\code{d_stat}}{Numeric; parsimony-adjusted D statistic;
+#'     \code{NA} for no_tree.}
+#'   \item{\code{mindenom}}{Integer; MINDENOM used.}
+#'   \item{\code{alpha}}{Numeric; significance threshold stored for downstream
+#'     use.}
+#'   \item{\code{has_weights}}{Logical; whether case weights were active.}
+#'   \item{\code{tree}}{The raw \code{cta_tree} object; \code{NULL} on fit
+#'     error.}
+#'   \item{\code{endpoint_table}}{Data frame from
+#'     \code{\link{cta_endpoint_table}}; zero-row for no_tree.}
+#'   \item{\code{node_table}}{Data frame from \code{\link{cta_node_table}}.}
+#'   \item{\code{fit_error}}{Logical; \code{TRUE} when \code{cta_fit} threw.}
+#'   \item{\code{fit_reason}}{Character; error message when \code{fit_error};
+#'     \code{NA} otherwise.}
+#' }
+#' @references
+#' Linden A, Yarnold PR (2016). Using machine learning to assess covariate
+#' balance in matching studies. \emph{Journal of Evaluation in Clinical
+#' Practice}, \strong{22}(6), 861-867.
+#' @seealso \code{\link{cta_balance_plot_data}}, \code{\link{oda_balance_table}},
+#'   \code{\link{cta_fit}}
+#' @examples
+#' X <- data.frame(
+#'   A = c(rep(0L, 20), rep(1L, 20), rep(1L, 20)),
+#'   B = c(rep(0L, 20), rep(0L, 20), rep(1L, 20))
+#' )
+#' group <- c(rep(0L, 40), rep(1L, 20))
+#' ct <- cta_balance_table(group, X, mindenom = 5L,
+#'                          mc_iter = 200L, mc_seed = 42L)
+#' ct$status
+#' ct$balance_interpretation
+#' @export
+cta_balance_table <- function(group,
+                               X,
+                               w        = NULL,
+                               mindenom = 1L,
+                               alpha    = 0.05,
+                               loo      = "off",
+                               mc_iter  = 5000L,
+                               mc_seed  = NULL,
+                               ...) {
+  group <- as.integer(group)
+  X     <- as.data.frame(X)
+  n     <- nrow(X)
+
+  if (length(group) != n)
+    stop("group must have the same length as nrow(X).", call. = FALSE)
+
+  grp_vals <- sort(unique(group[!is.na(group)]))
+  if (length(grp_vals) != 2L)
+    stop("group must be a binary variable with exactly 2 distinct non-missing values.",
+         call. = FALSE)
+
+  if (!is.null(w)) .validate_case_weights(w, n)
+
+  has_wts <- !is.null(w) && any(w != 1, na.rm = TRUE)
+
+  # ---- Fit CTA ---------------------------------------------------------------
+  fit_args <- list(X        = X,
+                   y        = group,
+                   mindenom = as.integer(mindenom),
+                   loo      = loo,
+                   mc_iter  = as.integer(mc_iter))
+  if (!is.null(w))       fit_args$w       <- w
+  if (!is.null(mc_seed)) fit_args$mc_seed <- as.integer(mc_seed)
+  fit_args <- modifyList(fit_args, list(...))
+
+  tree <- tryCatch(
+    do.call(cta_fit, fit_args),
+    error = function(e) list(.cta_fit_error = TRUE, reason = conditionMessage(e))
+  )
+
+  # Handle fit failure
+  if (isTRUE(tree$.cta_fit_error)) {
+    empty_ep <- cta_endpoint_table(
+      structure(list(no_tree = TRUE, nodes = list(), training_confusion = NULL,
+                     has_weights = has_wts), class = "cta_tree"))
+    out <- list(
+      status                 = "fit_error",
+      balance_interpretation = NA_character_,
+      root_attribute         = NA_character_,
+      n_endpoints            = NA_integer_,
+      overall_ess            = NA_real_,
+      overall_wess           = NA_real_,
+      ess_display            = NA_real_,
+      d_stat                 = NA_real_,
+      mindenom               = as.integer(mindenom),
+      alpha                  = alpha,
+      has_weights            = has_wts,
+      tree                   = NULL,
+      endpoint_table         = empty_ep,
+      node_table             = data.frame(),
+      fit_error              = TRUE,
+      fit_reason             = as.character(tree$reason)
+    )
+    class(out) <- "cta_balance_table"
+    return(out)
+  }
+
+  # ---- Classify status -------------------------------------------------------
+  no_tree  <- isTRUE(tree$no_tree)
+  n_strata <- if (no_tree) NA_integer_ else cta_strata(tree)
+
+  status <- if (no_tree) {
+    "no_tree"
+  } else if (!is.na(n_strata) && n_strata == 2L) {
+    "stump"
+  } else {
+    "valid_tree"
+  }
+
+  balance_interp <- if (no_tree) "no_discriminating_combinations" else "discriminating"
+
+  # ---- Root attribute (node_id == 1 has parent_id == 0L) ---------------------
+  root_attr <- NA_character_
+  if (!no_tree && !is.null(tree$nodes) && length(tree$nodes) >= 1L) {
+    nd1 <- tree$nodes[[1L]]
+    if (!is.null(nd1) && !isTRUE(nd1$leaf))
+      root_attr <- nd1$attribute %||% NA_character_
+  }
+
+  # ---- ESS -------------------------------------------------------------------
+  ess_val      <- if (!no_tree) tree$overall_ess %||% NA_real_ else NA_real_
+  overall_ess  <- if (!has_wts) ess_val else NA_real_
+  overall_wess <- if (has_wts)  ess_val else NA_real_
+
+  # ---- Tables ----------------------------------------------------------------
+  ep_tbl <- cta_endpoint_table(tree)
+  nd_tbl <- cta_node_table(tree)
+
+  out <- list(
+    status                 = status,
+    balance_interpretation = balance_interp,
+    root_attribute         = root_attr,
+    n_endpoints            = n_strata,
+    overall_ess            = overall_ess,
+    overall_wess           = overall_wess,
+    ess_display            = ess_val,
+    d_stat                 = cta_d_stat(tree),
+    mindenom               = as.integer(mindenom),
+    alpha                  = alpha,
+    has_weights            = has_wts,
+    tree                   = tree,
+    endpoint_table         = ep_tbl,
+    node_table             = nd_tbl,
+    fit_error              = FALSE,
+    fit_reason             = NA_character_
+  )
+  class(out) <- "cta_balance_table"
+  out
+}
+
+# ---- cta_balance_plot_data -------------------------------------------------- #
+
+#' Renderer-ready plot data for CTA covariate balance
+#'
+#' Transforms a \code{\link{cta_balance_table}} result into a
+#' renderer-independent data structure suitable for Graphics v3 plotting.
+#' For \code{no_tree} results, populates \code{no_tree_message} with the
+#' favorable-balance interpretation.
+#'
+#' \strong{This function does not fit any CTA models.}  It is a pure
+#' transformation of the pre-computed \code{cta_balance_table} result.
+#'
+#' @param cta_balance A \code{"cta_balance_table"} object from
+#'   \code{\link{cta_balance_table}}.
+#' @param target_class Integer; target class for endpoint coloring in the
+#'   embedded tree diagram.  Default \code{1L} (group 1 = treated).
+#' @param digits Integer; decimal digits passed to \code{\link{cta_plot_data}}.
+#'   Default \code{1L}.
+#' @return A list of class \code{"cta_balance_plot_data"} with elements:
+#' \describe{
+#'   \item{\code{status}}{Character; \code{"valid_tree"}, \code{"stump"},
+#'     \code{"no_tree"}, or \code{"fit_error"}.}
+#'   \item{\code{balance_interpretation}}{Character.}
+#'   \item{\code{no_tree_message}}{Character; human-readable no-tree
+#'     annotation for renderers; \code{NA} when status is not
+#'     \code{"no_tree"}.}
+#'   \item{\code{cta_pd}}{List from \code{\link{cta_plot_data}} when a valid
+#'     tree or stump was found; \code{NULL} for no_tree or fit_error.}
+#'   \item{\code{ess_display}}{Numeric; full-tree ESS/WESS (\%);
+#'     \code{NA} for no_tree.}
+#'   \item{\code{d_stat}}{Numeric; \code{NA} for no_tree.}
+#'   \item{\code{has_weights}}{Logical.}
+#'   \item{\code{ess_label}}{Character; \code{"WESS"} or \code{"ESS"}.}
+#' }
+#' @seealso \code{\link{cta_balance_table}}, \code{\link{cta_plot_data}}
+#' @examples
+#' X <- data.frame(
+#'   A = c(rep(0L, 20), rep(1L, 20), rep(1L, 20)),
+#'   B = c(rep(0L, 20), rep(0L, 20), rep(1L, 20))
+#' )
+#' group <- c(rep(0L, 40), rep(1L, 20))
+#' ct  <- cta_balance_table(group, X, mindenom = 5L,
+#'                           mc_iter = 200L, mc_seed = 42L)
+#' cpd <- cta_balance_plot_data(ct)
+#' cpd$status
+#' @export
+cta_balance_plot_data <- function(cta_balance, target_class = 1L, digits = 1L) {
+  stopifnot(inherits(cta_balance, "cta_balance_table"))
+
+  status  <- cta_balance$status
+  no_tree <- status %in% c("no_tree", "fit_error")
+
+  # no_tree_message ----------------------------------------------------------------
+  no_tree_msg <- NA_character_
+  if (identical(status, "no_tree")) {
+    no_tree_msg <- sprintf(
+      paste0("No combination of covariates predicted group membership\n",
+             "(MINDENOM = %d, alpha = %g).\n",
+             "This is favorable evidence of multivariable balance\n",
+             "under the declared constraints."),
+      cta_balance$mindenom,
+      cta_balance$alpha %||% 0.05
+    )
+  } else if (identical(status, "fit_error")) {
+    no_tree_msg <- paste0("CTA fitting error: ",
+                          cta_balance$fit_reason %||% "unknown")
+  }
+
+  # cta_pd: populate only when a real tree exists --------------------------------
+  cta_pd <- NULL
+  if (!no_tree && !is.null(cta_balance$tree) &&
+      inherits(cta_balance$tree, "cta_tree")) {
+    cta_pd <- tryCatch(
+      cta_plot_data(cta_balance$tree,
+                    target_class = as.integer(target_class),
+                    digits       = as.integer(digits)),
+      error = function(e) NULL
+    )
+  }
+
+  out <- list(
+    status                 = status,
+    balance_interpretation = cta_balance$balance_interpretation,
+    no_tree_message        = no_tree_msg,
+    cta_pd                 = cta_pd,
+    ess_display            = cta_balance$ess_display,
+    d_stat                 = cta_balance$d_stat,
+    has_weights            = cta_balance$has_weights,
+    ess_label              = if (isTRUE(cta_balance$has_weights)) "WESS" else "ESS"
+  )
+  class(out) <- "cta_balance_plot_data"
+  out
+}
