@@ -146,8 +146,10 @@ implementation decisions from them.
 | Graphics v3C2: `plot_oda_balance()`, `plot_smd_balance()`, `plot_balance_love()`, `plot_cta_balance()` | complete | 1838ae7 |
 | Graphics v3D: docs/examples/export polish (GRAPHICS_V3.md, README, DOCS_INDEX) | complete | 1ff8579 |
 | SDA anchor object + task hooks (Slice O) | complete | pending |
-| Full fast suite: FAIL 0 / WARN 0 / SKIP 165 / PASS 1610 | current | pending |
-| CRAN check: 0 errors / 0 warnings / 1 note (clock) | pending | — |
+| SDA anchor object + task hooks (Slice O) | complete | a3464bb |
+| Production tools gap audit (Slice P) | complete | pending |
+| Full fast suite: FAIL 0 / WARN 0 / SKIP 165 / PASS 1610 | current | a3464bb |
+| CRAN check: 0 errors / 0 warnings / 1 note (clock) | current | a3464bb |
 
 ---
 
@@ -170,7 +172,7 @@ implementation decisions from them.
 [done] O. SDA anchor implementation (R/sda_anchor.R, 44 tests)
        J. Staged CTA workflow implementation (deferred)
        K. Weighted/staged adjustment design (deferred)
-       P. Production tools gap audit
+[done] P. Production tools gap audit (PRODUCTION_TOOLS_GAP_AUDIT.md)
        Q. Minimal production tools implementation
        R. Final release hardening
 ```
