@@ -10,6 +10,7 @@
 ^\.Rproj\.user$
 ^.*\.Rproj$
 ^inst/docs$
+^inst/dev$
 ^dev$
 ^test_drive\.R$
 ^man/oda_apply_priors\.Rd$
