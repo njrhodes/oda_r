@@ -33,7 +33,9 @@ test_that("cta_plot_data returns a list with correct names", {
   tree <- make_tree()
   pd   <- cta_plot_data(tree)
   expect_type(pd, "list")
-  expect_setequal(names(pd), c("nodes", "edges", "no_tree", "has_weights"))
+  expect_true(all(c("nodes", "edges", "no_tree", "has_weights",
+                    "overall_ess", "ess_label", "d", "model_label",
+                    "training_n") %in% names(pd)))
 })
 
 test_that("nodes data.frame has required columns", {

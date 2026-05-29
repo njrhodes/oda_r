@@ -13,6 +13,7 @@ plot_cta_tree(
   show_n = TRUE,
   show_percent = TRUE,
   show_rule = TRUE,
+  show_metrics = FALSE,
   wrap_width = 26L,
   node_text_size = 3.5,
   edge_text_size = 3.2,

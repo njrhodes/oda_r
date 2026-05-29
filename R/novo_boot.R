@@ -10,7 +10,7 @@
 #   p-value per replicate – exact Fisher 2x2 for every replicate confusion.
 #   No model refitting.   – operates entirely on the observed confusion counts.
 
-# ---- main function -----------------------------------------------------------
+# ---- S3 generic --------------------------------------------------------------
 
 #' Novometric bootstrap CI from a fixed 2x2 confusion matrix
 #'
@@ -26,9 +26,22 @@
 #' their association.  Novometric significance (Axiom 1) is declared when the
 #' 95\% confidence intervals for model and chance ESS do not overlap.
 #'
-#' @param x A 2x2 integer matrix, rows = actual class, columns = predicted
-#'   class.  Follows the same \code{[actual, predicted]} convention used by
-#'   \code{training_confusion} in \code{cta_tree} and by \code{oda_confusion()}.
+#' \strong{S3 dispatch:}
+#' \itemize{
+#'   \item \code{novo_boot_ci.default} — accepts a 2\ifelse{html}{\out{&times;}}{\eqn{\times}}2 integer matrix directly.
+#'   \item \code{novo_boot_ci.oda_fit} — extracts the training confusion from a
+#'     binary \code{oda_fit} object.  Errors for multiclass fits.
+#'   \item \code{novo_boot_ci.cta_tree} — uses the stored \code{training_confusion}
+#'     matrix from a \code{cta_tree} object.  Errors for no-tree fits or non-binary.
+#'   \item \code{novo_boot_ci.cta_ort} — derives the full-LORT 2\ifelse{html}{\out{&times;}}{\eqn{\times}}2 confusion by
+#'     summing \code{strata$class_counts} over all terminal strata.
+#' }
+#'
+#' @param x A 2x2 integer matrix (rows = actual class, columns = predicted
+#'   class) when using the default method.  For S3 methods, a fitted model
+#'   object (\code{oda_fit}, \code{cta_tree}, or \code{cta_ort}).
+#'   The \code{[actual, predicted]} convention matches \code{training_confusion}
+#'   in \code{cta_tree} and \code{oda_confusion()}.
 #'   Use \code{byrow = TRUE} when constructing with \code{matrix()}.
 #' @param nboot Number of bootstrap replicates.  Default 5000.
 #' @param seed Integer seed passed to \code{set.seed()}, or \code{NULL} to
@@ -38,6 +51,7 @@
 #' @param probs Quantile probability levels for the summary table.
 #' @param alternative Direction for exact Fisher p-values: \code{"two.sided"}
 #'   (default), \code{"greater"}, or \code{"less"}.
+#' @param ... Additional arguments (currently unused).
 #'
 #' @return An object of class \code{novo_boot_ci}, a list with:
 #' \describe{
@@ -82,7 +96,7 @@
 #' ODA Books.
 #'
 #' @examples
-#' # Myeloma MINDENOM=1 confusion (actual x predicted, byrow = TRUE)
+#' # Default method: pass a 2x2 matrix directly
 #' conf <- matrix(c(146, 40,
 #'                   36, 33), nrow = 2, byrow = TRUE)
 #' ci <- novo_boot_ci(conf, nboot = 200L, seed = 42L)
@@ -90,12 +104,17 @@
 #' print(ci)
 #'
 #' @export
-novo_boot_ci <- function(x,
-                          nboot       = 5000L,
-                          seed        = NULL,
-                          sample_frac = 0.5,
-                          probs       = c(0, .025, .05, .25, .5, .75, .95, .975, 1),
-                          alternative = c("two.sided", "greater", "less")) {
+novo_boot_ci <- function(x, ...) UseMethod("novo_boot_ci")
+
+#' @rdname novo_boot_ci
+#' @export
+novo_boot_ci.default <- function(x,
+                                  nboot       = 5000L,
+                                  seed        = NULL,
+                                  sample_frac = 0.5,
+                                  probs       = c(0, .025, .05, .25, .5, .75, .95, .975, 1),
+                                  alternative = c("two.sided", "greater", "less"),
+                                  ...) {
 
   cl          <- match.call()
   alternative <- match.arg(alternative)
@@ -261,6 +280,89 @@ print.novo_boot_ci <- function(x, ...) {
   }
   cat(sprintf("\nNovometric significance (ESS CI non-overlap): %s\n", x$significant))
   invisible(x)
+}
+
+# ---- S3 methods for fitted objects ------------------------------------------
+
+#' @rdname novo_boot_ci
+#' @export
+novo_boot_ci.oda_fit <- function(x,
+                                  nboot       = 5000L,
+                                  seed        = NULL,
+                                  sample_frac = 0.5,
+                                  probs       = c(0, .025, .05, .25, .5, .75, .95, .975, 1),
+                                  alternative = c("two.sided", "greater", "less"),
+                                  ...) {
+  if (!inherits(x, "oda_fit_binary"))
+    stop("novo_boot_ci.oda_fit: only binary ODA fits are supported. ",
+         "NOVOboot requires a 2x2 confusion matrix.", call. = FALSE)
+  conf <- x$confusion
+  if (is.null(conf) || is.null(conf$TP))
+    stop("novo_boot_ci.oda_fit: no training confusion stored on fit.", call. = FALSE)
+  m <- matrix(c(conf$TN, conf$FP,
+                conf$FN, conf$TP),
+              nrow = 2L, byrow = TRUE)
+  novo_boot_ci.default(m, nboot = nboot, seed = seed,
+                        sample_frac = sample_frac, probs = probs,
+                        alternative = alternative, ...)
+}
+
+#' @rdname novo_boot_ci
+#' @export
+novo_boot_ci.cta_tree <- function(x,
+                                   nboot       = 5000L,
+                                   seed        = NULL,
+                                   sample_frac = 0.5,
+                                   probs       = c(0, .025, .05, .25, .5, .75, .95, .975, 1),
+                                   alternative = c("two.sided", "greater", "less"),
+                                   ...) {
+  if (isTRUE(x$no_tree))
+    stop("novo_boot_ci.cta_tree: no tree was found (no_tree = TRUE). ",
+         "No confusion matrix available.", call. = FALSE)
+  m <- x$training_confusion
+  if (is.null(m))
+    stop("novo_boot_ci.cta_tree: training_confusion is NULL.", call. = FALSE)
+  if (!identical(dim(m), c(2L, 2L)))
+    stop("novo_boot_ci.cta_tree: training_confusion is not 2x2. ",
+         "NOVOboot requires a binary classification model.", call. = FALSE)
+  novo_boot_ci.default(m, nboot = nboot, seed = seed,
+                        sample_frac = sample_frac, probs = probs,
+                        alternative = alternative, ...)
+}
+
+#' @rdname novo_boot_ci
+#' @export
+novo_boot_ci.cta_ort <- function(x,
+                                  nboot       = 5000L,
+                                  seed        = NULL,
+                                  sample_frac = 0.5,
+                                  probs       = c(0, .025, .05, .25, .5, .75, .95, .975, 1),
+                                  alternative = c("two.sided", "greater", "less"),
+                                  ...) {
+  st <- x$strata
+  if (is.null(st) || nrow(st) == 0L)
+    stop("novo_boot_ci.cta_ort: strata absent or empty. ",
+         "Cannot derive LORT confusion matrix.", call. = FALSE)
+
+  # Accumulate full-LORT confusion from per-terminal class_counts.
+  # Convention: conf[actual+1, predicted+1] (rows=actual, cols=predicted).
+  m <- matrix(0L, 2L, 2L)
+  for (i in seq_len(nrow(st))) {
+    p  <- as.integer(st$terminal_class[i]) + 1L   # predicted col (1-indexed)
+    cc <- st$class_counts[[i]]                     # named int vector e.g. c("0"=18, "1"=2)
+    if (is.null(cc) || length(cc) == 0L) next
+    for (cls_name in names(cc)) {
+      a <- as.integer(cls_name) + 1L               # actual row (1-indexed)
+      if (a < 1L || a > 2L || p < 1L || p > 2L) next
+      m[a, p] <- m[a, p] + as.integer(cc[cls_name])
+    }
+  }
+  if (sum(m) == 0L)
+    stop("novo_boot_ci.cta_ort: accumulated confusion has zero total count. ",
+         "Check strata class_counts.", call. = FALSE)
+  novo_boot_ci.default(m, nboot = nboot, seed = seed,
+                        sample_frac = sample_frac, probs = probs,
+                        alternative = alternative, ...)
 }
 
 # ---- internal helpers --------------------------------------------------------

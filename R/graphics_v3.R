@@ -357,6 +357,7 @@ plot_cta_tree <- function(x,
                            show_n         = TRUE,
                            show_percent   = TRUE,
                            show_rule      = TRUE,
+                           show_metrics   = FALSE,
                            wrap_width     = 26L,
                            node_text_size = 3.5,
                            edge_text_size = 3.2,
@@ -384,9 +385,25 @@ plot_cta_tree <- function(x,
 
   nodes <- .normalize_cta_nodes(nodes)
   pal   <- .tree_pal(palette)
+
+  effective_subtitle <- subtitle
+  if (isTRUE(show_metrics)) {
+    ess_val <- pd$overall_ess %||% NA_real_
+    d_val   <- pd$d           %||% NA_real_
+    ess_lbl <- pd$ess_label   %||% "ESS"
+    if (!is.na(ess_val)) {
+      d_str      <- if (is.finite(d_val)) sprintf("%.4f", d_val) else "NA"
+      metrics_ln <- sprintf("%s: %.2f%%  |  D: %s", ess_lbl, ess_val, d_str)
+      effective_subtitle <- if (!is.null(subtitle))
+        paste0(subtitle, "\n", metrics_ln)
+      else
+        metrics_ln
+    }
+  }
+
   opts  <- list(
     main           = main %||% "CTA Tree",
-    subtitle       = subtitle,
+    subtitle       = effective_subtitle,
     show_rule      = isTRUE(show_rule),
     node_text_size = node_text_size,
     edge_text_size = edge_text_size,
@@ -449,6 +466,7 @@ plot_lort_tree <- function(x,
                             show_n         = TRUE,
                             show_percent   = TRUE,
                             show_rule      = TRUE,
+                            show_metrics   = FALSE,
                             wrap_width     = 26L,
                             node_text_size = 3.5,
                             edge_text_size = 3.2,
@@ -477,10 +495,25 @@ plot_lort_tree <- function(x,
   }
   # edges from ort_plot_data already have x0,y0,x1,y1,label — pass through.
 
+  effective_subtitle <- subtitle
+  if (isTRUE(show_metrics)) {
+    ess_val <- pd$overall_ess %||% NA_real_
+    d_val   <- pd$d           %||% NA_real_
+    ess_lbl <- pd$ess_label   %||% "ESS"
+    if (!is.na(ess_val)) {
+      d_str      <- if (is.finite(d_val)) sprintf("%.4f", d_val) else "NA"
+      metrics_ln <- sprintf("%s: %.2f%%  |  D: %s", ess_lbl, ess_val, d_str)
+      effective_subtitle <- if (!is.null(subtitle))
+        paste0(subtitle, "\n", metrics_ln)
+      else
+        metrics_ln
+    }
+  }
+
   pal  <- .tree_pal(palette)
   opts <- list(
     main           = main %||% "LORT",
-    subtitle       = subtitle,
+    subtitle       = effective_subtitle,
     show_rule      = isTRUE(show_rule),
     node_text_size = node_text_size,
     edge_text_size = edge_text_size,

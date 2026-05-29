@@ -935,7 +935,14 @@ ort_plot_data <- function(object, target_class = NULL,
   }
 
   if (length(ort_nodes) == 0L) {
-    return(list(nodes = empty_nodes(), edges = empty_edges(), strata = strata))
+    return(list(nodes       = empty_nodes(),
+                edges       = empty_edges(),
+                strata      = strata,
+                overall_ess = NA_real_,
+                ess_label   = NA_character_,
+                d           = NA_real_,
+                model_label = "LORT",
+                training_n  = NA_integer_))
   }
 
   # Assign x positions via DFS right-first leaf enumeration.
@@ -1084,7 +1091,15 @@ ort_plot_data <- function(object, target_class = NULL,
     edge_df <- empty_edges()
   }
 
-  list(nodes = node_df, edges = edge_df, strata = strata)
+  ort_ess_label <- if (isTRUE(object$has_weights)) "WESS" else "ESS"
+  list(nodes       = node_df,
+       edges       = edge_df,
+       strata      = strata,
+       overall_ess = object$overall_ess %||% NA_real_,
+       ess_label   = ort_ess_label,
+       d           = cta_d_stat(object),
+       model_label = "LORT",
+       training_n  = object$n %||% NA_integer_)
 }
 
 # ---- plot.cta_ort ----------------------------------------------------------- #

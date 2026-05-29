@@ -1745,8 +1745,15 @@ cta_plot_data <- function(tree, target_class = NULL, class_labels = NULL,
 
   all_nodes <- Filter(Negate(is.null), tree$nodes)
   if (no_tree || length(all_nodes) == 0L)
-    return(list(nodes = empty_nodes, edges = empty_edges,
-                no_tree = no_tree, has_weights = has_weights))
+    return(list(nodes        = empty_nodes,
+                edges        = empty_edges,
+                no_tree      = no_tree,
+                has_weights  = has_weights,
+                overall_ess  = NA_real_,
+                ess_label    = NA_character_,
+                d            = NA_real_,
+                model_label  = "CTA",
+                training_n   = NA_integer_))
 
   # ------------------------------------------------------------------
   # Assign layout x-positions via depth-first (left-to-right) traversal.
@@ -2009,12 +2016,24 @@ cta_plot_data <- function(tree, target_class = NULL, class_labels = NULL,
       endpoints         = endpoints_df,
       no_tree           = no_tree,
       has_weights       = has_weights,
-      target_class_used = target_class_int
+      target_class_used = target_class_int,
+      overall_ess       = tree$overall_ess %||% NA_real_,
+      ess_label         = ess_label,
+      d                 = cta_d_stat(tree),
+      model_label       = "CTA",
+      training_n        = tree$n %||% NA_integer_
     ))
   }
 
-  list(nodes = nodes_df, edges = edges_df,
-       no_tree = no_tree, has_weights = has_weights)
+  list(nodes        = nodes_df,
+       edges        = edges_df,
+       no_tree      = no_tree,
+       has_weights  = has_weights,
+       overall_ess  = tree$overall_ess %||% NA_real_,
+       ess_label    = ess_label,
+       d            = cta_d_stat(tree),
+       model_label  = "CTA",
+       training_n   = tree$n %||% NA_integer_)
 }
 
 # =============================================================================

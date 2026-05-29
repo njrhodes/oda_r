@@ -111,6 +111,10 @@ export(lort_propensity_weights)
 
 # ----- Novometric bootstrap -----
 export(novo_boot_ci)
+S3method(novo_boot_ci, default)
+S3method(novo_boot_ci, oda_fit)
+S3method(novo_boot_ci, cta_tree)
+S3method(novo_boot_ci, cta_ort)
 S3method(print, novo_boot_ci)
 
 # ----- Imports -----
