@@ -75,6 +75,10 @@ S3method(print,   sda_fit)
 S3method(summary, sda_fit)
 S3method(print,   sda_fit_summary)
 
+# ----- Graphics v3 -----
+export(plot_cta_tree)
+export(plot_lort_tree)
+
 # ----- Covariate balance -----
 export(oda_balance_table)
 export(smd_balance_table)
@@ -88,6 +92,6 @@ S3method(print, novo_boot_ci)
 
 # ----- Imports -----
 importFrom(grDevices, colorRampPalette)
-importFrom(stats, fisher.test, predict, qbeta, quantile, runif, setNames)
+importFrom(stats, fisher.test, predict, qbeta, quantile, runif, sd, setNames)
 importFrom(utils, combn, head, modifyList)
 importFrom(graphics, arrows, mtext, par, plot.new, plot.window, polygon, title, segments, rect, text)
