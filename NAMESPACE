@@ -78,6 +78,10 @@ S3method(print,   sda_fit_summary)
 # ----- Graphics v3 -----
 export(plot_cta_tree)
 export(plot_lort_tree)
+export(plot_oda_balance)
+export(plot_smd_balance)
+export(plot_balance_love)
+export(plot_cta_balance)
 
 # ----- Covariate balance -----
 export(oda_balance_table)

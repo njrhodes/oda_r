@@ -17,10 +17,15 @@
 
 # Suppress R CMD CHECK "no visible binding" notes for ggplot2 aes() column names
 utils::globalVariables(c(
+  # v3C1 — tree rendering
   "x", "y", "label",
   "x0", "y0_adj", "x1", "y1_adj", "xmid", "ymid",
   "xmin", "xmax", "ymin", "ymax",
-  "fill_value", "pred_chr"
+  "fill_value", "pred_chr",
+  # v3C2 — balance rendering
+  "attr_fac", "ess_display_bar",
+  "sig_color", "significance_label",
+  "abs_smd", "bal_col"
 ))
 
 # ---- Internal helpers ------------------------------------------------------- #
@@ -484,4 +489,430 @@ plot_lort_tree <- function(x,
   )
 
   .render_tree_gg(nodes, edges, pal, color_by, opts)
+}
+
+###############################################################################
+# v3C2 — Balance renderers
+#
+# Public API:
+#   plot_oda_balance()    — ODA ESS/WESS covariate balance dot plot
+#   plot_smd_balance()    — SMD absolute-value covariate balance dot plot
+#   plot_balance_love()   — Love-plot wrapper (calls plot_smd_balance)
+#   plot_cta_balance()    — CTA multivariate balance: tree or message panel
+#
+# Rules:
+#   - Pure renderers: no fitting, no recomputation.  Read pre-computed
+#     plot-data objects only.
+#   - plot_oda_balance renders only what is in oda_balance_plot_data$rows.
+#     If abs_smd is absent from the plot-data it is not plotted.
+#   - Accepts the parent table type as a convenience and calls the
+#     corresponding plot_data() transform; never calls the fit function.
+###############################################################################
+
+# ---- Internal balance helpers ------------------------------------------------ #
+
+# Coerce to oda_balance_plot_data.
+# Accepts oda_balance_plot_data directly, or oda_balance_table (calls
+# oda_balance_plot_data -- the pure transform, NOT oda_balance_table).
+.coerce_oda_balance_pd <- function(x, p_col, rank_by) {
+  if (inherits(x, "oda_balance_plot_data")) return(x)
+  if (inherits(x, "oda_balance_table"))
+    return(oda_balance_plot_data(x, p_col = p_col, rank_by = rank_by))
+  stop(
+    "plot_oda_balance: 'x' must be an oda_balance_plot_data or oda_balance_table object.",
+    call. = FALSE
+  )
+}
+
+# Coerce to cta_balance_plot_data.
+.coerce_cta_balance_pd <- function(x, target_class, digits) {
+  if (inherits(x, "cta_balance_plot_data")) return(x)
+  if (inherits(x, "cta_balance_table"))
+    return(cta_balance_plot_data(x, target_class = as.integer(target_class),
+                                  digits = as.integer(digits)))
+  stop(
+    "plot_cta_balance: 'x' must be a cta_balance_plot_data or cta_balance_table object.",
+    call. = FALSE
+  )
+}
+
+# Balance color palette.
+.balance_pal <- function(palette = NULL) {
+  list(
+    imbalanced   = palette[["imbalanced"]]   %||% "#c0392b",
+    balanced     = palette[["balanced"]]     %||% "#2980b9",
+    unclassified = palette[["unclassified"]] %||% "#95a5a6"
+  )
+}
+
+# Shared theme finishing for balance plots.
+.balance_theme <- function(p, base_theme, main, subtitle) {
+  p +
+    base_theme +
+    ggplot2::theme(
+      legend.position    = "right",
+      plot.title         = ggplot2::element_text(face = "bold", size = 12,
+                                                  hjust = 0.5),
+      plot.subtitle      = ggplot2::element_text(size = 10, hjust = 0.5,
+                                                  color = "#555555"),
+      panel.grid.major.y = ggplot2::element_blank()
+    ) +
+    ggplot2::labs(title = main, subtitle = subtitle)
+}
+
+# ---- plot_oda_balance -------------------------------------------------------- #
+
+#' Plot ODA covariate balance
+#'
+#' Renders a horizontal dot-plot of ODA-based covariate balance diagnostics.
+#' Each covariate is shown as a point; the x-axis is ESS or WESS (0-100 \%),
+#' and point color reflects significance status.  The function is a pure
+#' renderer: it does not fit any ODA models and does not accept \code{group}
+#' or \code{X} arguments.  If \code{abs_smd} is absent from the plot-data it
+#' is not plotted.
+#'
+#' @param x An \code{"oda_balance_plot_data"} object from
+#'   \code{\link{oda_balance_plot_data}}, or an \code{"oda_balance_table"}
+#'   object from \code{\link{oda_balance_table}} (coerced internally via
+#'   \code{\link{oda_balance_plot_data}}; never calls the fitting function).
+#' @param p_col Character; which p-value column drives significance colour when
+#'   coercing from an \code{oda_balance_table}.  One of \code{"p_mc"}
+#'   (default), \code{"p_sidak"}, \code{"p_bonferroni"}.  Ignored when
+#'   \code{x} is already \code{oda_balance_plot_data}.
+#' @param rank_by Character; sort order when coercing from
+#'   \code{oda_balance_table}: \code{"abs_ess"} (default), \code{"p"},
+#'   \code{"abs_smd"}.
+#' @param main Character; plot title.  Default: auto-generated summary.
+#' @param subtitle Character; plot subtitle.
+#' @param show_significance Logical; annotate significantly imbalanced
+#'   covariates with a \code{"*"} label.  Default \code{TRUE}.
+#' @param palette Named list for color overrides: \code{imbalanced},
+#'   \code{balanced}, \code{unclassified}.
+#' @param theme Character; \code{"clean"} (default, \code{theme_bw} base) or
+#'   \code{"minimal"}.
+#' @return A \code{\link[ggplot2]{ggplot}} object.
+#' @seealso \code{\link{oda_balance_plot_data}}, \code{\link{oda_balance_table}}
+#' @examples
+#' \donttest{
+#' if (requireNamespace("ggplot2", quietly = TRUE)) {
+#'   group <- c(rep(0L, 20), rep(1L, 20))
+#'   X     <- data.frame(A = c(rep(0L,20), rep(1L,20)),
+#'                        B = rnorm(40))
+#'   bt  <- oda_balance_table(group, X, mcarlo = FALSE, mc_iter = 100L)
+#'   pd  <- oda_balance_plot_data(bt)
+#'   p   <- plot_oda_balance(pd)
+#'   print(p)
+#' }
+#' }
+#' @export
+plot_oda_balance <- function(x,
+                              p_col             = "p_mc",
+                              rank_by           = "abs_ess",
+                              main              = NULL,
+                              subtitle          = NULL,
+                              show_significance = TRUE,
+                              palette           = NULL,
+                              theme             = c("clean", "minimal")) {
+  .require_ggplot2()
+  theme <- match.arg(theme)
+
+  pd   <- .coerce_oda_balance_pd(x, p_col = p_col, rank_by = rank_by)
+  rows <- pd$rows
+
+  if (nrow(rows) == 0L)
+    return(.gg_message_panel("No covariates to display.",
+                              title    = main %||% "ODA Covariate Balance",
+                              subtitle = subtitle))
+
+  pal <- .balance_pal(palette)
+
+  # Sort by rank (1 = most imbalanced); reverse levels so top of Y = rank 1
+  rows <- rows[order(rows$rank), ]
+  rows$attr_fac  <- factor(rows$attribute, levels = rev(rows$attribute))
+  rows$sig_color <- ifelse(is.na(rows$significant), "unknown",
+                    ifelse(rows$significant, "imbalanced", "balanced"))
+
+  ess_xlab   <- paste0(pd$ess_label %||% "ESS", " (%)")
+  n_sig      <- pd$n_significant %||% 0L
+  n_cov      <- pd$n_covariates  %||% nrow(rows)
+  main_title <- main %||% sprintf(
+    "ODA Covariate Balance  (%d of %d covariates significant)",
+    n_sig, n_cov
+  )
+
+  base_theme <- if (identical(theme, "minimal")) ggplot2::theme_minimal()
+                else ggplot2::theme_bw()
+
+  p <- ggplot2::ggplot(rows,
+         ggplot2::aes(x = ess_display_bar, y = attr_fac)) +
+    ggplot2::geom_segment(
+      ggplot2::aes(x = 0, xend = ess_display_bar,
+                   y = attr_fac, yend = attr_fac),
+      color = "#cccccc", linewidth = 0.6, na.rm = TRUE
+    ) +
+    ggplot2::geom_point(
+      ggplot2::aes(color = sig_color),
+      size = 3.5, na.rm = TRUE
+    ) +
+    ggplot2::scale_color_manual(
+      values   = c(imbalanced   = pal$imbalanced,
+                   balanced     = pal$balanced,
+                   unknown      = pal$unclassified),
+      labels   = c(imbalanced   = "Significant",
+                   balanced     = "Not significant",
+                   unknown      = "p not computed"),
+      name     = NULL,
+      na.value = pal$unclassified,
+      drop     = FALSE
+    ) +
+    ggplot2::scale_x_continuous(
+      limits = c(0, 100),
+      expand = ggplot2::expansion(mult = c(0, 0.04))
+    ) +
+    ggplot2::labs(x = ess_xlab, y = NULL)
+
+  # Significance labels ("*") next to imbalanced points — pure render of
+  # whatever significance_label is in the plot-data; no recomputation.
+  if (isTRUE(show_significance) && "significance_label" %in% names(rows)) {
+    sig_pts <- rows[nchar(as.character(rows$significance_label)) > 0L, ,
+                    drop = FALSE]
+    if (nrow(sig_pts) > 0L) {
+      p <- p + ggplot2::geom_text(
+        data = sig_pts,
+        ggplot2::aes(x = ess_display_bar, y = attr_fac,
+                     label = significance_label),
+        hjust = -0.7, vjust = 0.4, size = 4.5, color = pal$imbalanced
+      )
+    }
+  }
+
+  .balance_theme(p, base_theme, main_title, subtitle)
+}
+
+# ---- plot_smd_balance -------------------------------------------------------- #
+
+#' Plot SMD covariate balance
+#'
+#' Renders a horizontal dot-plot of absolute standardized mean differences
+#' (|SMD|) for each covariate.  Vertical reference lines at 0.10 (and
+#' optionally 0.20) mark conventional balance thresholds.  Points are colored
+#' by whether |SMD| < 0.10.
+#'
+#' @param x A \code{"smd_balance_table"} object from
+#'   \code{\link{smd_balance_table}}.
+#' @param ref_010 Logical; draw a dashed reference line at |SMD| = 0.10.
+#'   Default \code{TRUE}.
+#' @param ref_020 Logical; draw a dotted reference line at |SMD| = 0.20.
+#'   Default \code{FALSE}.
+#' @param main Character; plot title.  Default \code{"SMD Covariate Balance"}.
+#' @param subtitle Character; plot subtitle.
+#' @param palette Named list for color overrides: \code{imbalanced},
+#'   \code{balanced}, \code{unclassified}.
+#' @param theme Character; \code{"clean"} (default) or \code{"minimal"}.
+#' @return A \code{\link[ggplot2]{ggplot}} object.
+#' @seealso \code{\link{smd_balance_table}}, \code{\link{plot_balance_love}}
+#' @examples
+#' \donttest{
+#' if (requireNamespace("ggplot2", quietly = TRUE)) {
+#'   group <- c(rep(0L, 20), rep(1L, 20))
+#'   X     <- data.frame(A = c(rep(0L,20), rep(1L,20)),
+#'                        B = rnorm(40))
+#'   smd <- smd_balance_table(group, X)
+#'   p   <- plot_smd_balance(smd)
+#'   print(p)
+#' }
+#' }
+#' @export
+plot_smd_balance <- function(x,
+                              ref_010  = TRUE,
+                              ref_020  = FALSE,
+                              main     = NULL,
+                              subtitle = NULL,
+                              palette  = NULL,
+                              theme    = c("clean", "minimal")) {
+  .require_ggplot2()
+  if (!inherits(x, "smd_balance_table"))
+    stop("plot_smd_balance: 'x' must be a smd_balance_table object.",
+         call. = FALSE)
+  theme <- match.arg(theme)
+  pal   <- .balance_pal(palette)
+  tbl   <- as.data.frame(x)
+
+  ok <- !is.na(tbl$abs_smd)
+  if (!any(ok))
+    return(.gg_message_panel("No abs_smd values available to plot.",
+                              title    = main %||% "SMD Covariate Balance",
+                              subtitle = subtitle))
+
+  # Sort by abs_smd descending; most imbalanced at top of Y axis
+  tbl <- tbl[order(tbl$abs_smd, decreasing = TRUE, na.last = TRUE), ]
+  tbl$attr_fac <- factor(tbl$attribute, levels = rev(tbl$attribute))
+  tbl$bal_col  <- ifelse(is.na(tbl$balanced_010), "unknown",
+                  ifelse(tbl$balanced_010, "balanced", "imbalanced"))
+
+  x_max      <- max(c(tbl$abs_smd, 0.22), na.rm = TRUE)
+  base_theme <- if (identical(theme, "minimal")) ggplot2::theme_minimal()
+                else ggplot2::theme_bw()
+
+  p <- ggplot2::ggplot(tbl,
+         ggplot2::aes(x = abs_smd, y = attr_fac)) +
+    ggplot2::geom_segment(
+      ggplot2::aes(x = 0, xend = abs_smd,
+                   y = attr_fac, yend = attr_fac),
+      color = "#cccccc", linewidth = 0.6, na.rm = TRUE
+    ) +
+    ggplot2::geom_point(
+      ggplot2::aes(color = bal_col),
+      size = 3.5, na.rm = TRUE
+    ) +
+    ggplot2::scale_color_manual(
+      values   = c(imbalanced   = pal$imbalanced,
+                   balanced     = pal$balanced,
+                   unknown      = pal$unclassified),
+      labels   = c(imbalanced   = "|SMD| \u2265 0.10",
+                   balanced     = "|SMD| < 0.10",
+                   unknown      = "Unknown"),
+      name     = NULL,
+      na.value = pal$unclassified,
+      drop     = FALSE
+    ) +
+    ggplot2::scale_x_continuous(
+      limits = c(0, x_max * 1.05),
+      expand = ggplot2::expansion(mult = c(0, 0.04))
+    ) +
+    ggplot2::labs(x = "|SMD|", y = NULL)
+
+  if (isTRUE(ref_010))
+    p <- p + ggplot2::geom_vline(xintercept = 0.10, linetype = "dashed",
+                                  color = "#555555", linewidth = 0.5)
+  if (isTRUE(ref_020))
+    p <- p + ggplot2::geom_vline(xintercept = 0.20, linetype = "dotted",
+                                  color = "#888888", linewidth = 0.5)
+
+  .balance_theme(p, base_theme, main %||% "SMD Covariate Balance", subtitle)
+}
+
+# ---- plot_balance_love ------------------------------------------------------- #
+
+#' Love plot for covariate balance (SMD)
+#'
+#' A direct alias for \code{\link{plot_smd_balance}}.  Produces a
+#' Cleveland-style Love plot of absolute SMD with conventional threshold
+#' reference lines.
+#'
+#' @param x A \code{"smd_balance_table"} object from
+#'   \code{\link{smd_balance_table}}.
+#' @param ... Arguments forwarded to \code{\link{plot_smd_balance}}.
+#' @return A \code{\link[ggplot2]{ggplot}} object.
+#' @seealso \code{\link{plot_smd_balance}}, \code{\link{smd_balance_table}}
+#' @examples
+#' \donttest{
+#' if (requireNamespace("ggplot2", quietly = TRUE)) {
+#'   group <- c(rep(0L, 20), rep(1L, 20))
+#'   X     <- data.frame(A = c(rep(0L,20), rep(1L,20)),
+#'                        B = rnorm(40))
+#'   smd <- smd_balance_table(group, X)
+#'   p   <- plot_balance_love(smd)
+#'   print(p)
+#' }
+#' }
+#' @export
+plot_balance_love <- function(x, ...) {
+  plot_smd_balance(x, ...)
+}
+
+# ---- plot_cta_balance -------------------------------------------------------- #
+
+#' Plot CTA multivariate covariate balance
+#'
+#' Renders the CTA covariate balance result.  When no discriminating tree was
+#' found (\code{status = "no_tree"}), a message panel confirms favorable
+#' evidence of multivariable balance under the declared constraints.  When a
+#' valid tree or stump was found, the tree diagram is rendered via
+#' \code{\link{plot_cta_tree}}.
+#'
+#' This function is a pure renderer.  It does not fit any CTA models and does
+#' not accept \code{group} or \code{X} arguments.
+#'
+#' @param x A \code{"cta_balance_plot_data"} object from
+#'   \code{\link{cta_balance_plot_data}}, or a \code{"cta_balance_table"}
+#'   object from \code{\link{cta_balance_table}} (coerced internally via
+#'   \code{\link{cta_balance_plot_data}}; never calls the fitting function).
+#' @param target_class Integer; target class for leaf-node coloring.
+#'   Default \code{1L}.
+#' @param color_by Character; leaf-node fill: \code{"target_rate"} (default),
+#'   \code{"prediction"}, \code{"none"}.
+#' @param main Character; plot title.  Default: auto-generated from ESS/WESS.
+#' @param subtitle Character; plot subtitle.
+#' @param ... Additional arguments forwarded to \code{\link{plot_cta_tree}}
+#'   when a tree is rendered.
+#' @return A \code{\link[ggplot2]{ggplot}} object.
+#' @seealso \code{\link{cta_balance_plot_data}}, \code{\link{cta_balance_table}},
+#'   \code{\link{plot_cta_tree}}
+#' @examples
+#' \donttest{
+#' if (requireNamespace("ggplot2", quietly = TRUE)) {
+#'   X <- data.frame(
+#'     A = c(rep(0L,20), rep(1L,20), rep(1L,20)),
+#'     B = c(rep(0L,20), rep(0L,20), rep(1L,20))
+#'   )
+#'   group <- c(rep(0L, 40), rep(1L, 20))
+#'   ct  <- cta_balance_table(group, X, mindenom = 5L,
+#'                             mc_iter = 200L, mc_seed = 42L)
+#'   cpd <- cta_balance_plot_data(ct)
+#'   p   <- plot_cta_balance(cpd)
+#'   print(p)
+#' }
+#' }
+#' @export
+plot_cta_balance <- function(x,
+                              target_class = 1L,
+                              color_by     = c("target_rate", "prediction", "none"),
+                              main         = NULL,
+                              subtitle     = NULL,
+                              ...) {
+  .require_ggplot2()
+  color_by <- match.arg(color_by)
+
+  pd     <- .coerce_cta_balance_pd(x, target_class = target_class, digits = 1L)
+  status <- pd$status
+
+  # no_tree: favorable balance message
+  if (identical(status, "no_tree")) {
+    msg <- pd$no_tree_message %||%
+      "No discriminating tree found.\nThis is favorable evidence of covariate balance."
+    return(.gg_message_panel(msg,
+                              title    = main %||% "CTA Covariate Balance",
+                              subtitle = subtitle))
+  }
+
+  # fit_error: error message
+  if (identical(status, "fit_error")) {
+    msg <- pd$no_tree_message %||% "CTA fitting error."
+    return(.gg_message_panel(msg,
+                              title    = main %||% "CTA Covariate Balance \u2014 Error",
+                              subtitle = subtitle))
+  }
+
+  # Tree/stump: render via plot_cta_tree (pure pass-through to existing renderer)
+  if (is.null(pd$cta_pd)) {
+    return(.gg_message_panel("CTA plot data unavailable.",
+                              title    = main %||% "CTA Covariate Balance",
+                              subtitle = subtitle))
+  }
+
+  ess_lbl    <- pd$ess_label %||% "ESS"
+  ess_val    <- pd$ess_display
+  main_title <- main %||% if (!is.na(ess_val %||% NA_real_)) {
+    sprintf("CTA Covariate Balance  \u2014  %s = %.1f%%", ess_lbl, ess_val)
+  } else {
+    "CTA Covariate Balance"
+  }
+
+  plot_cta_tree(pd$cta_pd,
+                target_class = as.integer(target_class),
+                color_by     = color_by,
+                main         = main_title,
+                subtitle     = subtitle,
+                ...)
 }
