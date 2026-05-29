@@ -1,26 +1,60 @@
 # PROD_CHECKPOINT.md
 
-Production checkpoint after Graphics v3 (balance diagnostics + ggplot2 renderers)
-and docs/export polish.
+Production checkpoint after Slices O-Q: SDA anchor, production tools gap audit,
+and minimal production tools implementation.
 
-HEAD: 1ff8579
+HEAD: 8e8d27a
 Date: 2026-05-29
 
 ---
 
-## Commits included since last checkpoint (89605b7)
+## Commits included since last checkpoint (1ff8579)
 
 | Commit | Message |
 |--------|---------|
-| 6b5bd06 | feat(balance): add univariate ODA balance tables and plot data |
-| 88f84c6 | feat(balance): add CTA balance table and plot data |
-| 9ccfdbd | feat(graphics): add ggplot CTA and LORT tree renderers |
-| 1838ae7 | feat(graphics): add ggplot balance renderers |
-| current | docs(graphics): document Graphics v3 ggplot renderers |
+| 5fd6497 | docs(sda): define SDA anchor contract for future staged workflows |
+| a3464bb | feat(sda): add SDA anchor object and task hooks |
+| aadac7c | docs(prod): audit production readiness and propensity tooling |
+| 3bff244 | chore(release): harden public release checkpoint |
+| 0e575c4 | docs(pkgdown): add public inline articles and reference index |
+| 67f84ef | feat(prod): add readiness checks and model-specific propensity tools |
+| 8e8d27a | docs: mark Slice Q complete in DOCS_INDEX |
 
 ---
 
-## Features landed in this checkpoint
+## Features landed since last checkpoint
+
+### SDA anchor (Slice O)
+
+- `sda_anchor(selected_attributes, candidate_universe, group_levels, ...)` —
+  typed structural object carrying SDA selection history for future SORT workflows.
+- `as_sda_anchor(x, ...)` — S3 generic; methods for `sda_fit` and `data.frame`.
+- `validate_sda_anchor(x)` — schema validator returning structured report.
+- `print.sda_anchor` / `summary.sda_anchor` — S3 display methods.
+- Task hook on every `sda_anchor`: `implementation_status = "anchor_only_no_sort"`;
+  `prohibited_downstream = c("propensity_weighting", "fraud_demo")`.
+- 44 tests in `test-sda-anchor.R`.
+
+### Production tools (Slice Q)
+
+- `oda_readiness_check(X, y, w, miss_codes, ...)` — structured preflight report;
+  validates group, weights, attr types, constant columns, class counts.
+- `oda_clean_missing_codes(X, miss_codes, replacement)` — vector/data.frame
+  miss-code replacement; returns same class as input.
+- `oda_validate_group(y, binary_only)` — class-variable validation; structured report.
+- `oda_validate_weights(w, n)` — weight-vector validation; structured report;
+  `NULL` treated as unit weights.
+- `oda_infer_attr_types(X, miss_codes)` — per-column type inference using same
+  logic as `oda_fit()` auto mode.
+- `oda_propensity_weights(fit, adjusted)` — binary ODA rule strata propensity
+  weights (Yarnold/Linden formula); `model_family = "oda"`.
+- `lort_propensity_weights(ort, target_class, adjusted)` — LORT terminal strata
+  propensity weights; `model_family = "lort"`, `global_optimization = FALSE`,
+  `sda_anchored = FALSE`.
+- 85 tests in `test-production-tools.R`.
+- No generic propensity API. `sda_propensity_weights` not implemented (correct per OBBP).
+
+### Previously landed (Graphics v3 / balance diagnostics — checkpoint 1ff8579)
 
 ### Balance diagnostics (v3B1/B2)
 
@@ -76,8 +110,7 @@ Date: 2026-05-29
 
 | Command | Result |
 |---------|--------|
-| Full fast suite (`ODACORE_TEST_TIER=fast`) | FAIL 0 / WARN 0 / SKIP 165 / PASS 1566 |
-| Targeted graphics+balance (`filter='graphics\|balance'`) | FAIL 0 / WARN 0 / SKIP 0 / PASS 110 |
+| Full fast suite (`ODACORE_TEST_TIER=fast`) | FAIL 0 / WARN 0 / SKIP 165 / PASS 1695 |
 | `devtools::check(vignettes=FALSE)` | 0 errors / 0 warnings / 1 NOTE (clock — known Windows environment issue) |
 
 ---
@@ -109,6 +142,12 @@ Date: 2026-05-29
 - LORT implemented; `method = "lort"`, `global_optimization = FALSE`,
   `sda_anchored = FALSE`.
 - SORT and GORT remain reserved and not implemented.
+- `lort_propensity_weights()` uses these labels; no SORT/GORT propensity functions.
+
+**SDA anchor:**
+- `sda_anchor` is a structural object for future SORT workflows, not a propensity estimator.
+- `prohibited_downstream = c("propensity_weighting", "fraud_demo")` on every anchor.
+- `sda_propensity_weights` does not exist and must not be created.
 
 **CTA / LORT output contract:**
 - Post-pruning degeneracy gate active: no tree where all terminals predict
@@ -119,18 +158,16 @@ Date: 2026-05-29
 
 ## Previous checkpoint
 
-See git history for 89605b7 (2026-05-28) — LOO semantics hardening.
-Fast suite at that checkpoint: FAIL 0 / WARN 0 / SKIP 165 / PASS 1439.
+See git history for 1ff8579 (2026-05-29) — Graphics v3 + balance diagnostics.
+Fast suite at that checkpoint: FAIL 0 / WARN 0 / SKIP 165 / PASS 1566.
 
 ---
 
 ## Known open items at this checkpoint
 
-- Slice I: SDA → CTA/ORT anchor.
-- Slice J: Staged CTA workflow implementation.
-- Slice K: Weighted/staged adjustment design.
-- Slice L: Vignettes / pkgdown.
-- Slice M: Release hardening.
+- Slice J: Staged CTA workflow (SORT) implementation — deferred.
+- Slice K: Weighted/staged adjustment design — deferred.
+- Slice R: Final release hardening — in progress.
 - Phase 2A: ODA S3 class + predict + summary/accessors — not yet started.
-- Phase 2C: LOO p-value design — design notes not yet written.
+- Phase 2C: LOO p-value design — not yet written.
 - Phase 2G: Model comparison — not yet started.
