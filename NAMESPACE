@@ -100,6 +100,15 @@ export(oda_balance_plot_data)
 export(cta_balance_table)
 export(cta_balance_plot_data)
 
+# ----- Production tools (Slice Q) -----
+export(oda_readiness_check)
+export(oda_clean_missing_codes)
+export(oda_validate_group)
+export(oda_validate_weights)
+export(oda_infer_attr_types)
+export(oda_propensity_weights)
+export(lort_propensity_weights)
+
 # ----- Novometric bootstrap -----
 export(novo_boot_ci)
 S3method(print, novo_boot_ci)
