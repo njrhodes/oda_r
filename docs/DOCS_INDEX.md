@@ -148,8 +148,9 @@ implementation decisions from them.
 | SDA anchor object + task hooks (Slice O) | complete | pending |
 | SDA anchor object + task hooks (Slice O) | complete | a3464bb |
 | Production tools gap audit (Slice P) | complete | pending |
-| Full fast suite: FAIL 0 / WARN 0 / SKIP 165 / PASS 1610 | current | a3464bb |
-| CRAN check: 0 errors / 0 warnings / 1 note (clock) | current | a3464bb |
+| Production tools: readiness checks + ODA/LORT propensity (Slice Q) | complete | 67f84ef |
+| Full fast suite: FAIL 0 / WARN 0 / SKIP 165 / PASS 1695 | current | 67f84ef |
+| CRAN check: 0 errors / 0 warnings / 1 note (clock) | current | 67f84ef |
 
 ---
 
@@ -173,7 +174,7 @@ implementation decisions from them.
        J. Staged CTA workflow implementation (deferred)
        K. Weighted/staged adjustment design (deferred)
 [done] P. Production tools gap audit (PRODUCTION_TOOLS_GAP_AUDIT.md)
-       Q. Minimal production tools implementation
+[done] Q. Minimal production tools implementation
        R. Final release hardening
 ```
 
