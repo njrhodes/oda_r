@@ -2,9 +2,10 @@
 
 Design memo: SDA anchor object for future staged / SORT-style workflows.
 
-**Status:** Design only. No production code.  
-**Date:** 2026-05-29  
-**Slice:** I — SDA → CTA/LORT/SORT Anchor Contract
+**Status:** Implemented — `R/sda_anchor.R`, `tests/testthat/test-sda-anchor.R` (Slice O).  
+**Design date:** 2026-05-29  
+**Implementation date:** 2026-05-29  
+**Slice:** I (design) + O (implementation)
 
 ---
 

@@ -88,7 +88,7 @@ See `LORT_SORT_GORT_TAXONOMY.md §Legacy API Naming` for the full table and rule
 | File | Covers | Status |
 |------|--------|--------|
 | [SDA_AUTO_SDA_PLAN.md](SDA_AUTO_SDA_PLAN.md) | Comprehensive design for Sequential Discriminant Analysis and auto-SDA: canon anchor, SDA modes (legacy `unioda_max_ess` vs. MPE novometric `min_d`), object contract, prediction semantics, CTA/ORT interop, auto-SDA plan logic, generalized staged terminology, test plan, implementation slices | Active design — SDA-1 through SDA-4B complete; weighted/staged adjustment deferred |
-| [SDA_ANCHOR_CONTRACT.md](SDA_ANCHOR_CONTRACT.md) | Anchor contract for converting `sda_fit` objects into structured `sda_anchor` objects for use in staged/SORT workflows: full `sda_fit` field audit, `sda_anchor` schema (required + optional fields), `stage_table` column spec, API design (`as_sda_anchor`, `sda_anchor`, `validate_sda_anchor`, S3 methods), gap analysis, 15 future tests, explicit/manual anchor path | Active design — Slice I; no implementation yet |
+| [SDA_ANCHOR_CONTRACT.md](SDA_ANCHOR_CONTRACT.md) | Anchor contract for converting `sda_fit` objects into structured `sda_anchor` objects for use in staged/SORT workflows: full `sda_fit` field audit, `sda_anchor` schema (required + optional fields), `stage_table` column spec, API design (`as_sda_anchor`, `sda_anchor`, `validate_sda_anchor`, S3 methods), gap analysis, tests, explicit/manual anchor path | **Implemented — Slice O; `R/sda_anchor.R` + 44 tests passing** |
 
 ---
 
@@ -145,8 +145,9 @@ implementation decisions from them.
 | Graphics v3C1: `plot_cta_tree()`, `plot_lort_tree()` | complete | 9ccfdbd |
 | Graphics v3C2: `plot_oda_balance()`, `plot_smd_balance()`, `plot_balance_love()`, `plot_cta_balance()` | complete | 1838ae7 |
 | Graphics v3D: docs/examples/export polish (GRAPHICS_V3.md, README, DOCS_INDEX) | complete | 1ff8579 |
-| Full fast suite: FAIL 0 / WARN 0 / SKIP 165 / PASS 1566 | current | 1ff8579 |
-| CRAN check: 0 errors / 0 warnings / 1 note (clock) | current | 1ff8579 |
+| SDA anchor object + task hooks (Slice O) | complete | pending |
+| Full fast suite: FAIL 0 / WARN 0 / SKIP 165 / PASS 1610 | current | pending |
+| CRAN check: 0 errors / 0 warnings / 1 note (clock) | pending | — |
 
 ---
 
@@ -164,10 +165,14 @@ implementation decisions from them.
                plot_smd_balance, plot_balance_love, plot_cta_balance
              — GRAPHICS_V3.md, README examples, DOCS_INDEX update
 [done] I. SDA -> CTA/ORT anchor (design only — SDA_ANCHOR_CONTRACT.md)
-       J. Staged CTA workflow implementation
-       K. Weighted/staged adjustment design
-       L. Vignettes / pkgdown
-       M. Release hardening
+[done] L. Vignettes / pkgdown
+[done] M. Release hardening (Slice M)
+[done] O. SDA anchor implementation (R/sda_anchor.R, 44 tests)
+       J. Staged CTA workflow implementation (deferred)
+       K. Weighted/staged adjustment design (deferred)
+       P. Production tools gap audit
+       Q. Minimal production tools implementation
+       R. Final release hardening
 ```
 
 Slices I–M are ordered by dependency; do not skip ahead without completing

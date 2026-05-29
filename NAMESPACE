@@ -75,6 +75,16 @@ S3method(print,   sda_fit)
 S3method(summary, sda_fit)
 S3method(print,   sda_fit_summary)
 
+# ----- SDA anchor -----
+export(sda_anchor)
+export(as_sda_anchor)
+export(validate_sda_anchor)
+S3method(as_sda_anchor, sda_fit)
+S3method(as_sda_anchor, data.frame)
+S3method(print,   sda_anchor)
+S3method(summary, sda_anchor)
+S3method(print,   sda_anchor_summary)
+
 # ----- Graphics v3 -----
 export(plot_cta_tree)
 export(plot_lort_tree)
