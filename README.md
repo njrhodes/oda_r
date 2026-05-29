@@ -125,6 +125,77 @@ plot(t1, target_class = 1L, class_labels = c("0" = "Alive", "1" = "Deceased"))
 See `docs/CTA_TRANSLATION_STACK.md` for the full reporting pipeline and
 `docs/myeloma-cta-translation.md` for a complete walkthrough with computed output.
 
+### Graphics v3 (ggplot2)
+
+Graphics v3 provides direct ggplot2 renderers for trees and balance diagnostics.
+`ggplot2 >= 3.4.0` is in `Suggests`; a clear error is raised if it is absent.
+Base `plot.*` methods are unchanged and do not require ggplot2.
+
+#### Tree diagrams
+
+```r
+library(odacore)
+if (requireNamespace("ggplot2", quietly = TRUE)) {
+
+  X <- data.frame(
+    A = c(rep(0L, 20), rep(1L, 20), rep(1L, 20)),
+    B = c(rep(0L, 20), rep(0L, 20), rep(1L, 20))
+  )
+  y <- c(rep(0L, 40), rep(1L, 20))
+
+  # CTA tree
+  tree <- cta_fit(X, y, mindenom = 5L, mc_iter = 200L, mc_seed = 42L, loo = "off")
+  p <- plot_cta_tree(tree, color_by = "target_rate")
+  print(p)
+
+  # LORT tree
+  lort <- lort_fit(X, y, mc_iter = 200L, mc_seed = 42L, loo = "off", min_n = 5L)
+  p2 <- plot_lort_tree(lort, color_by = "prediction")
+  print(p2)
+
+  # All renderers return ggplot objects — save with ggsave
+  ggplot2::ggsave("tree.png", p, width = 8, height = 5, dpi = 300)
+}
+```
+
+#### Covariate balance plots
+
+Plot functions are pure renderers — they do not fit models.
+
+```r
+if (requireNamespace("ggplot2", quietly = TRUE)) {
+
+  group <- c(rep(0L, 30), rep(1L, 30))
+  X_bl  <- data.frame(
+    age   = c(rep(40L, 30), rep(60L, 30)),
+    score = rnorm(60, 50, 10)
+  )
+
+  # ODA balance: ESS/WESS dot plot
+  bt <- oda_balance_table(group, X_bl, mcarlo = TRUE, mc_iter = 500L)
+  pd <- oda_balance_plot_data(bt)
+  print(plot_oda_balance(pd))
+
+  # SMD / Love plot: |SMD| with reference lines at 0.10 and 0.20
+  smd <- smd_balance_table(group, X_bl)
+  print(plot_smd_balance(smd, ref_020 = TRUE))
+  print(plot_balance_love(smd))   # identical to plot_smd_balance()
+
+  # CTA multivariate balance
+  ct  <- cta_balance_table(group, X_bl, mindenom = 5L, mc_iter = 500L, mc_seed = 42L)
+  cpd <- cta_balance_plot_data(ct)
+  p   <- plot_cta_balance(cpd)
+  print(p)
+  # status = "no_tree" renders a message panel:
+  # "No combination of covariates predicted group membership...
+  #  This is favorable evidence of multivariable balance..."
+  # This is the desired result for well-balanced study arms.
+}
+```
+
+See `docs/GRAPHICS_V3.md` for the full function reference and interpretation
+guide for CTA balance `no_tree` results.
+
 ## Architecture
 
 ```
@@ -136,7 +207,12 @@ R/
 ├── oda_s3.R         — ODA S3 methods: predict/print/summary
 ├── cta_core.R       — Classification tree: cta_fit() / oda_cta_fit() (internal)
 ├── cta_s3.R         — CTA S3 + translation layer: staging/propensity/endpoints
-└── cta_family.R     — MDSA family: cta_descendant_family(), cta_family_table()
+├── cta_family.R     — MDSA family: cta_descendant_family(), cta_family_table()
+├── cta_ort.R        — LORT: lort_fit(), ort_plot_data(), predict.cta_ort()
+├── balance.R        — Covariate balance: oda/smd/cta balance tables + plot data
+└── graphics_v3.R    — ggplot2 renderers: plot_cta_tree(), plot_lort_tree(),
+                       plot_oda_balance(), plot_smd_balance(),
+                       plot_balance_love(), plot_cta_balance()
 ```
 
 ## Tie-breaking spec (MegaODA-faithful)

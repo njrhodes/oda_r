@@ -91,7 +91,25 @@ fields; it knows nothing about the internal structure of either ODA engine.
 
 **CTA graphics (output/interpretation layer):**
 - `cta_plot_data(tree, target_class, ...)` — derived tree diagram data
+- `ort_plot_data(ort, target_class, ...)` — derived LORT diagram data
 - `plot.cta_tree(x, target_class, ...)` — native base-R tree diagram
+- `plot.cta_ort(x, target_class, ...)` — native base-R LORT diagram
+
+**Graphics v3 (ggplot2 layer — ggplot2 in Suggests):**
+- `plot_cta_tree(x, color_by, ...)` — ggplot2 CTA tree diagram
+- `plot_lort_tree(x, color_by, ...)` — ggplot2 LORT tree diagram
+- `plot_oda_balance(x, ...)` — ggplot2 ODA ESS/WESS balance dot plot
+- `plot_smd_balance(x, ref_010, ref_020, ...)` — ggplot2 absolute SMD balance dot plot
+- `plot_balance_love(x, ...)` — Love plot (direct alias for `plot_smd_balance`)
+- `plot_cta_balance(x, color_by, ...)` — ggplot2 CTA multivariate balance
+  (tree diagram when discriminating; message panel when `no_tree`)
+
+**Covariate balance diagnostics:**
+- `oda_balance_table(group, X, w, ...)` — univariate ODA balance: one row per covariate
+- `smd_balance_table(group, X, w)` — conventional SMD companion (no p-values)
+- `oda_balance_plot_data(balance_table, smd_table, ...)` — renderer-ready transform
+- `cta_balance_table(group, X, w, mindenom, ...)` — multivariate CTA balance
+- `cta_balance_plot_data(cta_balance, target_class, ...)` — renderer-ready transform
 
 ### Return value contract
 
@@ -112,12 +130,15 @@ fields; it knows nothing about the internal structure of either ODA engine.
 | myeloma    | 30       | CTA (WEIGHT V2)    | ✓ green  | V17 stump, WESS 16.51%, n=186     |
 | myeloma    | 56       | CTA (WEIGHT V2)    | ✓ green  | No tree (all child sizes < 56)    |
 
-**Validation status as of 89605b7 (2026-05-28):**
-- Fast suite (ODACORE_TEST_TIER=fast): FAIL 0 / WARN 0 / SKIP 165 / PASS 1439
-- Targeted CTA/LOO/LORT (filter=cta|cta-ort|cta-loo-gate|oda-fit): FAIL 0 / WARN 0 / SKIP 142 / PASS 841
-- Smoke canon (ODACORE_TEST_TIER=smoke, myeloma/cta-demo/loo/confusion): FAIL 0 / WARN 0 / SKIP 15 / PASS 98
+**Validation status as of 1838ae7 (2026-05-29):**
+- Fast suite (ODACORE_TEST_TIER=fast): FAIL 0 / WARN 0 / SKIP 165 / PASS 1566
 - `devtools::check()`: 0 errors / 0 warnings / 1 known Windows clock NOTE
   (environment timing issue, not a package defect)
+
+**Previous checkpoint (89605b7, 2026-05-28):**
+- Fast suite: FAIL 0 / WARN 0 / SKIP 165 / PASS 1439
+- Targeted CTA/LOO/LORT: FAIL 0 / WARN 0 / SKIP 142 / PASS 841
+- Smoke canon: FAIL 0 / WARN 0 / SKIP 15 / PASS 98
 
 See `CLAUDE.md` for current validation commands and tier definitions.
 

@@ -18,6 +18,15 @@ from these specs is a **bug**, not an alternative interpretation.
 | [ODA_CANON.md](ODA_CANON.md) | `oda_fit()` / UniODA / MultiODA: degeneracy policy, objective, ordered/categorical/binary attributes, weights, missing values, MC, LOO, DIRECTION parameters (Chapter 2 binary and Chapter 4 multiclass/categorical) | Active canon |
 | [CTA_CANON.md](CTA_CANON.md) | `cta_fit()` / `oda_cta_fit()`: degeneracy policy, node-level construction, HO-CTA, EO-CTA/ENUMERATE, pruning (Sidak-Bonferroni + max-accuracy), weights, missing values, LOO, MC, gold fixtures (Myeloma + CTA_DEMO) | Active canon |
 
+---
+
+## Graphics v3 Docs
+
+| File | Covers | Status |
+|------|--------|--------|
+| [GRAPHICS_V3.md](GRAPHICS_V3.md) | Graphics v3 function reference, ggplot2 dependency policy, no-fitting-inside-renderers rule, examples (CTA tree, LORT tree, ODA balance, SMD/Love plot, CTA balance), `no_tree` balance interpretation, `ggsave` usage | **Active — v3C1 + v3C2 landed** |
+| [COVARIATE_BALANCE_CONTRACT.md](COVARIATE_BALANCE_CONTRACT.md) | Balance diagnostics API contract: `oda_balance_table`, `smd_balance_table`, `cta_balance_table`, plot-data transforms; scope (group ≠ outcome), SMD as companion, ODA balance as primary objective, no p-values in SMD | Active reference |
+
 **Degeneracy boundary (added 2026-05-27):** Post-pruning degeneracy gate is
 now production. CTA never returns a tree where all terminals predict the same
 class — such candidates are rejected in the ENUMERATE loop before entering
@@ -130,8 +139,13 @@ implementation decisions from them.
 | LOO semantics fix: numeric gate, pvalue mode, loo_status (Slice C) | complete | 9b542b4 |
 | LOO gate docs alignment: ODA_CANON, CTA_CANON, man pages (Slice D-docs) | complete | 34d0fd2 |
 | CRAN timing fix: test-cta-ort.R fixture caching 96s→7.4s (Slice D-test) | complete | 89605b7 |
-| Full fast suite: FAIL 0 / WARN 0 / SKIP 165 / PASS 1439 | current | 89605b7 |
-| CRAN check: 0 errors / 0 warnings / 1 note (clock) | current | 89605b7 |
+| ODA/SMD covariate balance tables + plot data (v3B1) | complete | 6b5bd06 |
+| CTA multivariate balance table + plot data (v3B2) | complete | 88f84c6 |
+| Graphics v3C1: `plot_cta_tree()`, `plot_lort_tree()` | complete | 9ccfdbd |
+| Graphics v3C2: `plot_oda_balance()`, `plot_smd_balance()`, `plot_balance_love()`, `plot_cta_balance()` | complete | 1838ae7 |
+| Graphics v3D: docs/examples/export polish (GRAPHICS_V3.md, README, DOCS_INDEX) | complete | current |
+| Full fast suite: FAIL 0 / WARN 0 / SKIP 165 / PASS 1566 | current | 1838ae7 |
+| CRAN check: 0 errors / 0 warnings / 1 note (clock) | current | 1838ae7 |
 
 ---
 
@@ -142,10 +156,12 @@ implementation decisions from them.
 [done] B. Synthetic degeneracy regression fixture
 [done] C. LOO semantics hardening (numeric gate, pvalue mode, loo_status)
 [done] D. LOO docs alignment + CRAN timing fix (test-cta-ort.R)
-       E. Production validation checkpoint          <- current (PROD_CHECKPOINT.md)
-       F. CTA endpoint map + print clarity
-       G. Balance diagnostics v1 design
-       H. Graphics v3 plot-data contract
+[done] E. Production validation checkpoint (PROD_CHECKPOINT.md)
+[done] F–H. Balance diagnostics v3B1/B2 + Graphics v3C1/C2/D
+             — ODA/SMD/CTA balance tables + plot data
+             — plot_cta_tree, plot_lort_tree, plot_oda_balance,
+               plot_smd_balance, plot_balance_love, plot_cta_balance
+             — GRAPHICS_V3.md, README examples, DOCS_INDEX update
        I. SDA -> CTA/ORT anchor
        J. Staged CTA workflow implementation
        K. Weighted/staged adjustment design
@@ -153,7 +169,7 @@ implementation decisions from them.
        M. Release hardening
 ```
 
-Slices F–M are ordered by dependency; do not skip ahead without completing
+Slices I–M are ordered by dependency; do not skip ahead without completing
 upstream prerequisites.
 
 ---
