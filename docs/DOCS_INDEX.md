@@ -88,6 +88,7 @@ See `LORT_SORT_GORT_TAXONOMY.md §Legacy API Naming` for the full table and rule
 | File | Covers | Status |
 |------|--------|--------|
 | [SDA_AUTO_SDA_PLAN.md](SDA_AUTO_SDA_PLAN.md) | Comprehensive design for Sequential Discriminant Analysis and auto-SDA: canon anchor, SDA modes (legacy `unioda_max_ess` vs. MPE novometric `min_d`), object contract, prediction semantics, CTA/ORT interop, auto-SDA plan logic, generalized staged terminology, test plan, implementation slices | Active design — SDA-1 through SDA-4B complete; weighted/staged adjustment deferred |
+| [SDA_ANCHOR_CONTRACT.md](SDA_ANCHOR_CONTRACT.md) | Anchor contract for converting `sda_fit` objects into structured `sda_anchor` objects for use in staged/SORT workflows: full `sda_fit` field audit, `sda_anchor` schema (required + optional fields), `stage_table` column spec, API design (`as_sda_anchor`, `sda_anchor`, `validate_sda_anchor`, S3 methods), gap analysis, 15 future tests, explicit/manual anchor path | Active design — Slice I; no implementation yet |
 
 ---
 
@@ -162,7 +163,7 @@ implementation decisions from them.
              — plot_cta_tree, plot_lort_tree, plot_oda_balance,
                plot_smd_balance, plot_balance_love, plot_cta_balance
              — GRAPHICS_V3.md, README examples, DOCS_INDEX update
-       I. SDA -> CTA/ORT anchor
+[done] I. SDA -> CTA/ORT anchor (design only — SDA_ANCHOR_CONTRACT.md)
        J. Staged CTA workflow implementation
        K. Weighted/staged adjustment design
        L. Vignettes / pkgdown
