@@ -3,7 +3,7 @@
 Production checkpoint after Graphics v3 (balance diagnostics + ggplot2 renderers)
 and docs/export polish.
 
-HEAD: pending Graphics v3D docs commit
+HEAD: 1ff8579
 Date: 2026-05-29
 
 ---

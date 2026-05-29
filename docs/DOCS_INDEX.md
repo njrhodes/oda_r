@@ -143,9 +143,9 @@ implementation decisions from them.
 | CTA multivariate balance table + plot data (v3B2) | complete | 88f84c6 |
 | Graphics v3C1: `plot_cta_tree()`, `plot_lort_tree()` | complete | 9ccfdbd |
 | Graphics v3C2: `plot_oda_balance()`, `plot_smd_balance()`, `plot_balance_love()`, `plot_cta_balance()` | complete | 1838ae7 |
-| Graphics v3D: docs/examples/export polish (GRAPHICS_V3.md, README, DOCS_INDEX) | complete | current |
-| Full fast suite: FAIL 0 / WARN 0 / SKIP 165 / PASS 1566 | current | 1838ae7 |
-| CRAN check: 0 errors / 0 warnings / 1 note (clock) | current | 1838ae7 |
+| Graphics v3D: docs/examples/export polish (GRAPHICS_V3.md, README, DOCS_INDEX) | complete | 1ff8579 |
+| Full fast suite: FAIL 0 / WARN 0 / SKIP 165 / PASS 1566 | current | 1ff8579 |
+| CRAN check: 0 errors / 0 warnings / 1 note (clock) | current | 1ff8579 |
 
 ---
 
