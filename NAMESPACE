@@ -75,6 +75,11 @@ S3method(print,   sda_fit)
 S3method(summary, sda_fit)
 S3method(print,   sda_fit_summary)
 
+# ----- Covariate balance -----
+export(oda_balance_table)
+export(smd_balance_table)
+export(oda_balance_plot_data)
+
 # ----- Novometric bootstrap -----
 export(novo_boot_ci)
 S3method(print, novo_boot_ci)
