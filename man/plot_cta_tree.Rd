@@ -50,6 +50,9 @@ Currently uses pre-computed labels.}
 \item{show_rule}{Logical; show branch condition labels on edges.  Default
 \code{TRUE}.}
 
+\item{show_metrics}{Logical; if \code{TRUE}, appends an ESS/WESS and D
+line to the plot subtitle.  Default \code{FALSE}.}
+
 \item{wrap_width}{Integer; maximum characters per line for long labels.
 Default \code{26L}.  Applied to node labels via \code{strwrap()}.}
 

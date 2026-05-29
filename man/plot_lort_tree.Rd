@@ -45,6 +45,9 @@ target-rate annotation (default \code{1L}).}
 
 \item{show_rule}{Logical; show branch condition labels on edges.}
 
+\item{show_metrics}{Logical; if \code{TRUE}, appends an ESS/WESS and D
+line to the plot subtitle.  Default \code{FALSE}.}
+
 \item{wrap_width}{Integer; maximum characters per line.  Default \code{26L}.}
 
 \item{node_text_size}{Numeric; text size for node labels.  Default \code{3.5}.}

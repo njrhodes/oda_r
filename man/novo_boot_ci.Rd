@@ -1,5 +1,9 @@
 \name{novo_boot_ci}
 \alias{novo_boot_ci}
+\alias{novo_boot_ci.default}
+\alias{novo_boot_ci.oda_fit}
+\alias{novo_boot_ci.cta_tree}
+\alias{novo_boot_ci.cta_ort}
 \alias{print.novo_boot_ci}
 \title{Novometric bootstrap CI from a fixed 2x2 confusion matrix}
 \description{
@@ -17,20 +21,50 @@ Novometric significance (Axiom 1) is declared when the 95\% confidence
 intervals for model and chance ESS do not overlap.
 }
 \usage{
-novo_boot_ci(x,
+novo_boot_ci(x, ...)
+
+\method{novo_boot_ci}{default}(x,
              nboot       = 5000L,
              seed        = NULL,
              sample_frac = 0.5,
              probs       = c(0, .025, .05, .25, .5, .75, .95, .975, 1),
-             alternative = c("two.sided", "greater", "less"))
+             alternative = c("two.sided", "greater", "less"),
+             ...)
+
+\method{novo_boot_ci}{oda_fit}(x,
+             nboot       = 5000L,
+             seed        = NULL,
+             sample_frac = 0.5,
+             probs       = c(0, .025, .05, .25, .5, .75, .95, .975, 1),
+             alternative = c("two.sided", "greater", "less"),
+             ...)
+
+\method{novo_boot_ci}{cta_tree}(x,
+             nboot       = 5000L,
+             seed        = NULL,
+             sample_frac = 0.5,
+             probs       = c(0, .025, .05, .25, .5, .75, .95, .975, 1),
+             alternative = c("two.sided", "greater", "less"),
+             ...)
+
+\method{novo_boot_ci}{cta_ort}(x,
+             nboot       = 5000L,
+             seed        = NULL,
+             sample_frac = 0.5,
+             probs       = c(0, .025, .05, .25, .5, .75, .95, .975, 1),
+             alternative = c("two.sided", "greater", "less"),
+             ...)
 
 \method{print}{novo_boot_ci}(x, \dots)
 }
 \arguments{
-  \item{x}{A 2x2 integer matrix, rows = actual class, columns = predicted
-    class.  Same \code{[actual, predicted]} convention as
-    \code{training_confusion} in a \code{cta_tree} and as \code{oda_confusion()}.
-    Use \code{byrow = TRUE} when constructing with \code{matrix()}.}
+  \item{x}{For the \code{default} method: a 2x2 integer matrix, rows = actual
+    class, columns = predicted class.  Same \code{[actual, predicted]}
+    convention as \code{training_confusion} in a \code{cta_tree} and as
+    \code{oda_confusion()}.  Use \code{byrow = TRUE} when constructing with
+    \code{matrix()}.  For S3 methods: a fitted model object (\code{oda_fit},
+    \code{cta_tree}, or \code{cta_ort}) from which the training confusion
+    matrix is extracted.}
   \item{nboot}{Number of bootstrap replicates.  Default 5000.}
   \item{seed}{Integer seed passed to \code{\link{set.seed}}, or \code{NULL}
     to use the current RNG state.  Use a fixed seed for reproducibility.}
@@ -39,7 +73,9 @@ novo_boot_ci(x,
   \item{probs}{Quantile probability levels for the summary table.}
   \item{alternative}{Direction for exact Fisher p-values:
     \code{"two.sided"} (default), \code{"greater"}, or \code{"less"}.}
-  \item{\dots}{Ignored.}
+  \item{\dots}{For the generic and S3 fit methods: additional arguments
+    passed to \code{novo_boot_ci.default}.  For \code{print.novo_boot_ci}:
+    currently ignored.}
 }
 \value{
 An object of class \code{novo_boot_ci}, a list with:
