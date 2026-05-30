@@ -1,7 +1,7 @@
 ###############################################################################
 # R/sda_core.R
 #
-# sda_fit() — Sequential Discriminant Analysis (SDA).
+# sda_fit() — Structural Decomposition Analysis (SDA).
 #
 # SDA-1 scope:  mode = "unioda_max_ess"  — iterative UniODA.
 # SDA-4B scope: mode = "novometric_min_d" — per-attribute MDSA via
@@ -12,12 +12,13 @@
 # Canon reference: docs/SDA_AUTO_SDA_PLAN.md §SDA-4 Novometric Acceptance Contract.
 ###############################################################################
 
-#' Fit a Sequential Discriminant Analysis (SDA) model
+#' Run a Structural Decomposition Analysis (SDA) procedure
 #'
 #' Executes staged attribute-set identification on binary class data.
-#' Evaluates candidate attributes sequentially, selecting the best eligible
+#' Traverses the attribute space by class, selecting the best eligible
 #' attribute at each step, removing correctly classified observations, and
 #' repeating on the unresolved sample until a stopping condition is met.
+#' The result identifies which attributes to pass to downstream CTA or MDSA.
 #'
 #' @param X Data frame of candidate attribute columns.
 #' @param y Integer class vector. Must have exactly two distinct values.

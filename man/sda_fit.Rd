@@ -2,7 +2,7 @@
 % Please edit documentation in R/sda_core.R
 \name{sda_fit}
 \alias{sda_fit}
-\title{Fit a Sequential Discriminant Analysis (SDA) model}
+\title{Run a Structural Decomposition Analysis (SDA) procedure}
 \usage{
 sda_fit(
   X,
@@ -83,7 +83,8 @@ Object of class \code{c("sda_fit", "odacore_sda")}.
 }
 \description{
 Executes staged attribute-set identification on binary class data.
-Evaluates candidate attributes sequentially, selecting the best eligible
+Traverses the attribute space by class, selecting the best eligible
 attribute at each step, removing correctly classified observations, and
 repeating on the unresolved sample until a stopping condition is met.
+The result identifies which attributes to pass to downstream CTA or MDSA.
 }

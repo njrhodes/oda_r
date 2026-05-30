@@ -97,7 +97,7 @@ Full test suite (fast tier): FAIL 0 / WARN 0 / PASS 1566 (checkpoint 1ff8579).
   minimum-D selection.
 - **LORT:** `lort_fit` / `cta_fit(recursive = TRUE)` - greedy locally optimal
   recursive trees. Binary class only.
-- **SDA:** `sda_fit` - sequential discriminant analysis.
+- **SDA:** `sda_fit` - Structural Decomposition Analysis.
 - **Balance diagnostics:** `oda_balance_table`, `smd_balance_table`,
   `cta_balance_table` and associated plot-data functions.
 - **Graphics:** base-R `plot.cta_tree`, `plot.cta_ort`; ggplot2 tree renderers

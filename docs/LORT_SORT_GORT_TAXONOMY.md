@@ -316,7 +316,7 @@ For current odacore purposes, novometric canon depends on:
    - Statistical sample/power declarations
    - Power/sample-size calculation helper: **deferred, not implemented**
 
-2. **SDA** (Sequential Discriminant Analysis)
+2. **SDA** (Structural Decomposition Analysis)
    - Canonical staged attribute identification where applicable
    - Current `sda_anchor` preserves SDA stages for future SORT/staged CTA
 

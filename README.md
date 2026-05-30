@@ -5,7 +5,7 @@ Pure-R reimplementation of the MegaODA / CTA classification engine.
 - **`oda_fit()`** - ODA dispatcher: UniODA (C = 2) or MultiODA (C >= 3) for ordered, categorical, and binary attributes
 - **`cta_fit()`** - Classification Tree Analysis: ENUMERATE, LOO STABLE, PRUNE, MINDENOM endpoint constraints
 - **`lort_fit()`** - LORT (Locally Optimal Recursive Tree): greedy recursive CTA/MDSA; adjacent workflow using canon CTA/MDSA components
-- **`sda_fit()`** - SDA (Sequential Discriminant Analysis): canonical staged attribute identification; novometric `min_d` and legacy `unioda_max_ess` modes
+- **`sda_fit()`** - SDA (Structural Decomposition Analysis): canonical staged attribute identification; novometric `min_d` and legacy `unioda_max_ess` modes
 - **`cta_descendant_family()`** - MDSA descendant family: D/parsimony evidence, family-level comparison
 - **`novo_boot_ci()`** - Novometric bootstrap CI; S3 generic dispatching on ODA / CTA / LORT fit objects
 - **Balance and propensity:** `oda_balance_table()`, `smd_balance_table()`, `cta_balance_table()`, `oda_propensity_weights()`, `lort_propensity_weights()`
