@@ -3,7 +3,7 @@
 This file maps the on-demand reporting and translation functions available for
 a fitted `cta_tree` object.  It is a navigation aid, not a behavior
 specification.  For canonical engine behavior see `docs/CTA_CANON.md`; for a
-fully worked numeric example see `docs/myeloma-cta-translation.md`.
+fully worked numeric example see `docs/examples/myeloma-cta-translation.md`.
 
 ---
 
@@ -135,7 +135,7 @@ The myeloma fixture illustrates the full family:
 
 ## Worked example
 
-`docs/myeloma-cta-translation.md` walks through the full MINDENOM=1 and
+`docs/examples/myeloma-cta-translation.md` walks through the full MINDENOM=1 and
 MINDENOM=30 trees using actual computed values from the R package.  It covers
 endpoint structure, staging table construction, propensity weight arithmetic,
 confusion table recovery, and the lean-fit invariant check.
@@ -160,7 +160,7 @@ confusion table recovery, and the lean-fit invariant check.
 - **No downstream outcome model integration.** The observation-level weights
   from `cta_observation_weights()` are ready to pass to a weighted outcome
   model, but no wrapper or example for that step exists yet.
-- **No formal package vignette yet.** `docs/myeloma-cta-translation.md` serves
+- **No formal package vignette yet.** `docs/examples/myeloma-cta-translation.md` serves
   as the worked example. Vignette conversion is planned for Slice 3; each
   vignette must be CRAN-safe by default (no slow MC/LOO/fixture fits at
   build time).

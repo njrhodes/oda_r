@@ -123,7 +123,7 @@ plot(t1, target_class = 1L, class_labels = c("0" = "Alive", "1" = "Deceased"))
 ```
 
 See `docs/CTA_TRANSLATION_STACK.md` for the full reporting pipeline and
-`docs/myeloma-cta-translation.md` for a complete walkthrough with computed output.
+`docs/examples/myeloma-cta-translation.md` for a complete walkthrough with computed output.
 
 ### Graphics v3 (ggplot2)
 

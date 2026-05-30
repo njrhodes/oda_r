@@ -1,5 +1,7 @@
 # PROD_CHECKPOINT.md
 
+> **Maintainer historical design memo. Not public API. Do not treat as implemented behavior.**
+
 Production checkpoint after Slices O-Q: SDA anchor, production tools gap audit,
 and minimal production tools implementation.
 

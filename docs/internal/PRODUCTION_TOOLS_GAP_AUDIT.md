@@ -1,5 +1,7 @@
 # PRODUCTION_TOOLS_GAP_AUDIT.md
 
+> **Maintainer historical design memo. Not public API. Do not treat as implemented behavior.**
+
 Production readiness and propensity tooling gap audit for odacore.
 
 **Status:** Slice P — design / audit only. No code changed.

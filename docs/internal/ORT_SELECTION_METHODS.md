@@ -1,5 +1,7 @@
 # LORT / SORT / GORT Selection Methods — Design Memo
 
+> **Maintainer historical design memo. Not public API. Do not treat as implemented behavior.**
+
 **Status:** Decision memo. Not implementation specification.
 Do not code from this document without explicit approval.
 Do not proliferate methods. One coherent staged build strategy.

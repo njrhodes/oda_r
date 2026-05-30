@@ -13,7 +13,7 @@ knitr::opts_chunk$set(collapse = TRUE, comment = "#>")
     1. Build the artifact (see myeloma-cta.Rmd TODO and build_article_artifacts.R).
     2. Replace the synthetic example below with the myeloma family loaded from
        inst/extdata/articles/myeloma_family.rds.
-    3. Verify cta_family_table() values against docs/myeloma-cta-translation.md.
+    3. Verify cta_family_table() values against docs/examples/myeloma-cta-translation.md.
 
   The synthetic MDSA example below demonstrates the API but uses small n.
 -->
@@ -119,7 +119,7 @@ The canonical myeloma family demonstrates the full MDSA trajectory:
 - **MINDENOM = 30:** V17 stump. WESS = 16.51%.
 - **MINDENOM = 56:** No admissible splits — leaf only.
 
-All canonical values are in `docs/myeloma-cta-translation.md`.
+All canonical values are in `docs/examples/myeloma-cta-translation.md`.
 
 ## Terminal state: no tree
 
@@ -133,4 +133,4 @@ and ESS = 0%.
 - `articles/myeloma-cta` — full myeloma MINDENOM family walkthrough (when
   precomputed artifacts are available)
 - `articles/cta-basics` — CTA fitting fundamentals
-- `docs/myeloma-cta-translation.md` — canonical myeloma computed values
+- `docs/examples/myeloma-cta-translation.md` — canonical myeloma computed values

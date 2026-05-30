@@ -12,7 +12,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **`cta_fit`** (`oda_fit.R`): public CTA entry point — thin wrapper around the internal engine; preferred public name.
 - **`oda_cta_fit`** (`cta_core.R`): CTA engine (internal name; retained for backward compatibility; prefer `cta_fit()` in user-facing code).
 
-Covered fixtures are tested against MegaODA.exe / CTA.exe outputs. Extension behavior must be explicitly marked and must not disturb covered parity. Roadmap details are in `docs/ODACORE_VISION.md`; engine canon is in `docs/ODA_CANON.md`, `docs/CTA_CANON.md`, and `docs/CTA_ORDERED_CUT_AUDIT.md`.
+Covered fixtures are tested against MegaODA.exe / CTA.exe outputs. Extension behavior must be explicitly marked and must not disturb covered parity. Production state is in `docs/STATUS.md`; engine canon is in `docs/ODA_CANON.md`, `docs/CTA_CANON.md`, and `docs/CTA_ORDERED_CUT_AUDIT.md`.
 
 ## Commands
 
@@ -228,7 +228,7 @@ Gold values in tests come from MegaODA.exe output. When a test checks confusion 
 - `docs/CTA_CANON.md` — canonical `oda_cta_fit()` behavior spec, including ENUMERATE, pruning, LOO, and current gold fixture status.
 - `docs/CTA_ORDERED_CUT_AUDIT.md` — audit evidence and canon for weighted ordered-cut selection and LOO STABLE law; MPE.pdf anchors and myeloma V4/V15 empirical evidence.
 - `docs/CTA_TRANSLATION_STACK.md` — navigation map for the CTA reporting and translation pipeline (lean-fit principle, function map, pipeline overview).
-- `docs/myeloma-cta-translation.md` — canonical myeloma CTA walkthrough with actual computed values covering MINDENOM=1/30/56.
+- `docs/examples/myeloma-cta-translation.md` — myeloma CTA worked example with actual computed values covering MINDENOM=1/30/56.
 
 ## Current known-good state
 

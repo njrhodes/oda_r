@@ -1,5 +1,7 @@
 # SORT / Staged CTA Workflow Plan (SCTA)
 
+> **Maintainer historical design memo. Not public API. Do not treat as implemented behavior.**
+
 _Created: 2026-05-27. Updated 2026-05-28: method renamed SORT._
 
 **Method name (updated 2026-05-28):** The workflow described in this document

@@ -1,5 +1,7 @@
 # SDA and Auto-SDA Planning Document
 
+> **Maintainer historical design memo. Not public API. Do not treat as implemented behavior.**
+
 **Status:** Design / planning slice (SDA-0). Do not code from this document without
 explicit approval of the targeted implementation slice.
 

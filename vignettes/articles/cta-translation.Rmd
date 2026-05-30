@@ -13,7 +13,7 @@ knitr::opts_chunk$set(collapse = TRUE, comment = "#>")
     1. Build the artifact (see myeloma-cta.Rmd TODO).
     2. Expand sections below with live translation function calls on the
        loaded myeloma MINDENOM=1 fit.
-    3. Cross-reference all output values against docs/myeloma-cta-translation.md.
+    3. Cross-reference all output values against docs/examples/myeloma-cta-translation.md.
 -->
 
 **Status:** Draft — precomputed artifacts not yet generated.
@@ -40,7 +40,7 @@ function call.
 **Source material:**
 
 - `docs/CTA_TRANSLATION_STACK.md` — pipeline navigation and function map
-- `docs/myeloma-cta-translation.md` — worked numeric example with all values
+- `docs/examples/myeloma-cta-translation.md` — worked numeric example with all values
 
 ---
 

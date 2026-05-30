@@ -20,7 +20,7 @@ knitr::opts_chunk$set(collapse = TRUE, comment = "#>")
     3. Confirm anchor values: MINDENOM=1 WESS=27.69%, MINDENOM=30 WESS=16.51%,
        MINDENOM=56 no tree.
 
-  See: docs/myeloma-cta-translation.md for all canonical computed values.
+  See: docs/examples/myeloma-cta-translation.md for all canonical computed values.
   See: CLAUDE.md §Myeloma for canonical fit settings and confusion anchors.
 -->
 
@@ -40,7 +40,7 @@ is available.
 **Source material:**
 
 - `tests/testthat/fixtures/myeloma/` — myeloma fixture data and CTA.exe outputs
-- `docs/myeloma-cta-translation.md` — full walkthrough with all computed values
+- `docs/examples/myeloma-cta-translation.md` — full walkthrough with all computed values
 - `docs/CTA_CANON.md` — MINDENOM anchor values and confusion matrices
 
 ---

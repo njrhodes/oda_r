@@ -1,5 +1,7 @@
 # LORT (Locally Optimal Recursive Tree) — Design Document
 
+> **Maintainer historical design memo. Not public API. Do not treat as implemented behavior.**
+
 _Formerly: "CTA Optimal Recursive Tree (ORT)"_
 
 **Status:** Finalized design. Implementation in R/cta_ort.R.

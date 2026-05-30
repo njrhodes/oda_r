@@ -1,212 +1,116 @@
 # DOCS_INDEX.md
 
-Navigation index for odacore documentation. **This is the authoritative starting
-point for understanding active specs, design history, and implementation status.**
+Navigation index for odacore documentation.
 
-Do not use `prompts/` files as active roadmap. They are historical archive
-material. This file supersedes them.
+**Start here:** [STATUS.md](STATUS.md) — current production state, what is implemented,
+what is deferred.
 
 ---
 
-## Active Canon Docs
+## Canon Docs
 
-These files define "correct" behavior. A divergence from a covered fixture or
+These files define correct behavior. A divergence from a covered fixture or
 from these specs is a **bug**, not an alternative interpretation.
 
-| File | Covers | Status |
-|------|--------|--------|
-| [ODA_CANON.md](ODA_CANON.md) | `oda_fit()` / UniODA / MultiODA: degeneracy policy, objective, ordered/categorical/binary attributes, weights, missing values, MC, LOO, DIRECTION parameters (Chapter 2 binary and Chapter 4 multiclass/categorical) | Active canon |
-| [CTA_CANON.md](CTA_CANON.md) | `cta_fit()` / `oda_cta_fit()`: degeneracy policy, node-level construction, HO-CTA, EO-CTA/ENUMERATE, pruning (Sidak-Bonferroni + max-accuracy), weights, missing values, LOO, MC, gold fixtures (Myeloma + CTA_DEMO) | Active canon |
+| File | Covers |
+|------|--------|
+| [ODA_CANON.md](ODA_CANON.md) | `oda_fit()` / UniODA / MultiODA: degeneracy policy, objective, ordered/categorical/binary attributes, weights, missing values, MC, LOO |
+| [CTA_CANON.md](CTA_CANON.md) | `cta_fit()` / `oda_cta_fit()`: ENUMERATE, pruning, LOO STABLE, MINDENOM, gold fixtures (myeloma + CTA_DEMO) |
 
 ---
 
-## Graphics v3 Docs
+## Method and Workflow Docs
 
-| File | Covers | Status |
-|------|--------|--------|
-| [GRAPHICS_V3.md](GRAPHICS_V3.md) | Graphics v3 function reference, ggplot2 dependency policy, no-fitting-inside-renderers rule, examples (CTA tree, LORT tree, ODA balance, SMD/Love plot, CTA balance), `no_tree` balance interpretation, `ggsave` usage | **Active — v3C1 + v3C2 landed** |
-| [COVARIATE_BALANCE_CONTRACT.md](COVARIATE_BALANCE_CONTRACT.md) | Balance diagnostics API contract: `oda_balance_table`, `smd_balance_table`, `cta_balance_table`, plot-data transforms; scope (group ≠ outcome), SMD as companion, ODA balance as primary objective, no p-values in SMD | Active reference |
+| File | Covers |
+|------|--------|
+| [LORT_SORT_GORT_TAXONOMY.md](LORT_SORT_GORT_TAXONOMY.md) | LORT/SORT/GORT definitions, canon boundary, novometric canon hierarchy, output classification audit standard |
+| [SDA_ANCHOR_CONTRACT.md](SDA_ANCHOR_CONTRACT.md) | `sda_anchor` object contract: schema, API (`as_sda_anchor`, `validate_sda_anchor`), task hooks |
+| [FIT_OBJECT_EVIDENCE_CONTRACT.md](FIT_OBJECT_EVIDENCE_CONTRACT.md) | Fitted-object evidence wiring: ESS/WESS/D/confusion across public methods |
 
-**Degeneracy boundary (added 2026-05-27):** Post-pruning degeneracy gate is
-now production. CTA never returns a tree where all terminals predict the same
-class — such candidates are rejected in the ENUMERATE loop before entering
-best-tree competition. `degen = TRUE` is not an option for CTA or LORT (recursive CTA).
-
----
-
-## CTA / MDSA Translation and Reporting Docs
-
-These files cover the on-demand reporting pipeline that runs on top of fitted
-`cta_tree` objects. All translation is on-demand; the lean-fit invariant
-(no training X/y stored at fit time) must be preserved.
-
-| File | Covers | Status |
-|------|--------|--------|
-| [CTA_TRANSLATION_STACK.md](CTA_TRANSLATION_STACK.md) | Navigation map: lean-fit principle, function map for all reporting/translation functions, pipeline overview | Active reference — first production version complete |
-| [myeloma-cta-translation.md](myeloma-cta-translation.md) | Worked walkthrough of the full reporting stack using myeloma MINDENOM=1/30/56; all values computed from actual package runs | Completed reference / worked example |
-| [CTA_ORDERED_CUT_AUDIT.md](CTA_ORDERED_CUT_AUDIT.md) | Audit evidence for weighted ordered-cut selection rule and LOO STABLE gate; MPE.pdf anchors and myeloma V4/V15 empirical evidence | Active audit / implementation reference |
+LORT distinctions:
+- **LORT** (implemented): adjacent workflow-layer composition using canon CTA/MDSA components; greedy local min-D; not Chapter 12 canon.
+- **SORT** (reserved): SDA-anchored sequential recursive CTA/MDSA; requires SDA source object; not implemented.
+- **GORT** (future): global recursive search; not implemented.
 
 ---
 
-## LORT / SORT / GORT Method Taxonomy
+## Reporting, Translation, and Balance Docs
 
-| File | Covers | Status |
-|------|--------|--------|
-| [LORT_SORT_GORT_TAXONOMY.md](LORT_SORT_GORT_TAXONOMY.md) | **Agent handoff contract:** LORT/SORT/GORT definitions, method relationships, confirmed LORT object metadata, reserved names, what agents may/may not modify, future SORT/GORT task templates, canon boundary | **Active — read before any recursive CTA task** |
-
-Key distinctions:
-- **LORT** (implemented): greedy local min-D recursion; `method = "lort"`; `global_optimization = FALSE`; `sda_anchored = FALSE`.
-- **SORT** (reserved): SDA-anchored sequential recursive CTA/MDSA; requires SDA source object; replaces generic "staged CTA" as a specific method name.
-- **GORT** (future design only): global recursive search over all configurations; not implemented; reserved namespace.
+| File | Covers |
+|------|--------|
+| [CTA_TRANSLATION_STACK.md](CTA_TRANSLATION_STACK.md) | Lean-fit principle, function map for all reporting/translation functions, pipeline overview |
+| [COVARIATE_BALANCE_CONTRACT.md](COVARIATE_BALANCE_CONTRACT.md) | Balance diagnostics API: `oda_balance_table`, `smd_balance_table`, `cta_balance_table`, plot-data transforms |
+| [GRAPHICS_V3.md](GRAPHICS_V3.md) | Graphics v3 function reference, ggplot2 dependency policy, no-fitting-inside-renderers rule |
 
 ---
 
-## Recursive CTA Design Docs
+## Implementation Audit Docs
 
-| File | Covers | Status |
-|------|--------|--------|
-| [CTA_ORT_DESIGN.md](CTA_ORT_DESIGN.md) | Finalized design for `cta_fit(recursive = TRUE)` (LORT): API, MDSA per-level MINDENOM, single seed / RNG streaming, right-then-left traversal, recursion guards, object structure, prediction/plot semantics, testing plan | Active design — implementation complete in `R/cta_ort.R` |
-| [ORT_SELECTION_METHODS.md](ORT_SELECTION_METHODS.md) | Decision memo: three-role method stack (EO-CTA/MDSA → SDA staging → imbalanced recursive CTA); canon uncertainty notes; private rare-event test results; stale/invalid MINDENOM=117 case documented | Active design memo — **not implementation spec**; do not code from it without explicit approval |
-
-**ORT_SELECTION_METHODS §5.1 note:** The MINDENOM=117 root member is explicitly
-marked `INVALID — exposed as degenerate (2025-05)`. Sections §5.2–5.4 discuss
-this result as a historical probe, not a current production outcome. The
-degeneracy gate (2026-05-27) prevents this from recurring.
-
-**Terminology note (2026-05-28):** `recursive = TRUE` is now named LORT internally.
-"ORT" may appear in legacy code — the names `cta_ort`, `predict.cta_ort`,
-`print.cta_ort`, `summary.cta_ort`, `plot.cta_ort`, `ort_plot_data()`, and
-`cta_ort_node_table()` are **legacy compatibility names for LORT**.
-They are retained for backward compatibility. New docs and agent instructions
-should use LORT/SORT/GORT; do not introduce new bare-`ort` public names.
-See `LORT_SORT_GORT_TAXONOMY.md §Legacy API Naming` for the full table and rules.
+| File | Covers |
+|------|--------|
+| [CTA_ORDERED_CUT_AUDIT.md](CTA_ORDERED_CUT_AUDIT.md) | Audit evidence: weighted ordered-cut selection rule and LOO STABLE gate; MPE.pdf anchors and myeloma V4/V15 empirical evidence |
 
 ---
 
-## SDA Docs
+## Worked Examples
 
-| File | Covers | Status |
-|------|--------|--------|
-| [SDA_AUTO_SDA_PLAN.md](SDA_AUTO_SDA_PLAN.md) | Comprehensive design for Sequential Discriminant Analysis and auto-SDA: canon anchor, SDA modes (legacy `unioda_max_ess` vs. MPE novometric `min_d`), object contract, prediction semantics, CTA/ORT interop, auto-SDA plan logic, generalized staged terminology, test plan, implementation slices | Active design — SDA-1 through SDA-4B complete; weighted/staged adjustment deferred |
-| [SDA_ANCHOR_CONTRACT.md](SDA_ANCHOR_CONTRACT.md) | Anchor contract for converting `sda_fit` objects into structured `sda_anchor` objects for use in staged/SORT workflows: full `sda_fit` field audit, `sda_anchor` schema (required + optional fields), `stage_table` column spec, API design (`as_sda_anchor`, `sda_anchor`, `validate_sda_anchor`, S3 methods), gap analysis, tests, explicit/manual anchor path | **Implemented — Slice O; `R/sda_anchor.R` + 44 tests passing** |
-
----
-
-## SORT / Staged CTA Workflow Docs
-
-| File | Covers | Status |
-|------|--------|--------|
-| [STAGED_CTA_WORKFLOW_PLAN.md](STAGED_CTA_WORKFLOW_PLAN.md) | Lessons-ingested design for **SORT** (Sequentially Optimal Recursive Trees): FORCENODE (node-level) vs. staged EX CTA (workflow-level) differences, artifact inventory, model comparison table, proposed `staged_cta_workflow` object, implementation sequence, cleanup plan for data-raw artifacts | Active design — SCTA-0 (evidence capture) complete; SCTA-1+ deferred; **no implementation yet** |
-
----
-
-## Vision and Architecture Doc
-
-| File | Covers | Status |
-|------|--------|--------|
-| [ODACORE_VISION.md](ODACORE_VISION.md) | Package scope; public API; return value contract; fixture validation status; selection algorithm invariants; novometric axioms (Axiom 1–4); full phase map (Phase 0–4); invariants that must not regress; reference index | Living doc — authoritative for package scope and phase structure; **update when production state changes** |
-
----
-
-## Stale / Archive Materials
-
-These exist in the repository but are **not active roadmap**. Do not drive
-implementation decisions from them.
-
-| File | Status | Note |
-|------|--------|------|
-| `prompts/prod-roadmap-cta-mdsa-2026-05-19.md` | **Archive / stale** | Historical phase handoff prompt from 2026-05-19. Superseded by current CLAUDE.md, ODACORE_VISION.md, and this index. Do not treat as authoritative. |
-| Any other files in `prompts/` | **Archive / historical** | Phase-handoff prompts from prior sessions. Not current roadmap. |
+| File | Covers |
+|------|--------|
+| [examples/myeloma-cta-translation.md](examples/myeloma-cta-translation.md) | Worked example: full reporting stack using myeloma MINDENOM=1/30/56; values computed from actual package runs |
 
 ---
 
 ## Current Production Checkpoints
 
-| Checkpoint | Status | Commit |
-|-----------|--------|--------|
-| UniODA / MultiODA parity (iris, synthetic) | complete | Phase 0 |
-| CTA_DEMO MINDENOM=1 and 8 parity | complete | Phase 0 |
-| Myeloma MINDENOM=1/30/56 parity | complete | Phase 0 |
-| Weighted ordered scan + LOO STABLE gate | complete | 85459a4 |
-| Root-only ENUMERATE stump phase | complete | a2e2a9d |
-| CTA translation stack first production version | complete | f0328e2 |
-| CTA graphics v1 (`cta_plot_data`, `plot.cta_tree`) | complete | f0328e2 |
-| D statistic + endpoint denominators | complete | Phase 2D |
-| MDSA descendant family (`cta_descendant_family`, `cta_family_table`) | complete | Phase 2E |
-| SDA-4B novometric_min_d mode | complete | 2026-05-27 |
-| Post-pruning degeneracy gate (CTA + ORT + family) | complete | fbaaa85 |
-| LORT/SORT/GORT taxonomy (LORT implemented; SORT/GORT reserved) | complete | fbaaa85 |
-| Synthetic no_tree / non-degenerate regression tests (Slice B) | complete | fbaaa85 |
-| LOO semantics fix: numeric gate, pvalue mode, loo_status (Slice C) | complete | 9b542b4 |
-| LOO gate docs alignment: ODA_CANON, CTA_CANON, man pages (Slice D-docs) | complete | 34d0fd2 |
-| CRAN timing fix: test-cta-ort.R fixture caching 96s→7.4s (Slice D-test) | complete | 89605b7 |
-| ODA/SMD covariate balance tables + plot data (v3B1) | complete | 6b5bd06 |
-| CTA multivariate balance table + plot data (v3B2) | complete | 88f84c6 |
-| Graphics v3C1: `plot_cta_tree()`, `plot_lort_tree()` | complete | 9ccfdbd |
-| Graphics v3C2: `plot_oda_balance()`, `plot_smd_balance()`, `plot_balance_love()`, `plot_cta_balance()` | complete | 1838ae7 |
-| Graphics v3D: docs/examples/export polish (GRAPHICS_V3.md, README, DOCS_INDEX) | complete | 1ff8579 |
-| SDA anchor object + task hooks (Slice O) | complete | pending |
-| SDA anchor object + task hooks (Slice O) | complete | a3464bb |
-| Production tools gap audit (Slice P) | complete | pending |
-| Production tools: readiness checks + ODA/LORT propensity (Slice Q) | complete | 67f84ef |
-| Full fast suite: FAIL 0 / WARN 0 / SKIP 165 / PASS 1695 | current | 67f84ef |
-| CRAN check: 0 errors / 0 warnings / 1 note (clock) | current | 67f84ef |
+| Checkpoint | Status |
+|-----------|--------|
+| UniODA / MultiODA parity (iris, synthetic) | complete |
+| CTA_DEMO MINDENOM=1 and 8 parity | complete |
+| Myeloma MINDENOM=1/30/56 parity | complete |
+| Weighted ordered scan + LOO STABLE gate | complete |
+| Root-only ENUMERATE stump phase | complete |
+| CTA translation stack first production version | complete |
+| CTA graphics v1/v3 (tree, balance, LORT, love plot) | complete |
+| D statistic + endpoint denominators | complete |
+| MDSA descendant family | complete |
+| SDA-4B novometric_min_d mode | complete |
+| Post-pruning degeneracy gate (CTA + ORT + family) | complete |
+| LORT/SORT/GORT taxonomy | complete |
+| ODA/SMD/CTA covariate balance tables + plot data | complete |
+| SDA anchor object + task hooks (Slice O) | complete |
+| Production tools: readiness checks + ODA/LORT propensity (Slice Q) | complete |
+| Slice S: evidence wiring across public methods | complete |
+| Slice T: live-fire rehearsal; public contract alignment | complete |
+| Full fast suite: FAIL 0 / WARN 0 | current |
+| CRAN check: 0 errors / 0 warnings / 1 note (clock) | current |
 
 ---
 
-## Current Next-Slice Order
+## Deferred Items
 
-```
-[done] A. Docs index / coherence pass
-[done] B. Synthetic degeneracy regression fixture
-[done] C. LOO semantics hardening (numeric gate, pvalue mode, loo_status)
-[done] D. LOO docs alignment + CRAN timing fix (test-cta-ort.R)
-[done] E. Production validation checkpoint (PROD_CHECKPOINT.md)
-[done] F–H. Balance diagnostics v3B1/B2 + Graphics v3C1/C2/D
-             — ODA/SMD/CTA balance tables + plot data
-             — plot_cta_tree, plot_lort_tree, plot_oda_balance,
-               plot_smd_balance, plot_balance_love, plot_cta_balance
-             — GRAPHICS_V3.md, README examples, DOCS_INDEX update
-[done] I. SDA -> CTA/ORT anchor (design only — SDA_ANCHOR_CONTRACT.md)
-[done] L. Vignettes / pkgdown
-[done] M. Release hardening (Slice M)
-[done] O. SDA anchor implementation (R/sda_anchor.R, 44 tests)
-       J. Staged CTA workflow implementation (deferred)
-       K. Weighted/staged adjustment design (deferred)
-[done] P. Production tools gap audit (PRODUCTION_TOOLS_GAP_AUDIT.md)
-[done] Q. Minimal production tools implementation
-       R. Final release hardening
-```
-
-Slices I–M are ordered by dependency; do not skip ahead without completing
-upstream prerequisites.
+| Item | Note |
+|------|------|
+| SORT (`sort_fit`) | Reserved — requires SDA anchor; not implemented |
+| GORT (`gort_fit`) | Reserved — future design only |
+| Weighted SDA | Deferred to SDA-5 |
+| SDA-derived propensity weights | Deferred; SDA produces stage order, not propensity strata |
+| Power / sample-size calculation | Deferred; MINDENOM is current declared design constraint |
+| Multiclass CTA | Future extension |
 
 ---
 
-## External Vignette / Demo Candidate Note
+## Internal / Archived Design Memos
 
-**Credit-card fraud dataset:** A publicly available rare-event imbalanced dataset
-(e.g., Kaggle credit card fraud) is a **future optional external demo candidate**
-for rare-event degeneracy and balance workflows. It is:
+These files are **maintainer history** — not public API, not active roadmap.
+Do not drive implementation decisions from them.
 
-- not package data
-- not a test fixture
-- must not be downloaded during CRAN checks or automated tests
-- appropriate only as a user-facing vignette (Slice I) under an explicit
-  network-skip guard, after the balance-diagnostics API exists (Slice D)
-
-Do not reference it in tests or as a canon anchor.
-
----
-
-## How to Use This Index
-
-- **Finding canon behavior:** Read `ODA_CANON.md` and `CTA_CANON.md` first.
-  `ODACORE_VISION.md` covers invariants and phase context.
-- **Understanding the reporting stack:** `CTA_TRANSLATION_STACK.md` then
-  `myeloma-cta-translation.md`.
-- **LORT / recursive CTA:** `CTA_ORT_DESIGN.md` then `ORT_SELECTION_METHODS.md`
-  (memo only, not spec).
-- **SDA / auto-SDA:** `SDA_AUTO_SDA_PLAN.md`.
-- **Staged CTA workflows:** `STAGED_CTA_WORKFLOW_PLAN.md`.
-- **What not to read for current roadmap:** Anything in `prompts/`.
+| File | Note |
+|------|------|
+| [internal/ODACORE_VISION.md](internal/ODACORE_VISION.md) | Phase map and architecture notes; superseded by STATUS.md |
+| [internal/PROD_CHECKPOINT.md](internal/PROD_CHECKPOINT.md) | Production checkpoint after Slices O-Q |
+| [internal/PRODUCTION_TOOLS_GAP_AUDIT.md](internal/PRODUCTION_TOOLS_GAP_AUDIT.md) | Gap audit memo for production tools and propensity |
+| [internal/CTA_ORT_DESIGN.md](internal/CTA_ORT_DESIGN.md) | LORT design doc; implementation complete in `R/cta_ort.R` |
+| [internal/ORT_SELECTION_METHODS.md](internal/ORT_SELECTION_METHODS.md) | LORT/SORT/GORT selection decision memo; contains stale probe results |
+| [internal/SDA_AUTO_SDA_PLAN.md](internal/SDA_AUTO_SDA_PLAN.md) | SDA planning doc; SDA-1 through SDA-4B complete; weighted/staged deferred |
+| [internal/STAGED_CTA_WORKFLOW_PLAN.md](internal/STAGED_CTA_WORKFLOW_PLAN.md) | SORT/staged CTA planning; SCTA-0 complete; SCTA-1+ deferred; contains private-data artifact inventory |
+| `prompts/` | Phase-handoff prompts; historical archive; not current roadmap |

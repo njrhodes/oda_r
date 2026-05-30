@@ -1,5 +1,7 @@
 # ODACORE_VISION.md
 
+> **Maintainer historical design memo. Not public API. Do not treat as implemented behavior.**
+
 Maintainer: Nathaniel J. Rhodes, PharmD, MSc
 Repository: https://github.com/njrhodes/oda_rcore
 Updated: 2026-05-12

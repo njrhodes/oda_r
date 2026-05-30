@@ -127,8 +127,7 @@ Full test suite (fast tier): FAIL 0 / WARN 0 / PASS 1566 (checkpoint 1ff8579).
   an approved design document.
 - **Weighted SDA:** `sda_fit()` currently errors on non-uniform case weights.
   Weighted SDA is deferred.
-- **Full staged CTA workflow:** `staged_cta_workflow` object design is in
-  `docs/STAGED_CTA_WORKFLOW_PLAN.md`; implementation is Slice J.
+- **Full staged CTA workflow (SORT):** reserved; not yet implemented.
 - **pkgdown site build:** Article builds require `pkgdown` and are not
   automatically triggered by `devtools::check()`. Four articles
   (`myeloma-cta`, `cta-translation`, `mdsa-family`, `cta-graphics`) require
@@ -137,7 +136,6 @@ Full test suite (fast tier): FAIL 0 / WARN 0 / PASS 1566 (checkpoint 1ff8579).
 
 ## Further reading
 
-- `docs/ODACORE_VISION.md` — package scope, phase map, production invariants
+- `docs/STATUS.md` — current production state, what is implemented, what is deferred
 - `docs/ODA_CANON.md` — canonical ODA behavior specification
 - `docs/CTA_CANON.md` — canonical CTA behavior specification
-- `docs/PROD_CHECKPOINT.md` — current validation snapshot
