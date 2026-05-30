@@ -97,19 +97,3 @@ LORT distinctions:
 | Power / sample-size calculation | Deferred; MINDENOM is current declared design constraint |
 | Multiclass CTA | Future extension |
 
----
-
-## Internal / Archived Design Memos
-
-These files are **maintainer history** - not public API, not active roadmap.
-Do not drive implementation decisions from them.
-
-| File | Note |
-|------|------|
-| [internal/ODACORE_VISION.md](internal/ODACORE_VISION.md) | Phase map and architecture notes; superseded by STATUS.md |
-| [internal/PRODUCTION_TOOLS_GAP_AUDIT.md](internal/PRODUCTION_TOOLS_GAP_AUDIT.md) | Gap audit memo for production tools and propensity |
-| [internal/CTA_ORT_DESIGN.md](internal/CTA_ORT_DESIGN.md) | LORT design doc; implementation complete in `R/cta_ort.R` |
-| [internal/ORT_SELECTION_METHODS.md](internal/ORT_SELECTION_METHODS.md) | LORT/SORT/GORT selection decision memo; contains stale probe results |
-| [internal/SDA_AUTO_SDA_PLAN.md](internal/SDA_AUTO_SDA_PLAN.md) | SDA planning doc; SDA-1 through SDA-4B complete; weighted/staged deferred |
-| [internal/STAGED_CTA_WORKFLOW_PLAN.md](internal/STAGED_CTA_WORKFLOW_PLAN.md) | SORT/staged CTA planning; SCTA-0 complete; SCTA-1+ deferred; contains private-data artifact inventory |
-| `prompts/` | Phase-handoff prompts; historical archive; not current roadmap |
