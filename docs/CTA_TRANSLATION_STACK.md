@@ -152,8 +152,9 @@ confusion table recovery, and the lean-fit invariant check.
   The CTA propensity-weight pipeline (`cta_propensity_weights`,
   `cta_observation_weights`) feeds directly into `cta_balance_table()` and
   `plot_cta_balance()`.  Future balance work should be canon-reviewed against
-  the Linden/Yarnold JEP covariate-balance paper in `docs/theory/`; that paper
-  frames balance assessment as an ODA classification problem.
+  the Linden/Yarnold JEP covariate-balance paper (not included in the package
+  distribution); that paper frames balance assessment as an ODA classification
+  problem.
 - **Raw-count propensity formula only.** `cta_propensity_weights()` uses raw
   class counts in the weight formula.  Weighted counts are stored in the tree
   (`class_counts_weighted`) but are not yet surfaced in the propensity
@@ -195,8 +196,8 @@ remain CRAN-safe by default. No slow canon fits should run during
   framing: after matching or weighting, pre-intervention covariates should
   have weak or non-significant ability to discriminate assignment/study groups.
   SMD-style summaries may be useful complements but are not the canon center.
-  Canon review against the Linden/Yarnold JEP covariate-balance paper in
-  `docs/theory/` is required before implementation.
+  Canon review against the Linden/Yarnold JEP covariate-balance paper is
+  required before implementation.
 - **Weighted propensity-weight variant**  -  `cta_propensity_weights()` uses raw
   observation counts exclusively. A `weighted = TRUE` path using `n_weighted`
   and weighted marginals remains deferred design.

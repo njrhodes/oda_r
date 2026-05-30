@@ -553,7 +553,7 @@ oda_mc_p_value_multiclass <- function(
 
 # ---- LOO: categorical multiclass (unweighted only) ------------------------ #
 #' Leave-one-out for categorical multiclass ODA
-#' @export
+#' @keywords internal
 
 oda_loo_multiclass <- function(
     x, y, w0, attr_type, priors_on_eff, weighted_requested,

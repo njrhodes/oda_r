@@ -79,6 +79,14 @@ test_that("T1: ODA operator workflow completes end-to-end", {
   expect_s3_class(ci, "novo_boot_ci")
   expect_equal(ci$n, 60L)
   expect_true(is.logical(ci$significant))
+  # Exact-source: confusion must equal matrix built from fit$confusion
+  conf <- fit$confusion
+  expected_conf <- matrix(c(conf$TN, conf$FP, conf$FN, conf$TP),
+                           nrow = 2L, byrow = TRUE)
+  expect_equal(ci$confusion, expected_conf)
+  # Provenance
+  expect_equal(ci$source_type, "oda_fit")
+  expect_false(ci$weighted)
 })
 
 # ---------------------------------------------------------------------------
@@ -134,7 +142,11 @@ test_that("T2: CTA operator workflow completes end-to-end", {
   if (!isTRUE(tree$no_tree)) {
     ci <- novo_boot_ci(tree, nboot = 100L, seed = 1L)
     expect_s3_class(ci, "novo_boot_ci")
+    # Exact-source: confusion must be identical to stored training_confusion
     expect_equal(ci$confusion, tree$training_confusion)
+    # Provenance
+    expect_equal(ci$source_type, "cta_tree")
+    expect_false(ci$weighted)
   }
 
   # --- Step 8: ggplot2 renderer with show_metrics ---
@@ -186,6 +198,21 @@ test_that("T3: LORT operator workflow completes end-to-end", {
     expect_s3_class(ci, "novo_boot_ci")
     total_from_strata <- sum(vapply(st$class_counts, sum, integer(1L)))
     expect_equal(ci$n, total_from_strata)
+    # Exact-source: reconstruct expected confusion from strata
+    expected_ort_conf <- matrix(0L, 2L, 2L)
+    for (i in seq_len(nrow(st))) {
+      p  <- as.integer(st$terminal_class[i]) + 1L
+      cc <- st$class_counts[[i]]
+      for (cls in names(cc)) {
+        a <- as.integer(cls) + 1L
+        if (a >= 1L && a <= 2L && p >= 1L && p <= 2L)
+          expected_ort_conf[a, p] <- expected_ort_conf[a, p] + as.integer(cc[[cls]])
+      }
+    }
+    expect_equal(ci$confusion, expected_ort_conf)
+    # Provenance
+    expect_equal(ci$source_type, "cta_ort")
+    expect_false(ci$weighted)
   }
 
   # --- Step 5: ggplot2 renderer with show_metrics ---

@@ -257,16 +257,10 @@ or "Run a... procedure". Verified: no stale hits.
 
 ## 11. Live-Fire Validation Results
 
-### Targeted smoke (live-fire + fit-evidence + graphics + novo + sda-anchor)
+### Full fast suite (ODACORE_TEST_TIER=fast) — post-OBBP
 
 ```
-FAIL 0 / WARN 0 / SKIP 8 / PASS 550
-```
-
-### Full fast suite (ODACORE_TEST_TIER=fast)
-
-```
-FAIL 0 / WARN 0 / SKIP 165 / PASS 1838
+FAIL 0 / WARN 0 / SKIP 167 / PASS 1867
 ```
 
 ### devtools::check(vignettes=FALSE)
@@ -276,6 +270,13 @@ FAIL 0 / WARN 0 / SKIP 165 / PASS 1838
 ```
 
 All canon fixtures passing: myeloma MINDENOM=1/30/56, CTA_DEMO MINDENOM=1/8.
+
+### NOVOboot wiring coverage (post-OBBP)
+
+- T2 `novo_boot_ci(tree)`: `ci$confusion` exact-equal to `tree$training_confusion` (source_type = "cta_tree")
+- T3 `novo_boot_ci(lort)`: `ci$n` exact-equal to sum of `strata$class_counts`; source_type = "cta_ort"
+- T1 `novo_boot_ci(fit)`: `ci$confusion` exact-equal to matrix from `fit$confusion`; source_type = "oda_fit"
+- E8/E9 tests: exact confusion for node_id (D), stratum_id (F), and as_confusion_matrix round-trip (G)
 
 ---
 

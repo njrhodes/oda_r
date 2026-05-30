@@ -561,7 +561,8 @@ when new reporting or translation functions are added.
 - **Balance diagnostics.** Standardized mean differences or other
   covariate-balance checks after propensity-weight application are not
   provided. Future balance-diagnostic work should be canon-reviewed against
-  the Linden/Yarnold JEP covariate-balance paper stored in `docs/theory/`.
+  the Linden/Yarnold JEP covariate-balance paper (not included in the
+  package distribution).
 - **Downstream outcome models.** Propensity-weighted outcome regression or
   marginal structural model fitting is not part of this package.
 
