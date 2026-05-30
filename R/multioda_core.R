@@ -501,7 +501,7 @@ oda_rule_predict_multiclass <- function(
 oda_mc_p_value_multiclass <- function(
     x, y, w, attr_type, priors_on, degen, K_segments,
     mc_iter   = 25000L, mc_target = 0.05,
-    mc_stop   = 99.9,   mc_stopup = 20,
+    mc_stop   = 99.9,   mc_stopup = NA,
     mc_adjust = FALSE,  seed = NULL, observed_mean_pac,
     direction = "off", direction_map = NULL
 ) {
@@ -843,7 +843,7 @@ oda_multiclass_unioda_core <- function(
     mc_iter          = 25000L,
     mc_target        = 0.05,
     mc_stop          = 99.9,
-    mc_stopup        = 20,
+    mc_stopup        = NA,
     mc_adjust        = FALSE,
     mc_seed          = NULL,
     loo              = c("off","on"),

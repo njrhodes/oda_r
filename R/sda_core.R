@@ -36,7 +36,7 @@
 #' @param mc_iter Maximum Monte Carlo iterations per attribute fit. Default 5000L.
 #' @param mc_seed RNG seed set once before the SDA run. Default 42L.
 #' @param mc_stop Lower-tail early-stop confidence (percent). Default 99.9.
-#' @param mc_stopup Upper-tail early-stop confidence (percent). Default 20.
+#' @param mc_stopup Upper-tail early-stop confidence (percent). Default NA (disabled; matches MegaODA behavior).
 #' @param alpha Significance threshold for p-value gate. Default 0.05.
 #' @param loo LOO mode passed to \code{oda_fit()}. Default \code{"off"}.
 #' @param max_steps Maximum number of SDA steps (safety cap). Default \code{NULL}
@@ -66,7 +66,7 @@ sda_fit <- function(
     mc_iter        = 5000L,
     mc_seed        = 42L,
     mc_stop        = 99.9,
-    mc_stopup      = 20,
+    mc_stopup      = NA,
     alpha          = 0.05,
     loo            = "off",
     max_steps      = NULL,

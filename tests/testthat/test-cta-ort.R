@@ -311,7 +311,7 @@ test_that("cta_fit recursive: mc_stop and mc_stopup stored in ort_settings", {
 test_that("cta_fit recursive: mc_stop/mc_stopup default to oda_cta_fit canonical values", {
   ort <- syn_ort   # no mc_stop / mc_stopup supplied
   expect_equal(ort$ort_settings$mc_stop,   99.9)
-  expect_equal(ort$ort_settings$mc_stopup, 20)
+  expect_true(is.na(ort$ort_settings$mc_stopup))
 })
 
 # ---------------------------------------------------------------------------

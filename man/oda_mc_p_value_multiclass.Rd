@@ -15,7 +15,7 @@ oda_mc_p_value_multiclass(
   mc_iter = 25000L,
   mc_target = 0.05,
   mc_stop = 99.9,
-  mc_stopup = 20,
+  mc_stopup = NA,
   mc_adjust = FALSE,
   seed = NULL,
   observed_mean_pac,

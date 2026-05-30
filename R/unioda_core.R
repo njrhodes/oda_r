@@ -237,7 +237,7 @@ oda_apply_primary_secondary <- function(cand_df, primary, secondary, y, w,
 #' @param mc_iter  Maximum iterations.
 #' @param mc_target  Significance threshold (e.g. 0.05).
 #' @param mc_stop  Confidence level for lower-tail stop (e.g. 99.9).
-#' @param mc_stopup  Confidence level for upper-tail stop (e.g. 20 -> 0.20).
+#' @param mc_stopup  Confidence level for upper-tail stop (e.g. 20 -> 0.20). Default NA (disabled).
 #' @param mc_adjust  Kept for API compatibility; not used.
 #' @param seed  Optional RNG seed.
 #' @param ess_obs  Observed ESS (must be supplied).
@@ -260,7 +260,7 @@ oda_mc_p_value <- function(
     mc_iter      = 25000L,
     mc_target    = 0.05,
     mc_stop      = 99.9,
-    mc_stopup    = 20,
+    mc_stopup    = NA,
     mc_adjust    = FALSE,
     seed         = NULL,
     ess_obs      = NULL,

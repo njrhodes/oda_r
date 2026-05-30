@@ -17,7 +17,7 @@ oda_mc_p_value(
   mc_iter = 25000L,
   mc_target = 0.05,
   mc_stop = 99.9,
-  mc_stopup = 20,
+  mc_stopup = NA,
   mc_adjust = FALSE,
   seed = NULL,
   ess_obs = NULL,
@@ -44,7 +44,7 @@ oda_mc_p_value(
 
 \item{mc_stop}{Confidence level for lower-tail stop (e.g. 99.9).}
 
-\item{mc_stopup}{Confidence level for upper-tail stop (e.g. 20 -> 0.20).}
+\item{mc_stopup}{Confidence level for upper-tail stop (e.g. 20 -> 0.20). Default NA (disabled).}
 
 \item{mc_adjust}{Kept for API compatibility; not used.}
 

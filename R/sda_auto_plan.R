@@ -255,7 +255,7 @@ auto_sda_plan <- function(
     mc_iter        = 5000L,
     mc_seed        = 42L,
     mc_stop        = 99.9,
-    mc_stopup      = 20,
+    mc_stopup      = NA,
     alpha          = 0.05,
     loo            = "off",
     min_n          = min_n,

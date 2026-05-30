@@ -13,7 +13,7 @@ oda_fit(x, y, w = NULL,
         priors_on = TRUE, K_segments = NULL, degen = FALSE,
         miss_codes = NULL, missing_code = NULL,
         mcarlo = TRUE, mc_iter = 25000L, mc_target = 0.05,
-        mc_stop = 99.9, mc_stopup = 20, mc_seed = NULL,
+        mc_stop = 99.9, mc_stopup = NA, mc_seed = NULL,
         loo = "off",
         boundary_mode = c("megaoda_halfopen","right_closed"),
         eval_order = c("mc_then_loo","loo_then_mc"),
@@ -48,7 +48,7 @@ oda_fit(x, y, w = NULL,
   \item{mc_stop}{Confidence level (percent) for lower-tail STOP.
     Default 99.9.}
   \item{mc_stopup}{Confidence level (percent) for upper-tail STOPUP.
-    Default 20.}
+    Default NA (disabled; matches MegaODA behavior).}
   \item{mc_seed}{Optional integer RNG seed for reproducibility.}
   \item{loo}{LOO mode. \code{"off"} (default): no LOO filter.
     \code{"on"}: synonym for \code{"pvalue"} when used with the multiclass

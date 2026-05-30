@@ -174,12 +174,13 @@ above.
 against MegaODA.exe output in the package test suite
 (`tests/testthat/test-fixture-vignettes.R`, Example 4).
 
-**MC p-value calibration.** The MC p shown here may differ from MegaODA's
-reported value (p ~ 0.086) and reflects `mc_iter = 500L` in this CRAN
-vignette. Use the canonical run with `mc_iter = 25000L` (chunk
-`fit-canonical`, `eval=FALSE`) for publication-quality results. This is a
-known discrepancy under investigation (issue \#5: MC STOP calibration audit).
-Training ESS and confusion matrix are unaffected.
+**MC p-value calibration.** The MC p shown here reflects `mc_iter = 500L`
+for CRAN build speed and will differ from MegaODA's reported value
+(p = 0.086 at 25000 iterations). With only 500 permutations the estimate
+is noisy (Monte Carlo standard error ~1-2%). Use the canonical run with
+`mc_iter = 25000L` (chunk `fit-canonical`, `eval=FALSE`) for
+publication-quality results. Training ESS and confusion matrix are
+unaffected by `mc_iter`.
 
 **Directional analysis.** The original analysis did not specify a directional
 hypothesis *a priori*; the nondirectional default (`direction = "both"`) is

@@ -11,7 +11,7 @@ lort_fit(
   mc_iter = 5000L,
   mc_seed = 42L,
   mc_stop = 99.9,
-  mc_stopup = 20,
+  mc_stopup = NA,
   alpha_split = 0.05,
   prune_alpha = 0.05,
   loo = "stable",
@@ -39,7 +39,7 @@ traversal order without resetting the seed.  Default \code{42L}.}
 (percent).  Default \code{99.9}.}
 
 \item{mc_stopup}{Numeric; confidence bound for upper-tail early MC stopping
-(percent).  Default \code{20}.}
+(percent).  Default \code{NA} (disabled; matches MegaODA behavior).}
 
 \item{alpha_split}{Numeric; node-level significance threshold.  Default \code{0.05}.}
 

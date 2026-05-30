@@ -38,7 +38,7 @@
 #' @param mc_iter Maximum MC iterations. Default 25000.
 #' @param mc_target Significance threshold. Default 0.05.
 #' @param mc_stop Confidence for lower-tail early stop (percent). Default 99.9.
-#' @param mc_stopup Confidence for upper-tail early stop (percent). Default 20.
+#' @param mc_stopup Confidence for upper-tail early stop (percent). Default NA (disabled; matches MegaODA behavior).
 #' @param mc_seed Optional RNG seed for reproducibility.
 #' @param loo LOO mode. \code{"off"} (default): no LOO filter.
 #'   \code{"on"}: synonym for \code{"pvalue"} when used with the multiclass engine.
@@ -92,7 +92,7 @@ oda_fit <- function(
     mc_iter      = 25000L,
     mc_target    = 0.05,
     mc_stop      = 99.9,
-    mc_stopup    = 20,
+    mc_stopup    = NA,
     mc_seed      = NULL,
     loo          = "off",
     boundary_mode = c("megaoda_halfopen","right_closed"),
@@ -293,7 +293,7 @@ cta_fit <- function(X, y, verbose = FALSE,
       mc_seed          = dots$mc_seed     %||% 42L,
       mc_iter          = dots$mc_iter     %||% 5000L,
       mc_stop          = dots$mc_stop     %||% 99.9,
-      mc_stopup        = dots$mc_stopup   %||% 20,
+      mc_stopup        = dots$mc_stopup   %||% NA,
       alpha_split      = dots$alpha_split %||% 0.05,
       prune_alpha      = dots$prune_alpha %||% 0.05,
       loo              = dots$loo         %||% "stable",
@@ -334,7 +334,7 @@ cta_fit <- function(X, y, verbose = FALSE,
 #' @param mc_stop Numeric; confidence bound for lower-tail early MC stopping
 #'   (percent).  Default \code{99.9}.
 #' @param mc_stopup Numeric; confidence bound for upper-tail early MC stopping
-#'   (percent).  Default \code{20}.
+#'   (percent).  Default \code{NA} (disabled; matches MegaODA behavior).
 #' @param alpha_split Numeric; node-level significance threshold.  Default \code{0.05}.
 #' @param prune_alpha Numeric; pruning significance threshold.  Default \code{0.05}.
 #' @param loo LOO gate mode per node: \code{"off"} (no gate), \code{"stable"}
@@ -374,7 +374,7 @@ lort_fit <- function(X, y, w = NULL,
                      mc_iter          = 5000L,
                      mc_seed          = 42L,
                      mc_stop          = 99.9,
-                     mc_stopup        = 20,
+                     mc_stopup        = NA,
                      alpha_split      = 0.05,
                      prune_alpha      = 0.05,
                      loo              = "stable",

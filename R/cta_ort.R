@@ -372,7 +372,7 @@
   mc_seed          = 42L,
   mc_iter          = 5000L,
   mc_stop          = 99.9,
-  mc_stopup        = 20,
+  mc_stopup        = NA,
   alpha_split      = 0.05,
   prune_alpha      = 0.05,
   loo              = "stable",
