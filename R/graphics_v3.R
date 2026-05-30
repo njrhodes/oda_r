@@ -321,6 +321,8 @@ utils::globalVariables(c(
 #'   Currently uses pre-computed labels.
 #' @param show_rule Logical; show branch condition labels on edges.  Default
 #'   \code{TRUE}.
+#' @param show_metrics Logical; if \code{TRUE}, appends an ESS/WESS and D
+#'   line to the plot subtitle.  Default \code{FALSE}.
 #' @param wrap_width Integer; maximum characters per line for long labels.
 #'   Default \code{26L}.  Applied to node labels via \code{strwrap()}.
 #' @param node_text_size Numeric; ggplot text size for node labels.
@@ -435,6 +437,8 @@ plot_cta_tree <- function(x,
 #' @param show_n Logical; include observation count in node labels.
 #' @param show_percent Logical; include ESS in split-node labels.
 #' @param show_rule Logical; show branch condition labels on edges.
+#' @param show_metrics Logical; if \code{TRUE}, appends an ESS/WESS and D
+#'   line to the plot subtitle.  Default \code{FALSE}.
 #' @param wrap_width Integer; maximum characters per line.  Default \code{26L}.
 #' @param node_text_size Numeric; text size for node labels.  Default \code{3.5}.
 #' @param edge_text_size Numeric; text size for edge labels.  Default \code{3.2}.

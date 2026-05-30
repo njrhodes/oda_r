@@ -10,9 +10,11 @@ canon: Axiom 1 statistical sample/power, Axiom 2 SDA when applicable, Axiom 3
 MDSA descendant-family construction, D/ESS objective clarity, and Axiom 4
 reproducibility.
 
-- **LORT** is non-canonical workflow composition using canon CTA/MDSA components.
-  It is greedy-local, not globally verified, and has no direct MegaODA/CTA.exe
-  equivalent. It is valid insofar as each node-level CTA/MDSA fit is canon-anchored.
+- **LORT** is an odacore workflow-layer composition adjacent to MPE / Chapter 12
+  canon, using canon CTA/MDSA components at each node. It is greedy-local, not
+  globally verified, and has no direct MegaODA/CTA.exe equivalent. `lort_fit()` is
+  public workflow API, not a canon claim. Legacy ORT naming is compatibility only.
+  It is valid insofar as each node-level CTA/MDSA fit is canon-anchored.
 - **SORT** is a reserved SDA-anchored workflow, not yet implemented and not a canon
   method. It will be valid only after an explicit SDA-anchor and canon-constrained
   design is approved.
@@ -292,9 +294,82 @@ unless explicitly documented otherwise.
 |-----------|--------------|
 | CTA/MDSA, ESS/WESS, MINDENOM, PRUNE, ENUMERATE, LOO, MC, D | Canon-anchored against CTA.exe fixtures |
 | SDA (legacy `unioda_max_ess` / novometric `min_d`) | Canon-anchored where implemented per MPE |
-| LORT | Package workflow built from canon-anchored pieces; not verified against CTA.exe |
+| LORT | Adjacent workflow-layer composition using canon CTA/MDSA components; not Chapter 12 canon; not CTA.exe verified |
 | SORT | Reserved; will be SDA-anchored package workflow |
 | GORT | Future design notation; no canon anchor claimed |
 
 Do not describe LORT, SORT, or GORT as "canon" unless the specific mechanics
 are verified against a CTA.exe program file or MPE source document.
+
+---
+
+## Novometric Canon Hierarchy
+
+The canon anchor is novometric methodology (MPE / Chapter 12), not the
+LORT/SORT/GORT workflow labels.
+
+For current odacore purposes, novometric canon depends on:
+
+1. **Sample size / denominator adequacy**
+   - MINDENOM (denominator/design constraint — current implemented tool)
+   - Endpoint denominator support
+   - Statistical sample/power declarations
+   - Power/sample-size calculation helper: **deferred, not implemented**
+
+2. **SDA** (Sequential Discriminant Analysis)
+   - Canonical staged attribute identification where applicable
+   - Current `sda_anchor` preserves SDA stages for future SORT/staged CTA
+
+3. **Descendant family / MDSA**
+   - Descendant-family construction
+   - D / parsimony evidence
+   - Family-level comparison where implemented
+
+4. **Bootstrap / validation**
+   - Novometric bootstrap (`novo_boot_ci`)
+   - LOO / cross-generalizability where declared
+   - Permutation / MC p-values where applicable
+   - Validation evidence must be wired to reporting methods
+
+---
+
+## Output Classification Audit Standard
+
+Every public output must be classified against this hierarchy:
+
+| Class | Description |
+|-------|-------------|
+| **Canonical core** | ODA/CTA/SDA/novometric component verified against MegaODA/CTA.exe or MPE source |
+| **Adjacent workflow** | Workflow-layer composition using canon components; not Chapter 12 canon itself |
+| **Future/reserved** | Not yet implemented; reserved namespace only |
+| **Companion diagnostic** | Non-odacore objective; supplementary |
+| **Production helper** | Operational tooling; not statistical canon |
+
+Current classifications:
+
+| Output | Class | Canon components used |
+|--------|-------|-----------------------|
+| ODA (`oda_fit`) | Canonical core | UniODA / MultiODA engine |
+| CTA (`cta_fit`) | Canonical core | ENUMERATE, PRUNE, LOO STABLE, MINDENOM |
+| SDA (`sda_fit`) | Canonical core | Sequential attribute identification per MPE |
+| MDSA / descendant family | Canonical core | D parsimony, family comparison |
+| `novo_boot_ci` | Canonical core | Novometric bootstrap / CI |
+| LORT (`lort_fit`) | Adjacent workflow | CTA/MDSA components at each node |
+| SORT (`sort_fit`) | Future/reserved | Will require SDA anchor; not implemented |
+| GORT (`gort_fit`) | Future/reserved | Requires formal design doc; not implemented |
+| SMD balance table | Companion diagnostic | Non-odacore objective |
+| Readiness checks | Production helper | Operational only |
+| Graphics v3 | Production helper | Reporting layer; not canon |
+| Propensity weights | Adjacent workflow | ODA/CTA/LORT strata as input; not outcome modeling |
+
+**Required audit checks (enforce before public-go):**
+
+- No docs/man/README/vignettes claim LORT is canonical.
+- No docs claim SORT/GORT are implemented.
+- No docs claim SDA produces propensity scores.
+- No docs claim power/sample-size tools are implemented.
+- MINDENOM is described as denominator/design constraint, not a power tool.
+- Power/sample-size calculation is deferred.
+- `novo_boot_ci` and evidence wiring are connected to real confusion/count evidence.
+- D/ESS/WESS/LOO/MC/weights are labeled according to what is actually stored.
+- Adjacent workflow outputs state which canon components they rely on.

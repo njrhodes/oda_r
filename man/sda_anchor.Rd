@@ -5,7 +5,7 @@
 \title{Construct an \code{sda_anchor} object}
 \usage{
 sda_anchor(
-  anchor_type,
+  anchor_type = "explicit",
   source_class = NULL,
   source_call = NULL,
   group_levels = NULL,

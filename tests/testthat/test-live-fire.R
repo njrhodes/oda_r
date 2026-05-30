@@ -209,9 +209,11 @@ test_that("T4: Balance and propensity workflow completes end-to-end", {
   bal_oda <- oda_balance_table(lf_y, lf_X, w = lf_w,
                                 mc_iter = 100L, mc_seed = 1L)
   expect_s3_class(bal_oda, "oda_balance_table")
-  expect_s3_class(bal_oda, "data.frame")
-  expect_true(nrow(bal_oda) == 3L)  # one row per attribute
-  expect_true(all(c("attribute", "ess", "p_mc") %in% names(bal_oda)))
+  # oda_balance_table is a list with $rows and $meta, not a data.frame subclass
+  expect_true(is.list(bal_oda))
+  expect_true(is.data.frame(bal_oda$rows))
+  expect_true(nrow(bal_oda$rows) == 3L)  # one row per attribute
+  expect_true(all(c("attribute", "ess", "p_mc") %in% names(bal_oda$rows)))
 
   # --- Step 2: SMD balance table ---
   smd_tbl <- smd_balance_table(lf_y, lf_X, w = lf_w)
@@ -232,8 +234,8 @@ test_that("T4: Balance and propensity workflow completes end-to-end", {
   expect_s3_class(prop_oda, "data.frame")
   expect_equal(nrow(prop_oda), 4L)  # 2 strata x 2 classes
   expect_equal(prop_oda$model_family[1L], "oda")
-  expect_true("weight" %in% names(prop_oda))
-  expect_true(all(is.finite(prop_oda$weight[prop_oda$weight != Inf])))
+  expect_true("propensity_weight" %in% names(prop_oda))
+  expect_true(all(is.finite(prop_oda$propensity_weight[prop_oda$propensity_weight != Inf])))
 
   # --- Step 5: LORT propensity weights ---
   lort <- lort_fit(lf_X, lf_y, mc_iter = 200L, mc_seed = 1L,
@@ -244,7 +246,7 @@ test_that("T4: Balance and propensity workflow completes end-to-end", {
   expect_equal(prop_lort$model_family[1L], "lort")
   expect_false(prop_lort$global_optimization[1L])
   expect_false(prop_lort$sda_anchored[1L])
-  expect_true("weight" %in% names(prop_lort))
+  expect_true("propensity_weight" %in% names(prop_lort))
 
   # --- Step 6: CTA multivariate balance ---
   bal_cta <- cta_balance_table(lf_y, lf_X, w = lf_w,
@@ -262,8 +264,10 @@ test_that("T5: SDA anchor operator workflow completes end-to-end", {
   skip_if(LIVEFIRE_SKIP, SKIP_MSG)
 
   # --- Step 1: Fit SDA ---
+  # novometric_min_d requires explicit mindenom (MPE analytic constraint).
+  # mindenom = 5 is appropriate for n=60, 30-per-class synthetic data.
   sda <- sda_fit(lf_X, lf_y, mc_iter = 100L, mc_seed = 1L,
-                 mode = "novometric_min_d")
+                 mode = "novometric_min_d", mindenom = 5L)
   expect_s3_class(sda, "sda_fit")
 
   # --- Step 2: SDA accessors ---
@@ -279,14 +283,15 @@ test_that("T5: SDA anchor operator workflow completes end-to-end", {
   expect_s3_class(anchor, "sda_anchor")
 
   # --- Step 4: Validate anchor ---
-  vr <- validate_sda_anchor(anchor)
-  expect_type(vr, "list")
-  expect_true("ok" %in% names(vr))
+  # validate_sda_anchor() returns anchor invisibly on success (strict = TRUE).
+  # expect_error(..., NA) asserts that no error is thrown.
+  expect_error(validate_sda_anchor(anchor), NA)
 
   # --- Step 5: Anchor invariants ---
-  expect_true("prohibited_downstream" %in% names(anchor))
-  expect_true("propensity_weighting" %in% anchor$prohibited_downstream)
-  expect_true("fraud_demo"           %in% anchor$prohibited_downstream)
+  # prohibited_downstream lives inside anchor$task_hook (the safety hook object)
+  expect_true("task_hook" %in% names(anchor))
+  expect_true("propensity_weighting" %in% anchor$task_hook$prohibited_downstream)
+  expect_true("fraud_demo"           %in% anchor$task_hook$prohibited_downstream)
 
   # --- Step 6: print / summary ---
   out_print   <- capture.output(print(anchor))
@@ -297,11 +302,23 @@ test_that("T5: SDA anchor operator workflow completes end-to-end", {
   # --- Step 7: Explicit anchor path (manual construction) ---
   if (length(sel) > 0L) {
     manual_anchor <- sda_anchor(
+      anchor_type         = "explicit",
       selected_attributes = sel,
       candidate_universe  = names(lf_X),
-      group_levels        = c(0L, 1L)
+      group_levels        = c(0L, 1L),
+      stage_table         = data.frame(
+        stage_id    = seq_along(sel),
+        attribute   = sel,
+        n_in        = rep(NA_integer_, length(sel)),
+        n_correct   = rep(NA_integer_, length(sel)),
+        n_incorrect = rep(NA_integer_, length(sel)),
+        ess         = rep(NA_real_,    length(sel)),
+        d           = rep(NA_real_,    length(sel)),
+        p_mc        = rep(NA_real_,    length(sel)),
+        stringsAsFactors = FALSE
+      )
     )
     expect_s3_class(manual_anchor, "sda_anchor")
-    expect_true("propensity_weighting" %in% manual_anchor$prohibited_downstream)
+    expect_true("propensity_weighting" %in% manual_anchor$task_hook$prohibited_downstream)
   }
 })

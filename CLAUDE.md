@@ -280,6 +280,9 @@ Full contract in `docs/LORT_SORT_GORT_TAXONOMY.md`. Summary rules:
 
 - **LORT** = Locally Optimal Recursive Tree. Current `cta_fit(recursive = TRUE)`.
   Greedy local min-D at each node. No lookahead. No SDA anchor.
+  **Adjacent workflow-layer composition** using canon CTA/MDSA components at each
+  node; not MPE Chapter 12 canon. `lort_fit()` is public workflow API, not a canon
+  claim. Legacy ORT naming is compatibility only.
   Object metadata: `ort_settings$method == "lort"`, `global_optimization == FALSE`, `sda_anchored == FALSE`.
 - **SORT** = Sequentially Optimal Recursive Tree. Reserved. Requires SDA source object.
   Do not implement SORT inside `recursive = TRUE`. Reserved entry: `sort_fit()`.

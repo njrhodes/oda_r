@@ -112,7 +112,7 @@
 #'   \code{\link{sda_fit}}
 #' @export
 sda_anchor <- function(
-    anchor_type,
+    anchor_type           = "explicit",
     source_class          = NULL,
     source_call           = NULL,
     group_levels          = NULL,
