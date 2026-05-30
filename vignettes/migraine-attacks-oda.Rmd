@@ -18,11 +18,11 @@ knitr::opts_chunk$set(collapse = TRUE, comment = "#>")
 Appleton (1995) reported a clinical trial in which 67 patients experiencing
 migraine were randomised to one of two treatments, and the number of migraine
 attacks was recorded.^[Appleton DR (1995). Pitfalls in the interpretation of
-studies: III. *Journal of the Royal Society of Medicine*, 88, 241–243.] Various
-conventional methods — Student's *t*-test (including square-root and log
-transformations), the Mann-Whitney *U*-test, and a Poisson normal test — either
+studies: III. *Journal of the Royal Society of Medicine*, 88, 241-243.] Various
+conventional methods  -  Student's *t*-test (including square-root and log
+transformations), the Mann-Whitney *U*-test, and a Poisson normal test  -  either
 failed to reach conventional significance or violated their underlying
-assumptions. The analyst ultimately discretised the count at 0 vs. ≥1 and
+assumptions. The analyst ultimately discretised the count at 0 vs. >=1 and
 validated the split with a one-tailed Fisher's exact test (*p* < 0.022).
 
 Because ODA is invariant under any monotonic transformation and requires no
@@ -33,8 +33,8 @@ arm, and to quantify the strength of the association.
 ## Data
 
 Treatment arm (0 = Treatment 1, 1 = Treatment 2) is the class variable; number
-of migraine attacks (0–7, ordered) is the attribute. Published cell frequencies
-are reconstructed directly into observation-level vectors — no external data
+of migraine attacks (0-7, ordered) is the attribute. Published cell frequencies
+are reconstructed directly into observation-level vectors  -  no external data
 file is required.
 
 ```{r data}
@@ -112,11 +112,11 @@ print(fit)
 ODA identified a single cut at 0.5, consistent with Appleton's hand-chosen
 spline:
 
-- If attacks ≤ 0.5 (zero attacks) → predict Treatment 1 (0)
-- If attacks > 0.5 (one or more attacks) → predict Treatment 2 (1)
+- If attacks <= 0.5 (zero attacks) -> predict Treatment 1 (0)
+- If attacks > 0.5 (one or more attacks) -> predict Treatment 2 (1)
 
 ```{r confusion}
-# Confusion matrix: actual treatment (rows) × predicted treatment (cols)
+# Confusion matrix: actual treatment (rows) x predicted treatment (cols)
 conf_mat <- matrix(
   c(fit$confusion$TN, fit$confusion$FP,
     fit$confusion$FN, fit$confusion$TP),
@@ -144,7 +144,7 @@ cat("PV Treatment 2 (1):", round(pv_t2 * 100, 1), "%\n")
 - **PAC (sensitivity per class):** 39.4% for Treatment 1 patients, 85.3% for
   Treatment 2 patients. Because 50% correct per class is expected by chance, the
   model classifies Treatment 2 patients well above chance while Treatment 1
-  classification is below chance — a notable asymmetry.
+  classification is below chance  -  a notable asymmetry.
 - **ESS = 24.69%** is marginally below the conventional 25% threshold for
   moderate effect strength.^[Yarnold, P.R., & Soltysik, R.C. (2005). *Optimal
   Data Analysis: A Guidebook with Software for Windows.* Washington, D.C.: APA
@@ -159,11 +159,11 @@ The nondirectional MC p-value and LOO result are shown in the `summary` output
 above.
 
 - **MC p-value:** The printed `p(MC)` is a nondirectional Fisher-randomization
-  p-value. The MegaODA reference value is p ≈ 0.086 (not significant at α =
+  p-value. The MegaODA reference value is p ~ 0.086 (not significant at alpha =
   0.05). Interpret by decision threshold. No exact match to the reference value
   is guaranteed (see Notes).
 - **LOO stability:** The leave-one-out ESS equals the training ESS (24.69%),
-  indicating the rule is completely stable — no single observation materially
+  indicating the rule is completely stable  -  no single observation materially
   alters the model.
 - **LOO Fisher exact p < .05:** Statistical significance is confirmed in holdout
   analysis, consistent with Appleton's one-tailed Fisher test.
@@ -175,7 +175,7 @@ against MegaODA.exe output in the package test suite
 (`tests/testthat/test-fixture-vignettes.R`, Example 4).
 
 **MC p-value calibration.** The MC p shown here may differ from MegaODA's
-reported value (p ≈ 0.086) and reflects `mc_iter = 500L` in this CRAN
+reported value (p ~ 0.086) and reflects `mc_iter = 500L` in this CRAN
 vignette. Use the canonical run with `mc_iter = 25000L` (chunk
 `fit-canonical`, `eval=FALSE`) for publication-quality results. This is a
 known discrepancy under investigation (issue \#5: MC STOP calibration audit).

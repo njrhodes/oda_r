@@ -26,7 +26,7 @@ cta_plot_data(tree, target_class = NULL, class_labels = NULL,
   \item{tree}{A \code{cta_tree} from \code{\link{oda_cta_fit}}.}
   \item{target_class}{Integer (or \code{NULL}); the class label treated as
     the target when enriching endpoint annotations.  \code{NULL} (default)
-    returns the structural layout only — no endpoint enrichment columns are
+    returns the structural layout only  -  no endpoint enrichment columns are
     added.}
   \item{class_labels}{Optional character vector of display names for class
     labels.  Supply as a \emph{named} vector, e.g.
@@ -66,7 +66,7 @@ When \code{target_class} is supplied: the same list plus
     binned), \code{target_rank} (integer; ascending rank of proportion,
     ties broken by \code{ties.method = "first"}),
     \code{endpoint_fill_color} (character hex color assigned by rank
-    within this tree — does not imply clinical thresholds or categories),
+    within this tree  -  does not imply clinical thresholds or categories),
     \code{predicted_label} (character), \code{target_label} (character),
     \code{endpoint_label} (character multi-line display text).}
   \item{\code{edges}}{A \code{data.frame} with one row per parent-to-child

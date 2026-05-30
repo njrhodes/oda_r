@@ -18,8 +18,8 @@ classified analytic sample.
 \strong{Perfect endpoints:} When \eqn{n_{s,z} = 0} for some class, the
 empirical weight is undefined (\code{Inf}).  When \code{adjusted = TRUE}
 (default), one hypothetical misclassified observation is added to the
-absent class profile — and to the global marginal totals — so that all
-endpoint × class cells yield finite adjusted weights.  This is the canon
+absent class profile  -  and to the global marginal totals  -  so that all
+endpoint x class cells yield finite adjusted weights.  This is the canon
 remedy from Yarnold and Linden (2017).
 
 \strong{Scope:} Raw observation counts (\code{n_raw}) are used exclusively.
@@ -30,7 +30,7 @@ fitted tree.
 \usage{cta_propensity_weights(tree, target_class = NULL, adjusted = TRUE)}
 \arguments{
   \item{tree}{A \code{cta_tree} from \code{\link{oda_cta_fit}}.}
-  \item{target_class}{Integer (or coercible); annotation column only —
+  \item{target_class}{Integer (or coercible); annotation column only  - 
     does not filter output rows.  \code{NULL} (default) uses the
     numerically largest class label for binary trees, and stops for
     trees with three or more classes.}

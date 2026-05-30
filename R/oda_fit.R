@@ -1,7 +1,7 @@
 ###############################################################################
 # R/oda_fit.R
 #
-# oda_fit() — unified public entry point for ODA.
+# oda_fit()  -  unified public entry point for ODA.
 #
 # Routes to oda_univariate_core() for binary-class problems (C=2)
 # or oda_multiclass_unioda_core() for multiclass problems (C>=3).
@@ -43,13 +43,13 @@
 #' @param loo LOO mode. \code{"off"} (default): no LOO filter.
 #'   \code{"on"}: synonym for \code{"pvalue"} when used with the multiclass engine.
 #'   \code{"stable"}: binary only; accept when LOO ESS equals training ESS
-#'   (|WESSL − WESS| ≤ 0.01 pp); split node reports \code{loo_status = "STABLE"}.
+#'   (|WESSL - WESS| <= 0.01 pp); split node reports \code{loo_status = "STABLE"}.
 #'   \code{"pvalue"}: binary only; accept when LOO Fisher p is strictly less than
 #'   0.05 (default threshold); split node reports \code{loo_status = "PVALUE"}.
 #'   Numeric in (0, 1): binary only; accept when LOO Fisher p is strictly less than
 #'   the supplied value; must be a single finite value strictly in (0, 1);
 #'   split node reports \code{loo_status = "PVALUE"}.
-#'   Do not describe the p-value gate as "STABLE" — the two modes are distinct.
+#'   Do not describe the p-value gate as "STABLE"  -  the two modes are distinct.
 #' @param direction Directional hypothesis control.
 #'   \describe{
 #'     \item{\code{"both"} (default)}{Non-directional; evaluates all directions.
@@ -139,7 +139,7 @@ oda_fit <- function(
            "(MPE Chapter 4). For binary ordered ODA use direction = 'greater' ",
            "or 'less' (MPE Chapter 2).", call. = FALSE)
 
-    # Binary engine requires y in {0, 1}. Recode from arbitrary {a, b} → {0, 1}
+    # Binary engine requires y in {0, 1}. Recode from arbitrary {a, b} -> {0, 1}
     # so the caller's label space (e.g. {1,2}) is transparent to unioda_core.
     bin_labels <- sort(unique(as.integer(clean$y)))   # e.g. c(1L, 2L)
     y_coded    <- ifelse(as.integer(y) == bin_labels[1L], 0L, 1L)
@@ -156,7 +156,7 @@ oda_fit <- function(
       )
     }
 
-    # Numeric loo means "pvalue gate with this threshold" — do not convert to "off".
+    # Numeric loo means "pvalue gate with this threshold"  -  do not convert to "off".
     # Validate numeric loo: must be a single finite value strictly in (0, 1).
     if (is.numeric(loo)) {
       if (length(loo) != 1L || is.na(loo) || !is.finite(loo) || loo <= 0 || loo >= 1)
@@ -224,7 +224,7 @@ oda_fit <- function(
             "only and will be ignored for multiclass problems. ",
             "For multiclass directional ODA use direction = 'ascending' or 'descending', ",
             "or supply a direction_map.", call. = FALSE)
-  # "ascending"/"descending" are valid for multiclass — pass through
+  # "ascending"/"descending" are valid for multiclass  -  pass through
   direction_multi <- if (direction %in% c("ascending", "descending")) direction else "off"
 
   loo_multi <- if (loo == "off") "off" else "on"
@@ -338,7 +338,7 @@ cta_fit <- function(X, y, verbose = FALSE,
 #' @param alpha_split Numeric; node-level significance threshold.  Default \code{0.05}.
 #' @param prune_alpha Numeric; pruning significance threshold.  Default \code{0.05}.
 #' @param loo LOO gate mode per node: \code{"off"} (no gate), \code{"stable"}
-#'   (MegaODA LOO STABLE; accept when |WESSL − WESS| ≤ 0.01 pp; default),
+#'   (MegaODA LOO STABLE; accept when |WESSL - WESS| <= 0.01 pp; default),
 #'   \code{"pvalue"} (Fisher p strictly less than 0.05), or a single numeric
 #'   in (0, 1) (Fisher p strictly less than the supplied threshold).
 #' @param min_n Integer; minimum endpoint n to attempt recursion.  Endpoints

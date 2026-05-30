@@ -8,7 +8,7 @@ proportions, and odds are computed from the stored leaf class counts.
 When an endpoint is perfectly predicted (100 percent one class), the
 empirical odds and proportion are undefined; the \code{adjust_perfect}
 option adds one hypothetical misclassified observation to the undefined
-profile so all endpoints can be ranked and compared — a canon remedy
+profile so all endpoints can be ranked and compared  -  a canon remedy
 anchored in Yarnold and Linden (2017).
 
 \strong{Scope:} The two-class case is handled automatically when

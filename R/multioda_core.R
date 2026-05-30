@@ -1,7 +1,7 @@
 ###############################################################################
 # R/multioda_core.R
 #
-# MultiODA Core – univariate multiclass ODA engine.
+# MultiODA Core - univariate multiclass ODA engine.
 #
 # Spec (MegaODA-faithful):
 #   PRIMARY   = MAXSENS  (overall PAC in priors-weighted objective space)
@@ -13,7 +13,7 @@
 #
 # Key invariants:
 #   - PRIORS ON:  objective = overall PAC on priors-weighted counts
-#                 → equivalent to maximising mean PAC on raw counts
+#                 -> equivalent to maximising mean PAC on raw counts
 #   - DEGEN OFF (default): all C classes must appear in predicted labels
 #   - DEGEN ON:  degenerate solutions allowed; PRIORS forced OFF
 #
@@ -171,7 +171,7 @@ oda_metrics_candidate <- function(NP_obj, NP_raw, NA_raw, x_rep,
   overall_pac     <- if (den_obj > 0) sum(TP) / den_obj else -Inf
 
   # SAMPLEREP: always in raw-count space (guidebook: compare predicted to observed
-  # sample relative frequencies — these are raw counts, independent of weighting).
+  # sample relative frequencies  -  these are raw counts, independent of weighting).
   NP_raw_pred     <- colSums(NP_raw)
   den_pred_raw    <- sum(NP_raw_pred)
   den_act_raw     <- sum(NA_raw)
@@ -218,11 +218,11 @@ oda_metrics_candidate <- function(NP_obj, NP_raw, NA_raw, x_rep,
 # ---- Ordered multiclass partition selector --------------------------------- #
 
 #' Select the best K-segment ordered partition by MegaODA spec:
-#'   PRIMARY → SECONDARY → FIRST IDENTIFIED (enum order via tick()).
+#'   PRIMARY -> SECONDARY -> FIRST IDENTIFIED (enum order via tick()).
 #'
 #' @param x_rep  Representative x value per unique block.
-#' @param counts_obj  m × C count matrix in objective (priors-weighted) space.
-#' @param counts_raw  m × C count matrix in raw (case-weight) space.
+#' @param counts_obj  m x C count matrix in objective (priors-weighted) space.
+#' @param counts_raw  m x C count matrix in raw (case-weight) space.
 #' @param K  Number of segments (cuts = K-1).
 #' @param priors_on_eff  Logical.
 #' @param degen  Allow degenerate solutions?
@@ -294,13 +294,13 @@ oda_best_ordered_multiclass_partition <- function(
 
   # TWO-LEVEL SELECTION (MegaODA-faithful):
   # Level 2 (inner): within a given cut position, pick the best seg assignment using
-  #   primary → SECONDARY (SAMPLEREP) → first assignment enumerated
+  #   primary -> SECONDARY (SAMPLEREP) -> first assignment enumerated
   # Level 1 (outer): across cut positions, compare level-2 winners using
-  #   primary → FIRST CUT POSITION ENUMERATED  (NOT secondary/SAMPLEREP)
+  #   primary -> FIRST CUT POSITION ENUMERATED  (NOT secondary/SAMPLEREP)
   #
   # Evidence: iris V1 cuts 6.15 vs 6.25 both have identical primary and only one
-  # valid assignment each → no assignment tie → first-identified-cut picks 6.15.
-  # DAT5 cuts (1.5,2.5) with assignments (1,2,3) vs (2,1,3) tied on primary →
+  # valid assignment each -> no assignment tie -> first-identified-cut picks 6.15.
+  # DAT5 cuts (1.5,2.5) with assignments (1,2,3) vs (2,1,3) tied on primary ->
   # SAMPLEREP (assignment-level secondary) picks (2,1,3).
 
   for (r in seq_len(nrow(cut_grid))) {
@@ -364,7 +364,7 @@ oda_best_ordered_multiclass_partition <- function(
         sp_t <- tick(sp); ss_t <- tick(ss)
         cp_t <- tick(cut_best_primary); cs_t <- tick(cut_best_secondary)
 
-        # Level-2 comparison: primary → secondary (SAMPLEREP) → first enum
+        # Level-2 comparison: primary -> secondary (SAMPLEREP) -> first enum
         cut_better <- FALSE
         if (!is.na(sp_t) && !is.na(cp_t)) {
           if      (sp_t > cp_t)  cut_better <- TRUE
@@ -422,7 +422,7 @@ oda_best_ordered_multiclass_partition <- function(
     recurse(1L)
 
     # Level-1 comparison: compare this cut's winner to global best
-    # Use: primary → FIRST CUT POSITION (no secondary/SAMPLEREP across cuts)
+    # Use: primary -> FIRST CUT POSITION (no secondary/SAMPLEREP across cuts)
     # NOTE: plain <- (not <<-) because this code is in the for-loop body
     # (not inside recurse), so we are already in the function's local environment.
     if (!is.null(cut_best_seg)) {
@@ -436,8 +436,8 @@ oda_best_ordered_multiclass_partition <- function(
           best_cuts      <- cuts_idx
           best_seg       <- cut_best_seg
         }
-        # If cp_t == bp_t: first-identified cut wins → do nothing (keep earlier cut)
-        # If cp_t < bp_t: this cut is worse → do nothing
+        # If cp_t == bp_t: first-identified cut wins -> do nothing (keep earlier cut)
+        # If cp_t < bp_t: this cut is worse -> do nothing
       }
     }
   }

@@ -298,7 +298,7 @@
 #' @param mc_stopup Confidence level (pct) for STOPUP bound.
 #' @param mc_seed Integer base seed; NULL = unseeded.
 #' @param loo LOO mode per node: \code{"off"} (default), \code{"stable"}
-#'   (MegaODA LOO STABLE; accept when |WESSL − WESS| ≤ 0.01 pp; reports
+#'   (MegaODA LOO STABLE; accept when |WESSL - WESS| <= 0.01 pp; reports
 #'   \code{loo_status = "STABLE"}), \code{"pvalue"} (Fisher p strictly less
 #'   than 0.05; reports \code{loo_status = "PVALUE"}), or a single numeric in
 #'   (0, 1) (Fisher p strictly less than the supplied threshold; reports
@@ -456,9 +456,9 @@ oda_cta_fit <- function(
 
   # LOO metadata from a fit result.
   # status vocabulary:
-  #   "OFF"    — LOO mode is "off" or LOO did not run
-  #   "STABLE" — candidate passed the LOO STABLE gate (|WESSL - WESS| <= 0.01 pp)
-  #   "PVALUE" — candidate passed the LOO p-value gate
+  #   "OFF"     -  LOO mode is "off" or LOO did not run
+  #   "STABLE"  -  candidate passed the LOO STABLE gate (|WESSL - WESS| <= 0.01 pp)
+  #   "PVALUE"  -  candidate passed the LOO p-value gate
   # Uses enclosing loo_arg (closure over oda_cta_fit scope).
   .loo_info <- function(fit) {
     lr <- fit$loo
@@ -1445,7 +1445,7 @@ print.cta_tree <- function(x, ...) {
   cat(sprintf("Nodes: %d total  (%d split  %d leaf)\n",
               x$n_nodes, n_split, n_leaf))
 
-  # Terminal endpoints section — uses cta_endpoint_table() as the source.
+  # Terminal endpoints section  -  uses cta_endpoint_table() as the source.
   ep <- tryCatch(cta_endpoint_table(x), error = function(e) NULL)
   if (!is.null(ep) && nrow(ep) > 0L) {
     cat("\nTerminal endpoints (*):\n")

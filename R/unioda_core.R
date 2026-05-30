@@ -1,7 +1,7 @@
 ###############################################################################
 # R/unioda_core.R
 #
-# UniODA Core – univariate binary-class ODA engine.
+# UniODA Core - univariate binary-class ODA engine.
 #
 # Spec (MegaODA-faithful):
 #   PRIMARY   = MAXSENS  (if priors_on)  / MEANSENS (if priors_off)
@@ -11,13 +11,13 @@
 #   MC        = Fisher randomization with Clopper-Pearson STOP/STOPUP
 #
 # Exported entry points:
-#   oda_univariate_core()   – fit one attribute
-#   oda_loo_for_rule()      – LOO given a fixed rule (UniODA)
-#   oda_mc_p_value()        – MC p-value (called internally; also exported)
-#   oda_confusion_binary()  – confusion table
-#   oda_rule_predict()      – apply a UniODA rule to new x
-#   oda_mean_pac()          – (sens + spec) / 2
-#   oda_ess_from_meanpac()  – ESS from mean PAC
+#   oda_univariate_core()   - fit one attribute
+#   oda_loo_for_rule()      - LOO given a fixed rule (UniODA)
+#   oda_mc_p_value()        - MC p-value (called internally; also exported)
+#   oda_confusion_binary()  - confusion table
+#   oda_rule_predict()      - apply a UniODA rule to new x
+#   oda_mean_pac()          - (sens + spec) / 2
+#   oda_ess_from_meanpac()  - ESS from mean PAC
 ###############################################################################
 
 # ---- Basic performance metrics -------------------------------------------- #
@@ -161,7 +161,7 @@ oda_make_blocks_ordered <- function(x, y, w) {
 #   4. FIRST IDENTIFIED in enumeration order
 #
 # SAMPLEREP: maximise min(N_predicted_0, N_predicted_1)
-#   ≡ minimise |predicted_freq_0 - observed_freq_0|  for binary class.
+#   === minimise |predicted_freq_0 - observed_freq_0|  for binary class.
 #   We proxy via max( min(N0_pred, N1_pred) ) which is equivalent when total N
 #   is fixed.  For direct L1 distance see multioda_core which has raw counts.
 #' Apply primary/secondary tie-breaking to candidates
@@ -237,7 +237,7 @@ oda_apply_primary_secondary <- function(cand_df, primary, secondary, y, w,
 #' @param mc_iter  Maximum iterations.
 #' @param mc_target  Significance threshold (e.g. 0.05).
 #' @param mc_stop  Confidence level for lower-tail stop (e.g. 99.9).
-#' @param mc_stopup  Confidence level for upper-tail stop (e.g. 20 → 0.20).
+#' @param mc_stopup  Confidence level for upper-tail stop (e.g. 20 -> 0.20).
 #' @param mc_adjust  Kept for API compatibility; not used.
 #' @param seed  Optional RNG seed.
 #' @param ess_obs  Observed ESS (must be supplied).
@@ -526,7 +526,7 @@ oda_loo_for_rule <- function(
   # Engineering guard: categorical LOO is not supported when every observed
   # attribute level is unique.  In that case every LOO fold's held-out level
   # is absent from training, so the absent-level fallback would drive all
-  # predictions — not a meaningful cross-validation.
+  # predictions  -  not a meaningful cross-validation.
   # NOTE: this is NOT the MPE canon "superfluous LOO" case.  The MPE condition
   # (political affiliation, rater agreement) requires a declared directional
   # diagonal/agreement hypothesis (k_attr == C + DIRECTIONAL), which is a
@@ -634,7 +634,7 @@ oda_loo_for_rule <- function(
     }
   }
 
-  # ESS for LOO — use the same priors+case-weight scheme as training so that
+  # ESS for LOO  -  use the same priors+case-weight scheme as training so that
   # ess_loo can be compared to ess_obj with all.equal().  When every fold uses
   # the training rule (admissible ordered/binary case), the weighted confusion
   # here is identical to the training confusion, giving ess_loo == ess_obj
@@ -648,7 +648,7 @@ oda_loo_for_rule <- function(
   chance       <- if (chance_model == "class") chance_class else chance_attr
   ess_loo      <- oda_ess_from_meanpac(conf_loo$mean_pac, chance)
 
-  # Fisher's exact test on raw (unit-weight) counts — requires integer inputs.
+  # Fisher's exact test on raw (unit-weight) counts  -  requires integer inputs.
   conf_loo_r <- oda_confusion_binary(y, y_pred_loo)   # unit weights
   tab <- matrix(c(conf_loo_r$TP, conf_loo_r$FP,
                   conf_loo_r$FN, conf_loo_r$TN),
@@ -727,7 +727,7 @@ oda_univariate_core <- function(
   direction    <- match.arg(direction)
   if (direction == "both") direction <- "off"  # canonical synonym
 
-  # Resolve missing_code alias → miss_codes
+  # Resolve missing_code alias -> miss_codes
   if (!is.null(missing_code)) {
     miss_codes <- unique(c(miss_codes, as.numeric(missing_code)))
   }
@@ -999,7 +999,7 @@ oda_univariate_core <- function(
 
   # 10a. Early LOO stability gate (loo_then_mc mode only).
   # For ordered_cut rules with uniform weights, the algebraic count-table LOO
-  # can determine stability in O(k^2) time — far cheaper than MC. If it proves
+  # can determine stability in O(k^2) time  -  far cheaper than MC. If it proves
   # instability, reject before burning MC iterations.
   # Conditions: eval_order=="loo_then_mc", loo=="stable", mcarlo==TRUE,
   #             ordered_cut rule, algebraic helper applicable (uniform w).

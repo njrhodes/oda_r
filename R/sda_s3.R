@@ -8,16 +8,16 @@
 # summary.sda_fit:  detailed object (returns sda_fit_summary).
 ###############################################################################
 
-#' Predict from a fitted SDA model
+#' Predict from an SDA procedure result
 #'
 #' Applies the learned selected-step sequence to \code{newdata}. For each
 #' observation, steps are applied in order; the first step whose rule
 #' classifies the observation is authoritative. Observations not classified
 #' by any step are returned as \code{NA} (\code{resolved = FALSE}).
 #'
-#' This is sequential selected-step application — it follows the learned SDA
+#' This is sequential selected-step application  -  it follows the learned SDA
 #' structure, not a re-scan of X. It does not select a "first attribute" from
-#' newdata; it replays \code{object$steps[[1]]}, \code{object$steps[[2]]}, …
+#' newdata; it replays \code{object$steps[[1]]}, \code{object$steps[[2]]}, ...
 #' in the order established at fit time.
 #'
 #' @param object A \code{sda_fit} object.
@@ -37,7 +37,7 @@
 #'     was classified; \code{NA} for unresolved.}
 #'   \item{\code{"rule"}}{Character vector of the selected attribute name at
 #'     the classifying step; \code{NA} for unresolved.}
-#'   \item{\code{"trace"}}{Data frame with one row per observation × step:
+#'   \item{\code{"trace"}}{Data frame with one row per observation x step:
 #'     \code{obs_id}, \code{step_id}, \code{attribute}, \code{classified},
 #'     \code{class_pred}.}
 #' }

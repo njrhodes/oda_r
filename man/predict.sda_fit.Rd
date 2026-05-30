@@ -2,7 +2,7 @@
 % Please edit documentation in R/sda_s3.R
 \name{predict.sda_fit}
 \alias{predict.sda_fit}
-\title{Predict from a fitted SDA model}
+\title{Predict from an SDA procedure result}
 \usage{
 \method{predict}{sda_fit}(object, newdata, type = "class", ...)
 }
@@ -28,7 +28,7 @@ error in SDA-1.}
     was classified; \code{NA} for unresolved.}
   \item{\code{"rule"}}{Character vector of the selected attribute name at
     the classifying step; \code{NA} for unresolved.}
-  \item{\code{"trace"}}{Data frame with one row per observation × step:
+  \item{\code{"trace"}}{Data frame with one row per observation x step:
     \code{obs_id}, \code{step_id}, \code{attribute}, \code{classified},
     \code{class_pred}.}
 }
@@ -40,8 +40,8 @@ classifies the observation is authoritative. Observations not classified
 by any step are returned as \code{NA} (\code{resolved = FALSE}).
 }
 \details{
-This is sequential selected-step application — it follows the learned SDA
+This is sequential selected-step application  -  it follows the learned SDA
 structure, not a re-scan of X. It does not select a "first attribute" from
-newdata; it replays \code{object$steps[[1]]}, \code{object$steps[[2]]}, …
+newdata; it replays \code{object$steps[[1]]}, \code{object$steps[[2]]}, ...
 in the order established at fit time.
 }

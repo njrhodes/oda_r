@@ -1,8 +1,8 @@
 ###############################################################################
-# R/cta_s3.R — S3 methods and read-only report tables for cta_tree
+# R/cta_s3.R  -  S3 methods and read-only report tables for cta_tree
 #
 # Classes produced here:
-#   cta_tree_summary — structured output of summary.cta_tree()
+#   cta_tree_summary  -  structured output of summary.cta_tree()
 #
 # Public API:
 #   summary.cta_tree()
@@ -70,7 +70,7 @@ summary.cta_tree <- function(object, ...) {
   no_tree <- isTRUE(tree$no_tree)
   status  <- .cta_tree_status(tree)
 
-  # Root attribute — read from stored root node; NA for no-tree.
+  # Root attribute  -  read from stored root node; NA for no-tree.
   root_attr <- NA_character_
   if (!no_tree && !is.null(tree$root_id)) {
     root_nd   <- tree$nodes[[tree$root_id]]
@@ -156,13 +156,13 @@ print.cta_tree_summary <- function(x, ...) {
 }
 
 # =============================================================================
-# cta_endpoint_table() — terminal-leaf report table
+# cta_endpoint_table()  -  terminal-leaf report table
 # =============================================================================
 
 # Internal: build a human-readable branch label for one branch of a split node.
 #
-# split_nd   — a split node list (has $attribute, $rule, $split_labels)
-# branch_idx — 1-based index into split_nd$child_ids / split_nd$split_labels
+# split_nd    -  a split node list (has $attribute, $rule, $split_labels)
+# branch_idx  -  1-based index into split_nd$child_ids / split_nd$split_labels
 #
 # Returns a character string like "V14<=0.5" or "V14>0.5".
 .cta_branch_string <- function(split_nd, branch_idx) {
@@ -227,7 +227,7 @@ print.cta_tree_summary <- function(x, ...) {
     else
       .cta_branch_string(parent_nd, branch_k)
 
-    segs   <- c(seg, segs)              # prepend → builds root-to-leaf order
+    segs   <- c(seg, segs)              # prepend -> builds root-to-leaf order
     cur_id <- parent_id
   }
 
@@ -308,7 +308,7 @@ cta_endpoint_table <- function(tree, target_class = NULL) {
   stopifnot(inherits(tree, "cta_tree"))
 
   # ------------------------------------------------------------------
-  # Empty data frame template — returned for no-tree or zero-leaf cases
+  # Empty data frame template  -  returned for no-tree or zero-leaf cases
   # ------------------------------------------------------------------
   empty_df <- function() {
     df <- data.frame(
@@ -448,13 +448,13 @@ cta_endpoint_table <- function(tree, target_class = NULL) {
 }
 
 # =============================================================================
-# cta_confusion_table() — final selected tree training confusion, tidy format
+# cta_confusion_table()  -  final selected tree training confusion, tidy format
 # =============================================================================
 
 #' Final selected tree training confusion table
 #'
 #' Returns the stored full-tree training confusion matrix for the final
-#' selected CTA model in tidy long format (one row per actual × predicted
+#' selected CTA model in tidy long format (one row per actual x predicted
 #' class pair).
 #'
 #' The confusion matrix is captured at fit time at the exact moment the
@@ -474,7 +474,7 @@ cta_endpoint_table <- function(tree, target_class = NULL) {
 #' \describe{
 #'   \item{\code{actual}}{Integer actual class label.}
 #'   \item{\code{predicted}}{Integer predicted class label.}
-#'   \item{\code{n}}{Integer raw count of observations with this actual ×
+#'   \item{\code{n}}{Integer raw count of observations with this actual x
 #'     predicted combination in the final selected tree.}
 #' }
 #' Rows are sorted by \code{actual} then \code{predicted}.
@@ -528,7 +528,7 @@ cta_confusion_table <- function(tree) {
 }
 
 # =============================================================================
-# cta_endpoint_summary() — conservative endpoint reporting accessor
+# cta_endpoint_summary()  -  conservative endpoint reporting accessor
 # =============================================================================
 
 #' Endpoint reporting summary for a fitted CTA tree
@@ -634,7 +634,7 @@ cta_endpoint_summary <- function(tree) {
 }
 
 # =============================================================================
-# cta_endpoint_counts() — per-endpoint × class count table
+# cta_endpoint_counts()  -  per-endpoint x class count table
 # =============================================================================
 
 #' Per-endpoint class count table for a fitted CTA tree
@@ -724,7 +724,7 @@ cta_endpoint_counts <- function(tree) {
          "refit with a version of odacore that stores endpoint counts")
   }
 
-  # Build output columns — one entry per leaf × class.
+  # Build output columns  -  one entry per leaf x class.
   out_endpoint_id         <- integer(0)
   out_endpoint_node_id    <- integer(0)
   out_path                <- character(0)
@@ -764,7 +764,7 @@ cta_endpoint_counts <- function(tree) {
 }
 
 # =============================================================================
-# cta_staging_table() — per-endpoint staging table ordered by target propensity
+# cta_staging_table()  -  per-endpoint staging table ordered by target propensity
 # =============================================================================
 
 #' Staging table for a fitted CTA tree
@@ -775,7 +775,7 @@ cta_endpoint_counts <- function(tree) {
 #' When an endpoint is perfectly predicted (100 percent one class), the
 #' empirical odds and proportion are undefined; the \code{adjust_perfect}
 #' option adds one hypothetical misclassified observation to the undefined
-#' profile so all endpoints can be ranked and compared — a canon remedy
+#' profile so all endpoints can be ranked and compared  -  a canon remedy
 #' anchored in Yarnold and Linden (2017).
 #'
 #' \strong{Scope:} The two-class case is handled automatically when
@@ -984,7 +984,7 @@ cta_staging_table <- function(tree, target_class = NULL, weighted = FALSE,
 }
 
 # =============================================================================
-# cta_propensity_weights() — endpoint × class stabilized propensity weights
+# cta_propensity_weights()  -  endpoint x class stabilized propensity weights
 # =============================================================================
 
 #' Endpoint-level propensity-score weights for a fitted CTA tree
@@ -1007,8 +1007,8 @@ cta_staging_table <- function(tree, target_class = NULL, weighted = FALSE,
 #' \strong{Perfect endpoints:} When \eqn{n_{s,z} = 0} for some class, the
 #' empirical weight is undefined (\code{Inf}).  When \code{adjusted = TRUE}
 #' (default), one hypothetical misclassified observation is added to the
-#' absent class profile — and to the global marginal totals — so that all
-#' endpoint × class cells yield finite adjusted weights.  This is the canon
+#' absent class profile  -  and to the global marginal totals  -  so that all
+#' endpoint x class cells yield finite adjusted weights.  This is the canon
 #' remedy from Yarnold and Linden (2017).
 #'
 #' \strong{Scope:} Raw observation counts (\code{n_raw}) are used
@@ -1017,7 +1017,7 @@ cta_staging_table <- function(tree, target_class = NULL, weighted = FALSE,
 #' is not stored on the fitted tree.
 #'
 #' @param tree A \code{cta_tree} from \code{\link{oda_cta_fit}}.
-#' @param target_class Integer (or coercible); annotation column only —
+#' @param target_class Integer (or coercible); annotation column only  - 
 #'   does not filter output rows.  \code{NULL} (default) uses the
 #'   numerically largest class label for binary trees, and stops for
 #'   trees with three or more classes.
@@ -1113,7 +1113,7 @@ cta_propensity_weights <- function(tree, target_class = NULL, adjusted = TRUE) {
 
   if (isTRUE(tree$no_tree)) return(empty_df())
 
-  # Consume stored counts — no refitting, no prediction, no mutation of tree.
+  # Consume stored counts  -  no refitting, no prediction, no mutation of tree.
   ec <- cta_endpoint_counts(tree)
   if (nrow(ec) == 0L) return(empty_df())
 
@@ -1238,11 +1238,11 @@ cta_propensity_weights <- function(tree, target_class = NULL, adjusted = TRUE) {
 #'
 #' \strong{Missingness:}
 #' \itemize{
-#'   \item \code{"na"} (default) — canonical path-local behaviour: when a
+#'   \item \code{"na"} (default)  -  canonical path-local behaviour: when a
 #'     split attribute is \code{NA} or a stored miss-code on the observation's
 #'     actual traversal path, the row returns \code{NA} for both output
 #'     columns.
-#'   \item \code{"majority"} — routes the missing observation to the child
+#'   \item \code{"majority"}  -  routes the missing observation to the child
 #'     subtree with the larger \code{n_obs}, then continues traversal until a
 #'     terminal leaf is reached.  Ties are broken by picking the first child.
 #' }
@@ -1328,7 +1328,7 @@ cta_assign_endpoints <- function(tree, newdata,
     attr_col_in_newdata <- seq_len(n_nd)
     wide_routing        <- FALSE
   } else {
-    # Wide / reordered: name-based mapping required — no silent positional fallback.
+    # Wide / reordered: name-based mapping required  -  no silent positional fallback.
     if (is.null(nd_names) || length(nd_names) == 0L) {
       stop(sprintf(
         "cta_assign_endpoints: newdata has %d column(s) but training X had %d. ",
@@ -1474,7 +1474,7 @@ cta_assign_endpoints <- function(tree, newdata,
 # Convenience wrapper: assigns each observation to its endpoint via
 # cta_assign_endpoints(), retrieves endpoint-level propensity weights via
 # cta_propensity_weights(), and joins the two on (endpoint_id, class).
-# Returns one row per row of newdata — never fewer, never more.
+# Returns one row per row of newdata  -  never fewer, never more.
 ###############################################################################
 
 #' Assign per-observation CTA propensity weights
@@ -1485,7 +1485,7 @@ cta_assign_endpoints <- function(tree, newdata,
 #' all computation is on-demand.
 #'
 #' \strong{Column order requirement:} Same as \code{\link{cta_assign_endpoints}}
-#' — \code{newdata} must have the same attribute column order as the \code{X}
+#'  -  \code{newdata} must have the same attribute column order as the \code{X}
 #' matrix passed to \code{\link{oda_cta_fit}}.
 #'
 #' Observations with \code{NA} endpoint (missing root split attribute under
@@ -1500,7 +1500,7 @@ cta_assign_endpoints <- function(tree, newdata,
 #' @param target_class Passed to \code{\link{cta_propensity_weights}} as an
 #'   annotation parameter.  It identifies which class is treated as the design
 #'   target (high-risk class) for the \code{target_class} output column; it does
-#'   \emph{not} filter the endpoint × class rows used for the join.  Each
+#'   \emph{not} filter the endpoint x class rows used for the join.  Each
 #'   observation is matched to its own \code{actual_class} regardless of this
 #'   value.  \code{NULL} (default) lets \code{cta_propensity_weights} resolve
 #'   the target class automatically (numerically largest class for binary trees;
@@ -1522,11 +1522,11 @@ cta_assign_endpoints <- function(tree, newdata,
 #'     \code{\link{cta_propensity_weights}}, or \code{NA_integer_} when
 #'     unassigned.}
 #'   \item{\code{propensity_weight}}{Numeric; unadjusted propensity weight for
-#'     the observation's endpoint–class cell, or \code{NA}.}
+#'     the observation's endpoint-class cell, or \code{NA}.}
 #'   \item{\code{adjusted_propensity_weight}}{Numeric; adjusted propensity
 #'     weight, or \code{NA}.}
 #'   \item{\code{undefined_empirical}}{Logical; \code{TRUE} when the
-#'     endpoint–class cell has zero observed frequency, or \code{NA}.}
+#'     endpoint-class cell has zero observed frequency, or \code{NA}.}
 #'   \item{\code{perfectly_predicted_endpoint}}{Logical; \code{TRUE} when the
 #'     endpoint is perfectly predicted, or \code{NA}.}
 #'   \item{\code{adjusted}}{Logical; \code{TRUE} when the adjusted weight was
@@ -1568,7 +1568,7 @@ cta_observation_weights <- function(
   ep_key  <- paste(ep$endpoint_id, actual_class, sep = "\001")
   pw_idx  <- match(ep_key, pw_key)
 
-  # NA endpoint or NA class → no match possible
+  # NA endpoint or NA class -> no match possible
   pw_idx[is.na(ep$endpoint_id)] <- NA_integer_
   pw_idx[is.na(y)]              <- NA_integer_
 
@@ -1607,8 +1607,8 @@ cta_observation_weights <- function(
 # =============================================================================
 
 # Map a class integer to a display label string.
-# class_labels: NULL → "class=C"; named vector → matched by name;
-# positional vector → index cls+1.
+# class_labels: NULL -> "class=C"; named vector -> matched by name;
+# positional vector -> index cls+1.
 .class_label <- function(cls, class_labels) {
   if (is.null(class_labels)) return(paste0("class=", cls))
   nm <- names(class_labels)
@@ -1623,9 +1623,9 @@ cta_observation_weights <- function(
 }
 
 # Validate and normalise endpoint_palette to a function(n) -> character(n).
-# NULL   → default gradient (warm pink → pale yellow → soft green).
-# fn     → used as-is.
-# vector → interpolated via colorRampPalette.
+# NULL   -> default gradient (warm pink -> pale yellow -> soft green).
+# fn     -> used as-is.
+# vector -> interpolated via colorRampPalette.
 .build_palette_fn <- function(endpoint_palette) {
   if (is.null(endpoint_palette))
     return(grDevices::colorRampPalette(c("#ffebee", "#fffde7", "#e8f5e9")))
@@ -1638,7 +1638,7 @@ cta_observation_weights <- function(
 }
 
 # =============================================================================
-# cta_plot_data() — pure layout-data contract for tree visualisation
+# cta_plot_data()  -  pure layout-data contract for tree visualisation
 # =============================================================================
 
 #' Extract layout data for plotting a CTA tree
@@ -1663,7 +1663,7 @@ cta_observation_weights <- function(
 #' @param target_class Integer (or \code{NULL}); the class label treated as
 #'   the target when enriching endpoint annotations.  \code{NULL} (default)
 #'   returns the structural layout only.  For binary trees with
-#'   \code{target_class = NULL} the enrichment is skipped entirely — no
+#'   \code{target_class = NULL} the enrichment is skipped entirely  -  no
 #'   endpoint columns are added.
 #' @param class_labels Optional character vector of display names for class
 #'   labels.  Supply as a \emph{named} vector, e.g.
@@ -2037,13 +2037,13 @@ cta_plot_data <- function(tree, target_class = NULL, class_labels = NULL,
 }
 
 # =============================================================================
-# plot.cta_tree() — base-R tree diagram
+# plot.cta_tree()  -  base-R tree diagram
 # =============================================================================
 
 #' Plot a fitted CTA tree
 #'
 #' Produces a base-R tree diagram.  Calls \code{\link{cta_plot_data}} for
-#' layout; uses only base graphics — no external package dependencies.
+#' layout; uses only base graphics  -  no external package dependencies.
 #'
 #' Split (internal) nodes show the split attribute, node-level ESS or WESS,
 #' and observation count.  Without \code{target_class}, leaf nodes show the
@@ -2166,7 +2166,7 @@ plot.cta_tree <- function(x,
   )
   graphics::title(main = main, cex.main = 1)
 
-  # Directed arrows — drawn before nodes so shapes sit on top
+  # Directed arrows  -  drawn before nodes so shapes sit on top
   if (nrow(ed) > 0L) {
     for (i in seq_len(nrow(ed))) {
       graphics::arrows(

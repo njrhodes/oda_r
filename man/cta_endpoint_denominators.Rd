@@ -15,7 +15,7 @@ Named integer vector of leaf \code{n_obs} values, named by node ID
 }
 \description{
 Returns the observation counts (\code{n_obs}) for each terminal leaf node,
-named by node ID.  These are the raw row counts stored at fit time — they
+named by node ID.  These are the raw row counts stored at fit time  -  they
 are not recomputed from training data or predictions.
 }
 \details{

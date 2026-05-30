@@ -3,7 +3,7 @@
 \name{oda_best_ordered_multiclass_partition}
 \alias{oda_best_ordered_multiclass_partition}
 \title{Select the best K-segment ordered partition by MegaODA spec:
-  PRIMARY → SECONDARY → FIRST IDENTIFIED (enum order via tick()).}
+  PRIMARY -> SECONDARY -> FIRST IDENTIFIED (enum order via tick()).}
 \usage{
 oda_best_ordered_multiclass_partition(
   x_rep,
@@ -23,9 +23,9 @@ oda_best_ordered_multiclass_partition(
 \arguments{
 \item{x_rep}{Representative x value per unique block.}
 
-\item{counts_obj}{m × C count matrix in objective (priors-weighted) space.}
+\item{counts_obj}{m x C count matrix in objective (priors-weighted) space.}
 
-\item{counts_raw}{m × C count matrix in raw (case-weight) space.}
+\item{counts_raw}{m x C count matrix in raw (case-weight) space.}
 
 \item{K}{Number of segments (cuts = K-1).}
 
@@ -51,5 +51,5 @@ List with ok, cuts_idx, cut_values, seg_cls_idx, primary_obj,
 }
 \description{
 Select the best K-segment ordered partition by MegaODA spec:
-  PRIMARY → SECONDARY → FIRST IDENTIFIED (enum order via tick()).
+  PRIMARY -> SECONDARY -> FIRST IDENTIFIED (enum order via tick()).
 }

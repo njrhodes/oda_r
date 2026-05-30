@@ -109,7 +109,7 @@ An object of class \code{novo_boot_ci}, a list with:
     \code{metric}, \code{model_lower}, \code{model_upper},
     \code{chance_lower}, \code{chance_upper}, \code{overlap}.}
   \item{\code{significant}}{Logical scalar.  \code{TRUE} if the ESS model
-    95\% CI lower bound exceeds the ESS chance 95\% CI upper bound —
+    95\% CI lower bound exceeds the ESS chance 95\% CI upper bound  - 
     novometric Axiom 1 CI non-overlap criterion.}
 }
 }

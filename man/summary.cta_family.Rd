@@ -3,7 +3,7 @@
 \title{Summarise a CTA descendant family}
 \description{
 Returns a structured S3 object summarising the CTA descendant family.
-All values are read from stored fields — no refitting or recomputation is
+All values are read from stored fields  -  no refitting or recomputation is
 performed.
 }
 \usage{

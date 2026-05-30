@@ -1,12 +1,12 @@
 ###############################################################################
-# R/oda_s3.R — S3 methods and accessors for oda_fit objects
+# R/oda_s3.R  -  S3 methods and accessors for oda_fit objects
 #
 # Classes:
-#   oda_fit            — base class (all oda_fit() results)
-#   oda_fit_binary     — binary-class fit (engine = "binary")
-#   oda_fit_multiclass — multiclass fit   (engine = "multiclass")
-#   oda_fit_failed     — failed/degenerate fit (ok = FALSE)
-#   oda_fit_summary    — output of summary.oda_fit()
+#   oda_fit             -  base class (all oda_fit() results)
+#   oda_fit_binary      -  binary-class fit (engine = "binary")
+#   oda_fit_multiclass  -  multiclass fit   (engine = "multiclass")
+#   oda_fit_failed      -  failed/degenerate fit (ok = FALSE)
+#   oda_fit_summary     -  output of summary.oda_fit()
 #
 # Public API added here:
 #   predict.oda_fit()
@@ -86,8 +86,8 @@
 #   Multiclass/polychotomous:
 #     p_value=NA, p_method="none", p_status="not_computed",
 #     p_reason="LOO p-value is not reported for multicategorical/polychotomous ODA".
-#   Directional m×m equal-category: p_status="not_applicable" if metadata is
-#   available; currently no such metadata is stored → conservative not_computed.
+#   Directional mxm equal-category: p_status="not_applicable" if metadata is
+#   available; currently no such metadata is stored -> conservative not_computed.
 #
 # lo must be the $loo list from fit (caller confirms allowed=TRUE before calling).
 .loo_p_info <- function(fit, lo) {
@@ -614,7 +614,7 @@ oda_d_stat <- function(fit) {
     }
 
     # multiclass_nominal / multiclass_categorical: strata count is ambiguous
-    # without explicit canon — return NA rather than guess.
+    # without explicit canon  -  return NA rather than guess.
     return(NA_real_)
   }
 

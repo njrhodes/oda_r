@@ -54,7 +54,7 @@ oda_fit(x, y, w = NULL,
     \code{"on"}: synonym for \code{"pvalue"} when used with the multiclass
     engine.
     \code{"stable"}: binary only; accept when LOO ESS equals training ESS
-    (|WESSL − WESS| ≤ 0.01 pp); split node reports
+    (|WESSL - WESS| <= 0.01 pp); split node reports
     \code{loo_status = "STABLE"}.
     \code{"pvalue"}: binary only; accept when LOO Fisher p is \emph{strictly
     less than} 0.05 (default threshold); split node reports
@@ -62,7 +62,7 @@ oda_fit(x, y, w = NULL,
     Numeric in (0, 1): binary only; accept when LOO Fisher p is \emph{strictly
     less than} the supplied value; must be a single finite value strictly in
     (0, 1); split node reports \code{loo_status = "PVALUE"}.
-    Do not describe the p-value gate as "STABLE" — the two modes are distinct.}
+    Do not describe the p-value gate as "STABLE"  -  the two modes are distinct.}
   \item{boundary_mode}{Boundary convention for multiclass ordered rules.
     Default \code{"megaoda_halfopen"} matches MegaODA.exe behaviour.}
   \item{eval_order}{Controls whether Monte Carlo testing is run before LOO
@@ -76,7 +76,7 @@ oda_fit(x, y, w = NULL,
   \item{direction}{Directional hypothesis control.
     \code{"both"} (default, non-directional) or its synonym \code{"off"}.
     \code{"greater"} / \code{"less"}: MPE Chapter 2 binary ordered DIRECTIONAL
-    (high / low attribute values predict class 1; binary class only — error on
+    (high / low attribute values predict class 1; binary class only  -  error on
     multiclass).
     \code{"ascending"} / \code{"descending"}: MPE Chapter 4 DIRECTIONAL for
     multiclass ordered (segment s maps to class s or C+1-s) or multiclass

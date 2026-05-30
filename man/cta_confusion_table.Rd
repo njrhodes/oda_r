@@ -3,7 +3,7 @@
 \title{Final selected tree training confusion table}
 \description{
 Returns the stored full-tree training confusion matrix for the final selected
-CTA model in tidy long format (one row per actual × predicted class pair).
+CTA model in tidy long format (one row per actual x predicted class pair).
 
 The confusion matrix is captured at fit time at the exact moment the winning
 candidate is selected, using the same scoring predictions.  For the expanded
@@ -26,7 +26,7 @@ A \code{data.frame} with columns:
 \describe{
   \item{\code{actual}}{Integer actual class label.}
   \item{\code{predicted}}{Integer predicted class label.}
-  \item{\code{n}}{Integer raw count of observations with this actual ×
+  \item{\code{n}}{Integer raw count of observations with this actual x
     predicted combination in the final selected tree.}
 }
 Rows are sorted by \code{actual} then \code{predicted}.

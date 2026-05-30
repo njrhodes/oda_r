@@ -37,7 +37,7 @@ cta_strata <- function(tree) {
 #' Terminal endpoint denominators of a CTA tree
 #'
 #' Returns the observation counts (\code{n_obs}) for each terminal leaf node,
-#' named by node ID.  These are the raw row counts stored at fit time — they
+#' named by node ID.  These are the raw row counts stored at fit time  -  they
 #' are not recomputed from training data or predictions.
 #'
 #' Returns \code{integer(0)} for no-tree fits.
@@ -322,7 +322,7 @@ cta_descendant_family <- function(
 #' Tidy table of a CTA descendant family
 #'
 #' Returns a \code{data.frame} with one row per family member.  All values are
-#' read from the stored \code{cta_family} object — no refitting or recomputation
+#' read from the stored \code{cta_family} object  -  no refitting or recomputation
 #' is performed.
 #'
 #' @param family A \code{cta_family} from \code{\link{cta_descendant_family}}.
@@ -399,7 +399,7 @@ cta_family_table <- function(family) {
 #' Summary of a CTA descendant family
 #'
 #' Returns a structured S3 summary object for a \code{cta_family}.  All values
-#' are read from stored fields — no refitting or recomputation is performed.
+#' are read from stored fields  -  no refitting or recomputation is performed.
 #'
 #' @param object A \code{cta_family} from \code{\link{cta_descendant_family}}.
 #' @param ... Unused; included for S3 compatibility.

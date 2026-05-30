@@ -27,7 +27,7 @@ fmt6 <- function(x) sprintf("%.6f", as.numeric(x))
 identical_fmt2 <- function(x, y) identical(fmt2(x), fmt2(y))
 identical_fmt6 <- function(x, y) identical(fmt6(x), fmt6(y))
 
-# Internal case-weight validator — call at every public fit entrypoint.
+# Internal case-weight validator  -  call at every public fit entrypoint.
 # NULL w is always accepted (interpreted as unit weights by the caller).
 # Non-NULL w must be numeric/integer, length n, finite, non-missing, > 0.
 .validate_case_weights <- function(w, n, arg = "w") {

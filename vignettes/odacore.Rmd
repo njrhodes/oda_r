@@ -16,11 +16,11 @@ knitr::opts_chunk$set(collapse = TRUE, comment = "#>")
 `odacore` is a pure-R implementation of the MegaODA / CTA classification
 engine. It provides three main tools:
 
-- **`oda_fit()`** — Optimal Data Analysis (ODA): univariate binary or
+- **`oda_fit()`**  -  Optimal Data Analysis (ODA): univariate binary or
   multiclass classification with a single attribute.
-- **`cta_fit()`** — Classification Tree Analysis (CTA): recursive ODA-node
+- **`cta_fit()`**  -  Classification Tree Analysis (CTA): recursive ODA-node
   trees with ENUMERATE, LOO STABLE, and MINDENOM endpoint constraints.
-- **Translation and graphics** — endpoint staging, propensity weights, tree
+- **Translation and graphics**  -  endpoint staging, propensity weights, tree
   plots, and NOVOmetric bootstrap CIs via `cta_staging_table()`,
   `cta_propensity_weights()`, `novo_boot_ci()`, `plot.cta_tree()`, and the
   ggplot2 renderers `plot_cta_tree()` / `plot_lort_tree()` (requires ggplot2).
@@ -91,16 +91,16 @@ examples for each component of the package:
 |---------|---------|
 | ODA basics | `oda_fit()` in depth: rule, PAC, ESS, LOO |
 | Directional ODA | Chapter 2 (`direction="greater"/"less"`) and Chapter 4 (`direction_map`, `direction="ascending"`) |
-| Multiclass ODA | C ≥ 3 class variables; PAC per class; K-class chance benchmark |
+| Multiclass ODA | C >= 3 class variables; PAC per class; K-class chance benchmark |
 | CTA basics | `cta_fit()`: MINDENOM, LOO STABLE, ENUMERATE, pruning |
-| Myeloma CTA | MINDENOM family (1 → 30 → 56); canonical computed outputs |
+| Myeloma CTA | MINDENOM family (1 -> 30 -> 56); canonical computed outputs |
 | CTA translation | `cta_staging_table()`, `cta_propensity_weights()`, endpoint reporting |
 | MDSA family | `cta_descendant_family()`, `cta_family_table()`, minimum-D selection |
 | CTA graphics | `cta_plot_data()` data contract; `plot.cta_tree()` (base-R) and `plot_cta_tree()` (ggplot2) renderers |
 | NOVOboot CI | `novo_boot_ci()`: fixed-confusion NOVOmetric bootstrap |
 | Validation tiers | CRAN / fast / smoke / full tiers; canon parity; package scope |
 
-The four example-driven CRAN vignettes — *Binary ODA: Migraine Attacks*,
+The four example-driven CRAN vignettes  -  *Binary ODA: Migraine Attacks*,
 *Binary Ordered Directional ODA: The Refugee Act*, *Binary Categorical
 Directional ODA: Gully Erosion*, and *Multiclass Categorical Directional ODA:
-Protein Type* — are also available via `browseVignettes("odacore")`.
+Protein Type*  -  are also available via `browseVignettes("odacore")`.

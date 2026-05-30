@@ -3,12 +3,12 @@
 # Based on the NOVOboot methodology: Yarnold (2020); Yarnold & Soltysik (2016).
 #
 # Key design:
-#   Model distribution    – resampling paired (actual, predicted) rows;
+#   Model distribution    - resampling paired (actual, predicted) rows;
 #                           preserves the observed joint distribution.
-#   Chance distribution   – independently resampling actual and predicted
+#   Chance distribution   - independently resampling actual and predicted
 #                           labels; breaks association (pure null).
-#   p-value per replicate – exact Fisher 2x2 for every replicate confusion.
-#   No model refitting.   – operates entirely on the observed confusion counts.
+#   p-value per replicate - exact Fisher 2x2 for every replicate confusion.
+#   No model refitting.   - operates entirely on the observed confusion counts.
 
 # ---- S3 generic --------------------------------------------------------------
 
@@ -28,12 +28,12 @@
 #'
 #' \strong{S3 dispatch:}
 #' \itemize{
-#'   \item \code{novo_boot_ci.default} — accepts a 2\ifelse{html}{\out{&times;}}{\eqn{\times}}2 integer matrix directly.
-#'   \item \code{novo_boot_ci.oda_fit} — extracts the training confusion from a
+#'   \item \code{novo_boot_ci.default}  -  accepts a 2\ifelse{html}{\out{&times;}}{\eqn{\times}}2 integer matrix directly.
+#'   \item \code{novo_boot_ci.oda_fit}  -  extracts the training confusion from a
 #'     binary \code{oda_fit} object.  Errors for multiclass fits.
-#'   \item \code{novo_boot_ci.cta_tree} — uses the stored \code{training_confusion}
+#'   \item \code{novo_boot_ci.cta_tree}  -  uses the stored \code{training_confusion}
 #'     matrix from a \code{cta_tree} object.  Errors for no-tree fits or non-binary.
-#'   \item \code{novo_boot_ci.cta_ort} — derives the full-LORT 2\ifelse{html}{\out{&times;}}{\eqn{\times}}2 confusion by
+#'   \item \code{novo_boot_ci.cta_ort}  -  derives the full-LORT 2\ifelse{html}{\out{&times;}}{\eqn{\times}}2 confusion by
 #'     summing \code{strata$class_counts} over all terminal strata.
 #' }
 #'
@@ -83,7 +83,7 @@
 #'     \code{metric}, \code{model_lower}, \code{model_upper},
 #'     \code{chance_lower}, \code{chance_upper}, \code{overlap}.}
 #'   \item{\code{significant}}{Logical.  \code{TRUE} if the ESS model 95\% CI
-#'     lower bound exceeds the ESS chance 95\% CI upper bound — novometric
+#'     lower bound exceeds the ESS chance 95\% CI upper bound  -  novometric
 #'     Axiom 1 CI non-overlap criterion.}
 #' }
 #'
@@ -174,7 +174,7 @@ novo_boot_ci.default <- function(x,
   chance_mat <- matrix(0L, 4L, nboot)
   model_p    <- numeric(nboot)
   chance_p   <- numeric(nboot)
-  conf_tmp   <- matrix(0L, 2L, 2L)   # reused each iteration — no allocation
+  conf_tmp   <- matrix(0L, 2L, 2L)   # reused each iteration  -  no allocation
 
   # ---- Bootstrap loop ---------------------------------------------------------
   for (i in seq_len(nboot)) {
@@ -192,7 +192,7 @@ novo_boot_ci.default <- function(x,
     conf_tmp[2L, 1L] <- fn; conf_tmp[2L, 2L] <- tp
     model_p[i] <- .fisher_p(conf_tmp, alternative)
 
-    # Chance: independently resample actual and predicted — breaks pairing.
+    # Chance: independently resample actual and predicted  -  breaks pairing.
     # Generates the null distribution of no classification association.
     idx_a <- sample.int(k, k, replace = TRUE)
     idx_p <- sample.int(k, k, replace = TRUE)

@@ -1,10 +1,10 @@
 ###############################################################################
-# R/balance.R — Covariate balance analysis (univariate ODA + SMD companion)
+# R/balance.R  -  Covariate balance analysis (univariate ODA + SMD companion)
 #
 # Public API:
-#   oda_balance_table()     — univariate ODA balance diagnostics
-#   smd_balance_table()     — conventional SMD companion (no p-values)
-#   oda_balance_plot_data() — renderer-ready plot data (no fitting)
+#   oda_balance_table()      -  univariate ODA balance diagnostics
+#   smd_balance_table()      -  conventional SMD companion (no p-values)
+#   oda_balance_plot_data()  -  renderer-ready plot data (no fitting)
 #
 # Canon:
 #   Linden & Yarnold (2016). Using machine learning to assess covariate

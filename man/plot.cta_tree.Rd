@@ -3,7 +3,7 @@
 \title{Plot a fitted CTA tree}
 \description{
 Native base-R CTA visualization.  Calls \code{\link{cta_plot_data}} for
-layout; uses only base graphics — no external package dependencies.
+layout; uses only base graphics  -  no external package dependencies.
 
 Split (internal) nodes are drawn as \strong{ellipses}; terminal endpoint
 nodes are drawn as \strong{rectangles}; edges are \strong{directed arrows}.

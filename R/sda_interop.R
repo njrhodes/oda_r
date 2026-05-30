@@ -6,10 +6,10 @@
 # These functions extract auditable outputs from sda_fit objects and bridge
 # them into cta_fit() / cta_descendant_family() workflows.
 #
-# Canon reference: docs/SDA_AUTO_SDA_PLAN.md §5.
+# Canon reference: docs/SDA_AUTO_SDA_PLAN.md section 5.
 ###############################################################################
 
-#' Return the selected attribute names from a fitted SDA model
+#' Return the selected attribute names from an SDA procedure result
 #'
 #' Returns the names of attributes selected across all SDA steps, in step
 #' order. This is the constrained candidate set to pass to MDSA/CTA.

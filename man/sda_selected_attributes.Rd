@@ -2,7 +2,7 @@
 % Please edit documentation in R/sda_interop.R
 \name{sda_selected_attributes}
 \alias{sda_selected_attributes}
-\title{Return the selected attribute names from a fitted SDA model}
+\title{Return the selected attribute names from an SDA procedure result}
 \usage{
 sda_selected_attributes(fit)
 }

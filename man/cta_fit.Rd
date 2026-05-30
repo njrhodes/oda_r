@@ -106,7 +106,7 @@ tree <- cta_fit(X, y,
 )
 print(tree)
 
-# Recursive ORT — two-level synthetic dataset
+# Recursive ORT  -  two-level synthetic dataset
 X2 <- data.frame(
   A = c(rep(0, 20), rep(1, 20), rep(1, 20)),
   B = c(rep(0, 20), rep(0, 20), rep(1, 20))

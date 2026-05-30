@@ -1,28 +1,28 @@
 ###############################################################################
-# R/graphics_v3.R — Graphics v3: direct ggplot2 tree renderers
+# R/graphics_v3.R  -  Graphics v3: direct ggplot2 tree renderers
 #
 # Public API (v3C1):
-#   plot_cta_tree()    — ggplot CTA tree diagram
-#   plot_lort_tree()   — ggplot LORT (recursive CTA) tree diagram
+#   plot_cta_tree()     -  ggplot CTA tree diagram
+#   plot_lort_tree()    -  ggplot LORT (recursive CTA) tree diagram
 #
 # v3C2 balance renderers are deferred to the next slice.
 #
 # Rules:
 #   - All functions return ggplot objects.
 #   - No model fitting inside any plot function.
-#   - ggplot2 is in Suggests; missing → clear error via .require_ggplot2().
+#   - ggplot2 is in Suggests; missing -> clear error via .require_ggplot2().
 #   - base plot methods (plot.cta_tree, plot.cta_ort) are unchanged.
 #   - Use ggplot2:: prefix; do not attach ggplot2.
 ###############################################################################
 
 # Suppress R CMD CHECK "no visible binding" notes for ggplot2 aes() column names
 utils::globalVariables(c(
-  # v3C1 — tree rendering
+  # v3C1  -  tree rendering
   "x", "y", "label",
   "x0", "y0_adj", "x1", "y1_adj", "xmid", "ymid",
   "xmin", "xmax", "ymin", "ymax",
   "fill_value", "pred_chr",
-  # v3C2 — balance rendering
+  # v3C2  -  balance rendering
   "attr_fac", "ess_display_bar",
   "sig_color", "significance_label",
   "abs_smd", "bal_col"
@@ -193,7 +193,7 @@ utils::globalVariables(c(
     }
   }
 
-  # ---- Internal (split) nodes — fixed fill -----------------------------------
+  # ---- Internal (split) nodes  -  fixed fill -----------------------------------
   if (nrow(nd_int) > 0L) {
     p <- p +
       ggplot2::geom_rect(
@@ -212,7 +212,7 @@ utils::globalVariables(c(
       )
   }
 
-  # ---- Leaf/terminal nodes — fill varies by color_by -------------------------
+  # ---- Leaf/terminal nodes  -  fill varies by color_by -------------------------
   if (nrow(nd_lf) > 0L) {
     has_fill  <- "fill_value" %in% names(nd_lf) && !all(is.na(nd_lf$fill_value))
     has_pred  <- "predicted_class" %in% names(nd_lf) &&
@@ -495,9 +495,9 @@ plot_lort_tree <- function(x,
 
   # Standardize edge column names (ORT uses from_id/to_id; renderer expects x0,y0,x1,y1,label)
   if (!"x0" %in% names(edges) && "x0" %in% names(edges)) {
-    # already correct — no-op
+    # already correct  -  no-op
   }
-  # edges from ort_plot_data already have x0,y0,x1,y1,label — pass through.
+  # edges from ort_plot_data already have x0,y0,x1,y1,label  -  pass through.
 
   effective_subtitle <- subtitle
   if (isTRUE(show_metrics)) {
@@ -529,13 +529,13 @@ plot_lort_tree <- function(x,
 }
 
 ###############################################################################
-# v3C2 — Balance renderers
+# v3C2  -  Balance renderers
 #
 # Public API:
-#   plot_oda_balance()    — ODA ESS/WESS covariate balance dot plot
-#   plot_smd_balance()    — SMD absolute-value covariate balance dot plot
-#   plot_balance_love()   — Love-plot wrapper (calls plot_smd_balance)
-#   plot_cta_balance()    — CTA multivariate balance: tree or message panel
+#   plot_oda_balance()     -  ODA ESS/WESS covariate balance dot plot
+#   plot_smd_balance()     -  SMD absolute-value covariate balance dot plot
+#   plot_balance_love()    -  Love-plot wrapper (calls plot_smd_balance)
+#   plot_cta_balance()     -  CTA multivariate balance: tree or message panel
 #
 # Rules:
 #   - Pure renderers: no fitting, no recomputation.  Read pre-computed
@@ -708,7 +708,7 @@ plot_oda_balance <- function(x,
     ) +
     ggplot2::labs(x = ess_xlab, y = NULL)
 
-  # Significance labels ("*") next to imbalanced points — pure render of
+  # Significance labels ("*") next to imbalanced points  -  pure render of
   # whatever significance_label is in the plot-data; no recomputation.
   if (isTRUE(show_significance) && "significance_label" %in% names(rows)) {
     sig_pts <- rows[nchar(as.character(rows$significance_label)) > 0L, ,

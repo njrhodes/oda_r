@@ -1,15 +1,15 @@
 ###############################################################################
 # R/sda_core.R
 #
-# sda_fit() — Structural Decomposition Analysis (SDA).
+# sda_fit()  -  Structural Decomposition Analysis (SDA).
 #
-# SDA-1 scope:  mode = "unioda_max_ess"  — iterative UniODA.
-# SDA-4B scope: mode = "novometric_min_d" — per-attribute MDSA via
+# SDA-1 scope:  mode = "unioda_max_ess"   -  iterative UniODA.
+# SDA-4B scope: mode = "novometric_min_d"  -  per-attribute MDSA via
 #               cta_descendant_family(); MINDENOM gate + p gate + min-D selection.
 #   Case weights not supported; weights != NULL errors.
 #   Returns class c("sda_fit", "odacore_sda").
 #
-# Canon reference: docs/SDA_AUTO_SDA_PLAN.md §SDA-4 Novometric Acceptance Contract.
+# Canon reference: docs/SDA_AUTO_SDA_PLAN.md section SDA-4 Novometric Acceptance Contract.
 ###############################################################################
 
 #' Run a Structural Decomposition Analysis (SDA) procedure
@@ -134,7 +134,7 @@ sda_fit <- function(
       excl_names   <- dupes
       excl_reasons <- rep("collinear", length(dupes))
     }
-    # "allow" — keep as-is
+    # "allow"  -  keep as-is
   }
 
   if (length(cand_names) == 0L)
@@ -306,7 +306,7 @@ sda_fit <- function(
                         winner_fit$ess %||% NA_real_,
                         winner_fit$p_mc %||% NA_real_))
 
-      # apply winner rule to active rows → compute removal
+      # apply winner rule to active rows -> compute removal
       x_active   <- X[active_rows, winner_attr]
       pred_coded <- oda_rule_predict(x_active, winner_fit$rule)
       pred_orig  <- ifelse(pred_coded == 0L,

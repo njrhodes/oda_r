@@ -31,7 +31,7 @@ the association.
 
 Party affiliation (0 = Republican, 1 = Democrat) is the attribute; vote
 (0 = Con, 1 = Pro) is the class variable. Published cell frequencies are
-reconstructed directly into observation-level vectors — no external data file
+reconstructed directly into observation-level vectors  -  no external data file
 is required.
 
 ```{r data}
@@ -92,14 +92,14 @@ print(fit)
 
 ODA identified a single cut at 0.5, separating the two party values:
 
-- If party ≤ 0.5 (Republican) → predict vote = Con (0)
-- If party > 0.5 (Democrat) → predict vote = Pro (1)
+- If party <= 0.5 (Republican) -> predict vote = Con (0)
+- If party > 0.5 (Democrat) -> predict vote = Pro (1)
 
 This rule is consistent with the directional hypothesis: Democrats
 supported the Act and Republicans opposed it.
 
 ```{r confusion}
-# Confusion matrix: actual vote (rows) × predicted vote (cols)
+# Confusion matrix: actual vote (rows) x predicted vote (cols)
 conf_mat <- matrix(
   c(fit$confusion$TN, fit$confusion$FP,
     fit$confusion$FN, fit$confusion$TP),
@@ -131,7 +131,7 @@ cat("PV Pro (1):", round(pv_pro * 100, 1), "%\n")
 - **ESS = 44.09%** indicates a moderate effect.^[Yarnold, P.R., & Soltysik,
   R.C. (2005). *Optimal Data Analysis: A Guidebook with Software for Windows.*
   Washington, D.C.: APA Books.] The asymmetry (60% vs. 84%) reflects stronger
-  partisan signal on the Democratic side — Democrats who sponsored the Act
+  partisan signal on the Democratic side  -  Democrats who sponsored the Act
   voted for it far more uniformly.
 - **PV:** When the model predicts a Con vote, it is correct ~77.6% of the time;
   when it predicts a Pro vote, ~69.4%.
@@ -142,7 +142,7 @@ The directional MC p-value and LOO result are shown in the `summary` output
 above.
 
 - **LOO stability:** The leave-one-out ESS equals the training ESS exactly
-  (44.09%), indicating the rule is completely stable — no single observation
+  (44.09%), indicating the rule is completely stable  -  no single observation
   materially alters the model.
 - **LOO Fisher exact p < .001:** Statistical significance confirmed in
   holdout analysis; the one-sided Fisher test is appropriate for the

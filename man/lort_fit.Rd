@@ -46,7 +46,7 @@ traversal order without resetting the seed.  Default \code{42L}.}
 \item{prune_alpha}{Numeric; pruning significance threshold.  Default \code{0.05}.}
 
 \item{loo}{LOO gate mode per node: \code{"off"} (no gate), \code{"stable"}
-(MegaODA LOO STABLE; accept when |WESSL − WESS| ≤ 0.01 pp; default),
+(MegaODA LOO STABLE; accept when |WESSL - WESS| <= 0.01 pp; default),
 \code{"pvalue"} (Fisher p strictly less than 0.05), or a single numeric
 in (0, 1) (Fisher p strictly less than the supplied threshold).}
 
