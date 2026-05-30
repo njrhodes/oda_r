@@ -45,6 +45,8 @@ novo_boot_ci(x, ...)
              sample_frac = 0.5,
              probs       = c(0, .025, .05, .25, .5, .75, .95, .975, 1),
              alternative = c("two.sided", "greater", "less"),
+             node_id     = NULL,
+             weighted    = FALSE,
              ...)
 
 \method{novo_boot_ci}{cta_ort}(x,
@@ -53,6 +55,8 @@ novo_boot_ci(x, ...)
              sample_frac = 0.5,
              probs       = c(0, .025, .05, .25, .5, .75, .95, .975, 1),
              alternative = c("two.sided", "greater", "less"),
+             stratum_id  = NULL,
+             weighted    = FALSE,
              ...)
 
 \method{print}{novo_boot_ci}(x, \dots)
@@ -73,6 +77,18 @@ novo_boot_ci(x, ...)
   \item{probs}{Quantile probability levels for the summary table.}
   \item{alternative}{Direction for exact Fisher p-values:
     \code{"two.sided"} (default), \code{"greater"}, or \code{"less"}.}
+  \item{node_id}{Integer node id of a \emph{terminal} (leaf) node in a
+    \code{cta_tree}.  When supplied, the bootstrap uses the class counts
+    for that specific terminal node rather than the full-tree confusion.
+    Only valid for \code{novo_boot_ci.cta_tree}.}
+  \item{stratum_id}{Integer stratum id from \code{cta_ort$strata}.  When
+    supplied, the bootstrap uses the class counts for that single terminal
+    LORT stratum rather than the full-LORT confusion.  Only valid for
+    \code{novo_boot_ci.cta_ort}.}
+  \item{weighted}{Logical.  When \code{node_id} or \code{stratum_id} is
+    supplied, \code{weighted = TRUE} uses case-weighted class counts and
+    \code{weighted = FALSE} (default) uses raw integer counts.  Ignored
+    for full-tree paths.}
   \item{\dots}{For the generic and S3 fit methods: additional arguments
     passed to \code{novo_boot_ci.default}.  For \code{print.novo_boot_ci}:
     currently ignored.}
@@ -109,8 +125,16 @@ An object of class \code{novo_boot_ci}, a list with:
     \code{metric}, \code{model_lower}, \code{model_upper},
     \code{chance_lower}, \code{chance_upper}, \code{overlap}.}
   \item{\code{significant}}{Logical scalar.  \code{TRUE} if the ESS model
-    95\% CI lower bound exceeds the ESS chance 95\% CI upper bound  - 
+    95\% CI lower bound exceeds the ESS chance 95\% CI upper bound  -
     novometric Axiom 1 CI non-overlap criterion.}
+  \item{\code{source_type}}{Character.  Evidence provenance tag:
+    \code{"matrix"}, \code{"oda_fit"}, \code{"cta_tree"},
+    \code{"cta_tree_node"}, \code{"cta_ort"}, or \code{"cta_ort_stratum"}.}
+  \item{\code{source_id}}{Integer or \code{NA}.  Node or stratum id when
+    evidence came from a specific sub-unit; \code{NA} for full-tree paths.}
+  \item{\code{weighted}}{Logical or \code{NA}.  \code{TRUE} when weighted
+    class counts were used; \code{FALSE} for raw counts; \code{NA} for
+    the default matrix path.}
 }
 }
 \details{

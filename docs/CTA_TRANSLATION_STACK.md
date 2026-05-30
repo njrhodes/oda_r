@@ -144,15 +144,16 @@ confusion table recovery, and the lean-fit invariant check.
 
 ## Current limitations
 
-- **No balance diagnostics.** Propensity weights are computed but no function
-  yet assesses covariate balance after weight application. Future
-  balance-diagnostic work should be canon-reviewed against the Linden/Yarnold
-  JEP covariate-balance paper in `docs/theory/`. That paper frames balance
-  assessment as an ODA classification problem: after matching or weighting,
-  observed pre-intervention covariates should have weak or non-significant
-  ability to discriminate assignment/study groups. Conventional
-  standardized-difference summaries may be useful complements, but they are not
-  the canon center.
+- **Balance diagnostics are implemented separately.**
+  `oda_balance_table()`, `smd_balance_table()`, `cta_balance_table()`, and
+  associated plot functions (`plot_oda_balance`, `plot_smd_balance`,
+  `plot_cta_balance`, `plot_balance_love`) are the balance diagnostic surface.
+  These functions are documented in `docs/COVARIATE_BALANCE_CONTRACT.md`.
+  The CTA propensity-weight pipeline (`cta_propensity_weights`,
+  `cta_observation_weights`) feeds directly into `cta_balance_table()` and
+  `plot_cta_balance()`.  Future balance work should be canon-reviewed against
+  the Linden/Yarnold JEP covariate-balance paper in `docs/theory/`; that paper
+  frames balance assessment as an ODA classification problem.
 - **Raw-count propensity formula only.** `cta_propensity_weights()` uses raw
   class counts in the weight formula.  Weighted counts are stored in the tree
   (`class_counts_weighted`) but are not yet surfaced in the propensity

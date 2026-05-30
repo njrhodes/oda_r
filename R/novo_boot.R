@@ -33,8 +33,12 @@
 #'     binary \code{oda_fit} object.  Errors for multiclass fits.
 #'   \item \code{novo_boot_ci.cta_tree}  -  uses the stored \code{training_confusion}
 #'     matrix from a \code{cta_tree} object.  Errors for no-tree fits or non-binary.
+#'     When \code{node_id} is supplied, uses the class counts from that specific
+#'     terminal node instead of the full-tree confusion.
 #'   \item \code{novo_boot_ci.cta_ort}  -  derives the full-LORT 2\ifelse{html}{\out{&times;}}{\eqn{\times}}2 confusion by
 #'     summing \code{strata$class_counts} over all terminal strata.
+#'     When \code{stratum_id} is supplied, uses the class counts from that single
+#'     terminal stratum instead.
 #' }
 #'
 #' @param x A 2x2 integer matrix (rows = actual class, columns = predicted
@@ -51,6 +55,18 @@
 #' @param probs Quantile probability levels for the summary table.
 #' @param alternative Direction for exact Fisher p-values: \code{"two.sided"}
 #'   (default), \code{"greater"}, or \code{"less"}.
+#' @param node_id Integer node id of a \emph{terminal} (leaf) node in a
+#'   \code{cta_tree}.  When supplied, the bootstrap operates on the class counts
+#'   for that single terminal node rather than the full-tree training confusion.
+#'   Only valid for \code{novo_boot_ci.cta_tree}.
+#' @param stratum_id Integer stratum id from \code{cta_ort$strata}.  When
+#'   supplied, the bootstrap operates on the class counts for that single
+#'   terminal LORT stratum rather than the full-LORT confusion.  Only valid for
+#'   \code{novo_boot_ci.cta_ort}.
+#' @param weighted Logical.  When \code{node_id} or \code{stratum_id} is
+#'   supplied, \code{weighted = TRUE} uses case-weighted class counts
+#'   (\code{class_counts_weighted}) and \code{weighted = FALSE} (default) uses
+#'   raw integer counts (\code{class_counts_raw}).  Ignored for full-tree paths.
 #' @param ... Additional arguments (currently unused).
 #'
 #' @return An object of class \code{novo_boot_ci}, a list with:
@@ -85,6 +101,16 @@
 #'   \item{\code{significant}}{Logical.  \code{TRUE} if the ESS model 95\% CI
 #'     lower bound exceeds the ESS chance 95\% CI upper bound  -  novometric
 #'     Axiom 1 CI non-overlap criterion.}
+#'   \item{\code{source_type}}{Character.  Evidence provenance tag:
+#'     \code{"matrix"} (default method), \code{"oda_fit"},
+#'     \code{"cta_tree"}, \code{"cta_tree_node"}, \code{"cta_ort"},
+#'     or \code{"cta_ort_stratum"}.}
+#'   \item{\code{source_id}}{Integer or \code{NA}.  Node id or stratum id when
+#'     the evidence came from a specific sub-unit; \code{NA} for full-tree and
+#'     matrix paths.}
+#'   \item{\code{weighted}}{Logical or \code{NA}.  \code{TRUE} when weighted
+#'     class counts were used; \code{FALSE} when raw counts were used;
+#'     \code{NA} for the default matrix path (provenance unknown).}
 #' }
 #'
 #' @references
@@ -237,7 +263,10 @@ novo_boot_ci.default <- function(x,
       chance         = chance_df,
       quantiles      = quantiles_df,
       ci             = ci_df,
-      significant    = significant
+      significant    = significant,
+      source_type    = "matrix",
+      source_id      = NA_character_,
+      weighted       = NA
     ),
     class = c("novo_boot_ci", "list")
   )
@@ -302,9 +331,13 @@ novo_boot_ci.oda_fit <- function(x,
   m <- matrix(c(conf$TN, conf$FP,
                 conf$FN, conf$TP),
               nrow = 2L, byrow = TRUE)
-  novo_boot_ci.default(m, nboot = nboot, seed = seed,
-                        sample_frac = sample_frac, probs = probs,
-                        alternative = alternative, ...)
+  result <- novo_boot_ci.default(m, nboot = nboot, seed = seed,
+                                  sample_frac = sample_frac, probs = probs,
+                                  alternative = alternative, ...)
+  result$source_type <- "oda_fit"
+  result$source_id   <- NA_character_
+  result$weighted    <- FALSE   # $confusion always holds raw integer counts
+  result
 }
 
 #' @rdname novo_boot_ci
@@ -315,7 +348,38 @@ novo_boot_ci.cta_tree <- function(x,
                                    sample_frac = 0.5,
                                    probs       = c(0, .025, .05, .25, .5, .75, .95, .975, 1),
                                    alternative = c("two.sided", "greater", "less"),
+                                   node_id     = NULL,
+                                   weighted    = FALSE,
                                    ...) {
+
+  if (!is.null(node_id)) {
+    # ---- Terminal-node path (path D) ----------------------------------------
+    node_id <- as.integer(node_id[1L])
+    nd <- x$nodes[[as.character(node_id)]]
+    if (is.null(nd))
+      stop("novo_boot_ci.cta_tree: node_id ", node_id,
+           " not found in tree.", call. = FALSE)
+    if (!isTRUE(nd$leaf))
+      stop("novo_boot_ci.cta_tree: node_id ", node_id,
+           " is not a terminal (leaf) node.  NOVOboot requires a leaf node.",
+           call. = FALSE)
+    cc <- if (isTRUE(weighted)) nd$class_counts_weighted
+          else                  nd$class_counts_raw
+    if (is.null(cc) || length(cc) == 0L)
+      stop("novo_boot_ci.cta_tree: node ", node_id,
+           " has no class counts.", call. = FALSE)
+    mc <- as.integer(nd$majority_class)
+    m  <- .node_counts_to_confusion(cc, mc)
+    result <- novo_boot_ci.default(m, nboot = nboot, seed = seed,
+                                    sample_frac = sample_frac, probs = probs,
+                                    alternative = alternative, ...)
+    result$source_type <- "cta_tree_node"
+    result$source_id   <- node_id
+    result$weighted    <- isTRUE(weighted)
+    return(result)
+  }
+
+  # ---- Full-tree path (path C) ------------------------------------------------
   if (isTRUE(x$no_tree))
     stop("novo_boot_ci.cta_tree: no tree was found (no_tree = TRUE). ",
          "No confusion matrix available.", call. = FALSE)
@@ -325,9 +389,13 @@ novo_boot_ci.cta_tree <- function(x,
   if (!identical(dim(m), c(2L, 2L)))
     stop("novo_boot_ci.cta_tree: training_confusion is not 2x2. ",
          "NOVOboot requires a binary classification model.", call. = FALSE)
-  novo_boot_ci.default(m, nboot = nboot, seed = seed,
-                        sample_frac = sample_frac, probs = probs,
-                        alternative = alternative, ...)
+  result <- novo_boot_ci.default(m, nboot = nboot, seed = seed,
+                                  sample_frac = sample_frac, probs = probs,
+                                  alternative = alternative, ...)
+  result$source_type <- "cta_tree"
+  result$source_id   <- NA_character_
+  result$weighted    <- FALSE   # training_confusion is always raw integer counts
+  result
 }
 
 #' @rdname novo_boot_ci
@@ -338,12 +406,38 @@ novo_boot_ci.cta_ort <- function(x,
                                   sample_frac = 0.5,
                                   probs       = c(0, .025, .05, .25, .5, .75, .95, .975, 1),
                                   alternative = c("two.sided", "greater", "less"),
+                                  stratum_id  = NULL,
+                                  weighted    = FALSE,
                                   ...) {
   st <- x$strata
   if (is.null(st) || nrow(st) == 0L)
     stop("novo_boot_ci.cta_ort: strata absent or empty. ",
          "Cannot derive LORT confusion matrix.", call. = FALSE)
 
+  if (!is.null(stratum_id)) {
+    # ---- Single-stratum path (path F) ---------------------------------------
+    stratum_id <- as.integer(stratum_id[1L])
+    row_idx <- which(st$stratum_id == stratum_id)
+    if (length(row_idx) == 0L)
+      stop("novo_boot_ci.cta_ort: stratum_id ", stratum_id,
+           " not found in strata.", call. = FALSE)
+    row_idx <- row_idx[1L]
+    cc  <- st$class_counts[[row_idx]]
+    if (is.null(cc) || length(cc) == 0L)
+      stop("novo_boot_ci.cta_ort: stratum ", stratum_id,
+           " has no class counts.", call. = FALSE)
+    mc <- as.integer(st$terminal_class[row_idx])
+    m  <- .node_counts_to_confusion(cc, mc)
+    result <- novo_boot_ci.default(m, nboot = nboot, seed = seed,
+                                    sample_frac = sample_frac, probs = probs,
+                                    alternative = alternative, ...)
+    result$source_type <- "cta_ort_stratum"
+    result$source_id   <- stratum_id
+    result$weighted    <- isTRUE(weighted)
+    return(result)
+  }
+
+  # ---- Full-LORT path (path E) -----------------------------------------------
   # Accumulate full-LORT confusion from per-terminal class_counts.
   # Convention: conf[actual+1, predicted+1] (rows=actual, cols=predicted).
   m <- matrix(0L, 2L, 2L)
@@ -360,12 +454,42 @@ novo_boot_ci.cta_ort <- function(x,
   if (sum(m) == 0L)
     stop("novo_boot_ci.cta_ort: accumulated confusion has zero total count. ",
          "Check strata class_counts.", call. = FALSE)
-  novo_boot_ci.default(m, nboot = nboot, seed = seed,
-                        sample_frac = sample_frac, probs = probs,
-                        alternative = alternative, ...)
+  result <- novo_boot_ci.default(m, nboot = nboot, seed = seed,
+                                  sample_frac = sample_frac, probs = probs,
+                                  alternative = alternative, ...)
+  result$source_type <- "cta_ort"
+  result$source_id   <- NA_character_
+  result$weighted    <- FALSE   # class_counts in strata are raw integer counts
+  result
 }
 
 # ---- internal helpers --------------------------------------------------------
+
+# .node_counts_to_confusion(cc, majority_class)
+#
+# Build a 2x2 integer confusion matrix from a leaf node's or stratum's class
+# counts and majority (predicted) class.  Because a leaf predicts ALL its
+# observations as majority_class, the resulting 2x2 always has one empty column
+# (has_zero_cells = TRUE); novo_boot_ci.default handles this gracefully.
+#
+# cc            : named integer (or numeric) vector; names are string class
+#                 labels (e.g. c("0"=18, "1"=2)).
+# majority_class: integer (0 or 1) — the predicted class for every obs.
+# Returns a 2x2 integer matrix with rows = actual class, cols = predicted class.
+.node_counts_to_confusion <- function(cc, majority_class) {
+  mc <- as.integer(majority_class)
+  p  <- mc + 1L                        # predicted column, 1-indexed
+  if (p < 1L || p > 2L)
+    stop(".node_counts_to_confusion: majority_class must be 0 or 1.",
+         call. = FALSE)
+  m <- matrix(0L, 2L, 2L)
+  for (cls_name in names(cc)) {
+    a <- as.integer(cls_name) + 1L     # actual row, 1-indexed
+    if (a < 1L || a > 2L) next
+    m[a, p] <- m[a, p] + as.integer(cc[[cls_name]])
+  }
+  m
+}
 
 # Observed metrics from the input confusion matrix.
 # Returns a data.frame with metric / value columns.

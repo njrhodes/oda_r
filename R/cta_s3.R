@@ -528,6 +528,60 @@ cta_confusion_table <- function(tree) {
 }
 
 # =============================================================================
+# as_confusion_matrix()  -  tidy confusion data.frame -> 2x2 integer matrix
+# =============================================================================
+
+#' Convert a tidy confusion data frame to a 2x2 integer matrix
+#'
+#' Converts the \code{data.frame} returned by \code{\link{cta_confusion_table}}
+#' (columns \code{actual}, \code{predicted}, \code{n}) to a 2x2 integer matrix
+#' suitable for \code{\link{novo_boot_ci}}.
+#'
+#' @param df A \code{data.frame} with integer columns \code{actual},
+#'   \code{predicted}, and \code{n}.  Must represent a binary (2-class)
+#'   classification; exactly 4 rows (one per cell of the 2x2 table) are
+#'   required, with \code{actual} and \code{predicted} taking values 0 and 1.
+#' @return A 2x2 integer matrix with rows = actual class (0/1) and columns =
+#'   predicted class (0/1), matching the \code{training_confusion} convention
+#'   used throughout \code{odacore}.
+#' @examples
+#' data(mtcars)
+#' X    <- mtcars[, c("cyl", "disp", "hp", "wt")]
+#' y    <- as.integer(mtcars$am)
+#' tree <- oda_cta_fit(X, y, mindenom = 5L, mc_iter = 500L, mc_seed = 42L)
+#' if (!isTRUE(tree$no_tree)) {
+#'   ct <- cta_confusion_table(tree)
+#'   m  <- as_confusion_matrix(ct)
+#'   novo_boot_ci(m, nboot = 200L, seed = 1L)
+#' }
+#' @export
+as_confusion_matrix <- function(df) {
+  if (!is.data.frame(df) ||
+      !all(c("actual", "predicted", "n") %in% names(df)))
+    stop("'df' must be a data.frame with columns 'actual', 'predicted', 'n'.",
+         call. = FALSE)
+  act  <- sort(unique(df$actual))
+  pred <- sort(unique(df$predicted))
+  if (length(act) > 2L || length(pred) > 2L)
+    stop("as_confusion_matrix: only binary (2-class) confusion tables supported.",
+         call. = FALSE)
+  all_cls <- sort(union(act, pred))
+  if (length(all_cls) == 0L || length(all_cls) > 2L ||
+      !all(all_cls %in% 0L:1L))
+    stop("as_confusion_matrix: class labels must be 0 and 1.", call. = FALSE)
+  m <- matrix(0L, 2L, 2L,
+              dimnames = list(actual    = c("0", "1"),
+                              predicted = c("0", "1")))
+  for (i in seq_len(nrow(df))) {
+    r <- as.integer(df$actual[i])    + 1L
+    c <- as.integer(df$predicted[i]) + 1L
+    if (r >= 1L && r <= 2L && c >= 1L && c <= 2L)
+      m[r, c] <- m[r, c] + as.integer(df$n[i])
+  }
+  m
+}
+
+# =============================================================================
 # cta_endpoint_summary()  -  conservative endpoint reporting accessor
 # =============================================================================
 

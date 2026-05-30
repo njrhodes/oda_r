@@ -387,3 +387,216 @@ test_that("E7-3: gort_propensity_weights does not exist", {
 test_that("E7-4: model_evidence generic does not exist", {
   expect_false(existsFunction("model_evidence"))
 })
+
+# ---------------------------------------------------------------------------
+# E8: source_type / source_id / weighted provenance metadata
+# ---------------------------------------------------------------------------
+
+test_that("E8-1: default path carries source_type = 'matrix'", {
+  m  <- matrix(c(146L, 40L, 36L, 33L), nrow = 2L, byrow = TRUE)
+  ci <- novo_boot_ci(m, nboot = 50L, seed = 42L)
+  expect_equal(ci$source_type, "matrix")
+  expect_true(is.na(ci$source_id))
+  expect_true(is.na(ci$weighted))
+})
+
+test_that("E8-2: oda_fit path carries source_type = 'oda_fit', weighted = FALSE", {
+  fit <- oda_fit(x_bin, y_bin, attr_type = "ordered",
+                 mcarlo = FALSE, loo = "off")
+  ci <- novo_boot_ci(fit, nboot = 50L, seed = 42L)
+  expect_equal(ci$source_type, "oda_fit")
+  expect_true(is.na(ci$source_id))
+  expect_false(ci$weighted)
+})
+
+test_that("E8-3: cta_tree full-tree path carries source_type = 'cta_tree'", {
+  skip_if(Sys.getenv("ODACORE_TEST_TIER") %in% c("", "cran"),
+          "Skipping cta_tree source_type at cran tier")
+  X <- data.frame(
+    A = c(rep(0L, 20), rep(1L, 20), rep(1L, 20)),
+    B = c(rep(0L, 20), rep(0L, 20), rep(1L, 20))
+  )
+  y <- c(rep(0L, 40), rep(1L, 20))
+  tree <- cta_fit(X, y, mc_iter = 500L, mc_seed = 1L, loo = "off",
+                  mindenom = 5L)
+  if (isTRUE(tree$no_tree)) skip("no_tree")
+  ci <- novo_boot_ci(tree, nboot = 50L, seed = 42L)
+  expect_equal(ci$source_type, "cta_tree")
+  expect_true(is.na(ci$source_id))
+  expect_false(ci$weighted)
+})
+
+test_that("E8-4: cta_tree node_id path uses leaf class_counts and carries metadata", {
+  skip_if(Sys.getenv("ODACORE_TEST_TIER") %in% c("", "cran"),
+          "Skipping cta_tree node_id at cran tier")
+  X <- data.frame(
+    A = c(rep(0L, 20), rep(1L, 20), rep(1L, 20)),
+    B = c(rep(0L, 20), rep(0L, 20), rep(1L, 20))
+  )
+  y <- c(rep(0L, 40), rep(1L, 20))
+  tree <- cta_fit(X, y, mc_iter = 500L, mc_seed = 1L, loo = "off",
+                  mindenom = 5L)
+  if (isTRUE(tree$no_tree)) skip("no_tree")
+  # Find a terminal node id
+  leaf_ids <- Filter(function(k) isTRUE(tree$nodes[[k]]$leaf),
+                     names(tree$nodes))
+  if (length(leaf_ids) == 0L) skip("no leaf nodes")
+  nid <- as.integer(leaf_ids[[1L]])
+  ci <- novo_boot_ci(tree, node_id = nid, nboot = 50L, seed = 42L)
+  expect_s3_class(ci, "novo_boot_ci")
+  expect_equal(ci$source_type, "cta_tree_node")
+  expect_equal(ci$source_id, nid)
+  expect_false(ci$weighted)
+  # Confusion column sums should be 0 on the non-predicted side
+  nd  <- tree$nodes[[as.character(nid)]]
+  mc  <- nd$majority_class  # 0 or 1
+  pred_col <- mc + 1L
+  other_col <- 3L - pred_col
+  expect_equal(sum(ci$confusion[, other_col]), 0L)
+})
+
+test_that("E8-5: cta_tree node_id errors on non-leaf node", {
+  skip_if(Sys.getenv("ODACORE_TEST_TIER") %in% c("", "cran"),
+          "Skipping at cran tier")
+  X <- data.frame(
+    A = c(rep(0L, 20), rep(1L, 20), rep(1L, 20)),
+    B = c(rep(0L, 20), rep(0L, 20), rep(1L, 20))
+  )
+  y <- c(rep(0L, 40), rep(1L, 20))
+  tree <- cta_fit(X, y, mc_iter = 500L, mc_seed = 1L, loo = "off",
+                  mindenom = 5L)
+  if (isTRUE(tree$no_tree)) skip("no_tree")
+  # Root node should be non-leaf if tree has >1 node
+  internal_ids <- Filter(function(k) !isTRUE(tree$nodes[[k]]$leaf),
+                         names(tree$nodes))
+  if (length(internal_ids) == 0L) skip("no internal nodes")
+  nid <- as.integer(internal_ids[[1L]])
+  expect_error(novo_boot_ci(tree, node_id = nid, nboot = 50L),
+               regexp = "not a terminal")
+})
+
+test_that("E8-6: cta_ort full-LORT path carries source_type = 'cta_ort'", {
+  strata_df <- data.frame(
+    stratum_id     = c(1L, 2L),
+    node_id        = c(2L, 3L),
+    terminal_class = c(0L, 1L),
+    prop_class1    = c(0.1, 0.8),
+    n              = c(20L, 20L),
+    stringsAsFactors = FALSE
+  )
+  strata_df$class_counts <- list(c("0" = 18L, "1" = 2L),
+                                  c("0" = 4L,  "1" = 16L))
+  fake_ort <- structure(
+    list(no_tree = FALSE, strata = strata_df, ort_nodes = list(),
+         n_strata = 2L, overall_ess = NA_real_, has_weights = FALSE,
+         n = 40L, C = 2L,
+         ort_settings = list(method = "lort", global_optimization = FALSE,
+                             sda_anchored = FALSE)),
+    class = c("cta_ort", "cta_tree")
+  )
+  ci <- novo_boot_ci(fake_ort, nboot = 50L, seed = 1L)
+  expect_equal(ci$source_type, "cta_ort")
+  expect_true(is.na(ci$source_id))
+  expect_false(ci$weighted)
+})
+
+test_that("E8-7: cta_ort stratum_id path uses single-stratum counts and carries metadata", {
+  strata_df <- data.frame(
+    stratum_id     = c(1L, 2L),
+    node_id        = c(2L, 3L),
+    terminal_class = c(0L, 1L),
+    prop_class1    = c(0.1, 0.8),
+    n              = c(20L, 20L),
+    stringsAsFactors = FALSE
+  )
+  strata_df$class_counts <- list(c("0" = 18L, "1" = 2L),
+                                  c("0" = 4L,  "1" = 16L))
+  fake_ort <- structure(
+    list(no_tree = FALSE, strata = strata_df, ort_nodes = list(),
+         n_strata = 2L, overall_ess = NA_real_, has_weights = FALSE,
+         n = 40L, C = 2L,
+         ort_settings = list(method = "lort", global_optimization = FALSE,
+                             sda_anchored = FALSE)),
+    class = c("cta_ort", "cta_tree")
+  )
+  # Stratum 2: terminal_class=1, class_counts=c("0"=4,"1"=16)
+  # Expected confusion: FP=4 (act=0,pred=1), TP=16 (act=1,pred=1), TN=0, FN=0
+  ci <- novo_boot_ci(fake_ort, stratum_id = 2L, nboot = 50L, seed = 1L)
+  expect_s3_class(ci, "novo_boot_ci")
+  expect_equal(ci$source_type, "cta_ort_stratum")
+  expect_equal(ci$source_id, 2L)
+  expect_false(ci$weighted)
+  expected <- matrix(c(0L, 4L, 0L, 16L), nrow = 2L, byrow = TRUE)
+  expect_equal(ci$confusion, expected)
+  expect_equal(ci$n, 20L)
+})
+
+test_that("E8-8: cta_ort stratum_id errors on missing stratum", {
+  strata_df <- data.frame(
+    stratum_id     = c(1L, 2L),
+    terminal_class = c(0L, 1L),
+    n              = c(20L, 20L),
+    stringsAsFactors = FALSE
+  )
+  strata_df$class_counts <- list(c("0" = 18L, "1" = 2L),
+                                  c("0" = 4L,  "1" = 16L))
+  fake_ort <- structure(
+    list(no_tree = FALSE, strata = strata_df, n_strata = 2L,
+         overall_ess = NA_real_, has_weights = FALSE, n = 40L, C = 2L),
+    class = c("cta_ort", "cta_tree")
+  )
+  expect_error(novo_boot_ci(fake_ort, stratum_id = 99L, nboot = 50L),
+               regexp = "not found in strata")
+})
+
+# ---------------------------------------------------------------------------
+# E9: as_confusion_matrix() — bridge from cta_confusion_table to 2x2 matrix
+# ---------------------------------------------------------------------------
+
+test_that("E9-1: as_confusion_matrix converts 2x2 tidy df to matrix", {
+  df <- data.frame(
+    actual    = c(0L, 0L, 1L, 1L),
+    predicted = c(0L, 1L, 0L, 1L),
+    n         = c(146L, 40L, 36L, 33L)
+  )
+  m <- as_confusion_matrix(df)
+  expect_true(is.matrix(m))
+  expect_equal(dim(m), c(2L, 2L))
+  expect_equal(m[1L, 1L], 146L)   # TN
+  expect_equal(m[1L, 2L], 40L)    # FP
+  expect_equal(m[2L, 1L], 36L)    # FN
+  expect_equal(m[2L, 2L], 33L)    # TP
+})
+
+test_that("E9-2: as_confusion_matrix round-trips cta_confusion_table", {
+  skip_if(Sys.getenv("ODACORE_TEST_TIER") %in% c("", "cran"),
+          "Skipping cta_confusion_table round-trip at cran tier")
+  X <- data.frame(
+    A = c(rep(0L, 20), rep(1L, 20), rep(1L, 20)),
+    B = c(rep(0L, 20), rep(0L, 20), rep(1L, 20))
+  )
+  y <- c(rep(0L, 40), rep(1L, 20))
+  tree <- cta_fit(X, y, mc_iter = 500L, mc_seed = 1L, loo = "off",
+                  mindenom = 5L)
+  if (isTRUE(tree$no_tree)) skip("no_tree")
+  ct <- cta_confusion_table(tree)
+  m  <- as_confusion_matrix(ct)
+  expect_equal(m, tree$training_confusion)
+})
+
+test_that("E9-3: as_confusion_matrix result passes novo_boot_ci.default", {
+  df <- data.frame(
+    actual    = c(0L, 0L, 1L, 1L),
+    predicted = c(0L, 1L, 0L, 1L),
+    n         = c(146L, 40L, 36L, 33L)
+  )
+  m  <- as_confusion_matrix(df)
+  ci <- novo_boot_ci(m, nboot = 50L, seed = 1L)
+  expect_s3_class(ci, "novo_boot_ci")
+  expect_equal(ci$n, 255L)
+})
+
+test_that("E9-4: as_confusion_matrix errors on missing columns", {
+  df <- data.frame(x = 1L, y = 2L)
+  expect_error(as_confusion_matrix(df), regexp = "columns 'actual', 'predicted', 'n'")
+})

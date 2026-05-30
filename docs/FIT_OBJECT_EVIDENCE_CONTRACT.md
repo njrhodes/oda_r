@@ -229,27 +229,51 @@ Otherwise `effective_subtitle <- metrics_line`.
 
 ---
 
-## 4. Deferred gaps
+## 4. Implemented NOVOboot paths
 
-| Gap | Reason deferred |
-|-----|----------------|
-| NOVOboot for multiclass ODA | NOVOboot requires 2x2 confusion; no correct extension exists for C>2 without redesign |
-| LOO-confusion NOVOboot | LOO confusion stored per-fold only; aggregation semantics not defined |
-| `show_confusion` renderer option | Out of scope for Slice S; add in Phase 2A if requested |
-| `model_evidence()` public generic | Adds abstraction for one-time use; not justified |
-| `.evidence_*()` internal helpers | Same; adds indirection without benefit |
+All six binary-capable dispatch paths are wired.  Each return object carries
+`source_type`, `source_id`, and `weighted` provenance fields.
+
+| Path | Source | `source_type` | `source_id` | `weighted` |
+|------|--------|--------------|-------------|------------|
+| A. `novo_boot_ci(matrix)` | 2×2 matrix passed directly | `"matrix"` | `NA` | `NA` |
+| B. `novo_boot_ci(oda_fit)` | `fit$confusion` (raw counts) | `"oda_fit"` | `NA` | `FALSE` |
+| C. `novo_boot_ci(cta_tree)` | `tree$training_confusion` | `"cta_tree"` | `NA` | `FALSE` |
+| D. `novo_boot_ci(cta_tree, node_id)` | leaf `class_counts_raw` / `class_counts_weighted` | `"cta_tree_node"` | node_id | param |
+| E. `novo_boot_ci(cta_ort)` | sum of `strata$class_counts` | `"cta_ort"` | `NA` | `FALSE` |
+| F. `novo_boot_ci(cta_ort, stratum_id)` | single-stratum `class_counts` | `"cta_ort_stratum"` | stratum_id | param |
+
+**Path G — `as_confusion_matrix()`:** `cta_confusion_table()` returns a
+tidy data.frame (columns `actual`, `predicted`, `n`).  `as_confusion_matrix(df)`
+converts it to a 2×2 integer matrix for `novo_boot_ci.default`.
 
 ---
 
-## 5. Tests
+## 5. Deferred gaps
+
+| Gap | Reason deferred |
+|-----|----------------|
+| NOVOboot for multiclass ODA | NOVOboot requires 2×2 confusion; no correct extension exists for C>2 without redesign |
+| LOO-confusion NOVOboot | LOO confusion stored per-fold only; aggregation semantics not defined |
+| `novo_boot_ci(cta_endpoint_counts(...), endpoint_id = ...)` endpoint CI | Endpoint-level bootstrap; no design yet |
+| Stage-wise SDA/SORT bootstrap | Requires SDA-5 staged evidence objects; deferred with SORT |
+| Graphics confusion panel | `show_confusion` renderer option out of scope for current graphics contract |
+| `model_evidence()` public generic | Adds abstraction for one-time use; not justified at current scope |
+
+---
+
+## 6. Tests
 
 Test file: `tests/testthat/test-fit-evidence.R`
 
 Covers:
-- `novo_boot_ci.default`  -  matrix path unchanged
-- `novo_boot_ci.oda_fit`  -  binary only; errors on multiclass
-- `novo_boot_ci.cta_tree`  -  correct confusion; errors on no_tree
-- `novo_boot_ci.cta_ort`  -  full-LORT confusion from strata
+- `novo_boot_ci.default`  -  matrix path; `source_type == "matrix"`
+- `novo_boot_ci.oda_fit`  -  binary only; errors on multiclass; `source_type == "oda_fit"`
+- `novo_boot_ci.cta_tree`  -  full-tree confusion; errors on no_tree; `source_type == "cta_tree"`
+- `novo_boot_ci.cta_tree(node_id = ...)`  -  terminal node; `source_type == "cta_tree_node"`, `source_id == node_id`
+- `novo_boot_ci.cta_ort`  -  full-LORT confusion from strata; `source_type == "cta_ort"`
+- `novo_boot_ci.cta_ort(stratum_id = ...)`  -  single stratum; `source_type == "cta_ort_stratum"`, `source_id == stratum_id`
+- `as_confusion_matrix(cta_confusion_table(tree))`  -  round-trips through matrix
 - `cta_plot_data()` evidence fields present, correct type, NA for no_tree
 - `ort_plot_data()` evidence fields present, correct type
 - `plot_cta_tree(show_metrics = TRUE)`  -  subtitle contains ESS string

@@ -59,11 +59,12 @@ All exported symbols inspected against canon contracts.
 | `oda_balance_table`, `smd_balance_table` | KEEP |
 | `oda_balance_plot_data`, `cta_balance_plot_data` | KEEP |
 
-### Bootstrap surface -- KEEP
+### Bootstrap and matrix surface -- KEEP
 
 | Symbol | Status |
 |--------|--------|
-| `novo_boot_ci` (default, oda_fit, cta_tree, cta_ort) | KEEP |
+| `novo_boot_ci` (default, oda_fit, cta_tree, cta_ort) | KEEP — all six dispatch paths wired |
+| `as_confusion_matrix` | KEEP — tidy df → 2x2 matrix bridge for `novo_boot_ci.default` |
 
 ### Production tools surface -- KEEP
 
@@ -119,8 +120,19 @@ production inference API. Documented in NAMESPACE.
 
 ## 4. Bootstrap Bridge Status
 
-- `novo_boot_ci`: dispatches on oda_fit, cta_tree, cta_ort, and default.
-- CI extraction uses lean stored objects; no fit-time artifact storage required.
+Six dispatch paths wired; each return object carries `source_type`, `source_id`, `weighted` provenance.
+
+| Path | Evidence source | `source_type` |
+|------|----------------|--------------|
+| A. `novo_boot_ci(matrix)` | 2x2 matrix | `"matrix"` |
+| B. `novo_boot_ci(oda_fit)` | `fit$confusion` (raw counts) | `"oda_fit"` |
+| C. `novo_boot_ci(cta_tree)` | `tree$training_confusion` | `"cta_tree"` |
+| D. `novo_boot_ci(cta_tree, node_id)` | leaf `class_counts_raw/weighted` | `"cta_tree_node"` |
+| E. `novo_boot_ci(cta_ort)` | sum of `strata$class_counts` | `"cta_ort"` |
+| F. `novo_boot_ci(cta_ort, stratum_id)` | single-stratum `class_counts` | `"cta_ort_stratum"` |
+
+`as_confusion_matrix(cta_confusion_table(tree))` bridges the tidy df output to path A.
+CI extraction uses lean stored objects; no fit-time artifact storage required.
 
 ---
 
@@ -276,7 +288,8 @@ All canon fixtures passing: myeloma MINDENOM=1/30/56, CTA_DEMO MINDENOM=1/8.
 | SORT/GORT | Not implemented | Reserved entries only |
 | SDA propensity | Deferred to SDA-5 | Prohibited in SDA-1 by sda_anchor |
 | Graphics bridge | cta_plot_data + renderers wired | KEEP |
-| Bootstrap bridge | novo_boot_ci dispatches on all fit types | KEEP |
+| Bootstrap bridge | All 6 paths wired; source_type/source_id/weighted on all returns | KEEP |
+| as_confusion_matrix | tidy df bridge for novo_boot_ci.default | KEEP |
 | Private paths | None found in R/man/vignettes | Clean |
 | Maintainer files | gitignored | Not tracked |
 | Fixture provenance | README files added; sources documented | Clean |
