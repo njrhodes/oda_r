@@ -1,6 +1,6 @@
 # GRAPHICS_V3.md
 
-Graphics v3 — direct ggplot2 renderers for CTA trees, LORT trees, and
+Graphics v3  -  direct ggplot2 renderers for CTA trees, LORT trees, and
 covariate balance diagnostics.
 
 **Status:** v3C1 (tree renderers) and v3C2 (balance renderers) landed.
@@ -14,7 +14,7 @@ to the base-R `plot.cta_tree()` / `plot.cta_ort()` methods.  All functions:
 
 - Return `ggplot` objects (printable, modifiable, `ggsave()`-compatible).
 - Require `ggplot2 >= 3.4.0` (in `Suggests`; a clear error is raised if absent).
-- Accept only pre-fitted objects or pre-computed plot-data — no model fitting
+- Accept only pre-fitted objects or pre-computed plot-data  -  no model fitting
   inside renderers.
 - Coexist with base `plot.*` methods; neither replaces the other.
 
@@ -33,7 +33,7 @@ Both accept a `color_by` argument:
 
 | Value | Leaf fill |
 |-------|-----------|
-| `"target_rate"` (default) | Continuous gradient by target-class proportion (0–100%) |
+| `"target_rate"` (default) | Continuous gradient by target-class proportion (0-100%) |
 | `"prediction"` | Discrete fill by predicted class |
 | `"none"` | White fill (no legend) |
 
@@ -71,13 +71,13 @@ All six functions are pure renderers.  They read pre-computed objects and
 build ggplot layers.  The only computation is coordinate adjustment and
 aesthetic mapping.
 
-**Coercion rules (convenience only — no fitting):**
+**Coercion rules (convenience only  -  no fitting):**
 
-- `plot_oda_balance(x)` — accepts `oda_balance_plot_data` (preferred) or
+- `plot_oda_balance(x)`  -  accepts `oda_balance_plot_data` (preferred) or
   `oda_balance_table` (coerced via `oda_balance_plot_data()` before rendering;
   never calls `oda_balance_table()` inside the renderer).  SMD is not
   recomputed; only what is already in the plot-data is shown.
-- `plot_cta_balance(x)` — accepts `cta_balance_plot_data` (preferred) or
+- `plot_cta_balance(x)`  -  accepts `cta_balance_plot_data` (preferred) or
   `cta_balance_table` (coerced via `cta_balance_plot_data()`; never calls
   `cta_balance_table()` inside the renderer).
 
@@ -198,7 +198,7 @@ When `status = "no_tree"`, `plot_cta_balance()` renders a message panel
 that reads:
 
 > No combination of covariates predicted group membership
-> (MINDENOM = \<n\>, alpha = \<α\>).
+> (MINDENOM = \<n\>, alpha = \<alpha\>).
 > This is favorable evidence of multivariable balance
 > under the declared constraints.
 
@@ -230,7 +230,7 @@ unchanged.  Graphics v3 does not modify or replace them.
 plot(tree)                     # base-R
 plot(tree, target_class = 1L)  # base-R with target-class coloring
 
-p <- plot_cta_tree(tree)       # ggplot2 v3 — same tree, ggplot output
+p <- plot_cta_tree(tree)       # ggplot2 v3  -  same tree, ggplot output
 ```
 
 Both approaches read the same `cta_plot_data()` derived layout internally.

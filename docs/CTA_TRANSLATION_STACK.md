@@ -14,7 +14,7 @@ only what is needed to reproduce predictions and compute reporting artifacts
 on demand:
 
 - Tree nodes (split rules, child pointers, `n_obs`)
-- `training_confusion` — C×C matrix from the training pass
+- `training_confusion`  -  CxC matrix from the training pass
 - Per-leaf `class_counts_raw` and `class_counts_weighted` vectors
 
 Nothing else is stored at fit time:
@@ -39,23 +39,23 @@ cta_fit(X, y, w, ...)              # public entry point
   |
   +-- cta_endpoint_summary()       endpoint structure and denominators
   |
-  +-- cta_endpoint_counts()        endpoint × class raw/weighted counts
+  +-- cta_endpoint_counts()        endpoint x class raw/weighted counts
   |     |
   |     +-- cta_staging_table()    target-class propensity, proportion, odds
   |     |
-  |     +-- cta_propensity_weights()   stabilized weights per endpoint × class
+  |     +-- cta_propensity_weights()   stabilized weights per endpoint x class
   |
-  +-- cta_assign_endpoints(newdata)    row → endpoint (traversal on demand)
+  +-- cta_assign_endpoints(newdata)    row -> endpoint (traversal on demand)
   |     |
-  |     +-- cta_observation_weights(newdata, y)   row → endpoint-level weight
+  |     +-- cta_observation_weights(newdata, y)   row -> endpoint-level weight
   |
-  +-- cta_confusion_table()        actual × predicted confusion matrix
+  +-- cta_confusion_table()        actual x predicted confusion matrix
   |
   +-- [cta_descendant_family()]
   |     |
   |     +-- cta_family_table()     MINDENOM family summary with D-statistic
   |
-  +-- [output layer — derived, no refit, no training X/y]
+  +-- [output layer  -  derived, no refit, no training X/y]
         |
         +-- cta_plot_data()        tree diagram data (nodes/edges/endpoints)
         +-- plot.cta_tree()        native base-R tree diagram
@@ -73,15 +73,15 @@ final-tree training confusion.
 | Function | Row granularity | Purpose | Cached at fit time? |
 |---|---|---|---|
 | `cta_endpoint_summary()` | endpoint | Endpoint structure: `node_id`, path, majority-class prediction, `n_obs`, denominator, and reference sizes | No |
-| `cta_endpoint_counts()` | endpoint × actual class | Raw and weighted class counts per leaf endpoint | No |
+| `cta_endpoint_counts()` | endpoint x actual class | Raw and weighted class counts per leaf endpoint | No |
 | `cta_staging_table()` | endpoint | Target-class count, denominator, proportion, odds, perfect-endpoint flags, and adjusted reporting values | No |
-| `cta_propensity_weights()` | endpoint × actual class | Stabilized propensity weights (`n_s × Pr(Z=z) / n_{s,z}`) computed from raw counts; adjusted variant for perfectly predicted endpoints; `undefined_empirical` flag when class absent | No |
+| `cta_propensity_weights()` | endpoint x actual class | Stabilized propensity weights (`n_s x Pr(Z=z) / n_{s,z}`) computed from raw counts; adjusted variant for perfectly predicted endpoints; `undefined_empirical` flag when class absent | No |
 | `cta_assign_endpoints()` | observation | Traverses the fitted tree for each row of `newdata`; returns `endpoint_node_id` and sequential `endpoint_id`; supports `missing_action = "na"` (canonical) or `"majority"` | No |
 | `cta_observation_weights()` | observation | Joins `cta_assign_endpoints()` output with `cta_propensity_weights()` on `(endpoint_id, actual_class)`; returns endpoint-level weight assigned to each observation | No |
-| `cta_confusion_table()` | actual × predicted class | Confusion matrix with per-class sensitivity, specificity, PAC, and ESS from tree predictions | No |
+| `cta_confusion_table()` | actual x predicted class | Confusion matrix with per-class sensitivity, specificity, PAC, and ESS from tree predictions | No |
 | `cta_family_table()` | family member / MINDENOM | MINDENOM family summary: ESS, D-statistic, strata count, min-terminal-denom, and minimum-D selection flag | No |
 | `cta_plot_data()` | node / edge / endpoint | Derived tree diagram data: node geometry, edge labels, endpoint enrichment (target proportion, rank, color, label) when `target_class` is supplied | No |
-| `plot.cta_tree()` | — (side effect: plot) | Native base-R tree diagram; structural or target-enriched mode; returns `invisible(pd)` | No |
+| `plot.cta_tree()` |  -  (side effect: plot) | Native base-R tree diagram; structural or target-enriched mode; returns `invisible(pd)` | No |
 
 ---
 
@@ -91,8 +91,8 @@ final-tree training confusion.
 counts and flags perfectly predicted endpoints with a
 `perfectly_predicted_endpoint` column (logical).
 
-`cta_propensity_weights()` additionally marks each endpoint × class row with
-an `undefined_empirical` flag (logical) when `class_n == 0` at that cell —
+`cta_propensity_weights()` additionally marks each endpoint x class row with
+an `undefined_empirical` flag (logical) when `class_n == 0` at that cell  - 
 i.e., the absent class at a perfectly predicted endpoint.  The empirical
 propensity weight is undefined (infinite) for those cells.
 
@@ -120,16 +120,16 @@ span from the most complex admissible tree to the no-tree terminal case.
 `cta_family_table()` summarizes the family.  Each member's D-statistic is
 reported as implemented by the family machinery alongside strata count and
 parsimony metrics.  The member with the minimum D-statistic identifies the
-MINDENOM value that balances translational strength against parsimony — the
+MINDENOM value that balances translational strength against parsimony  -  the
 MDSA (Minimum Descriptive Sample Adequacy) selection criterion.
 
 The myeloma fixture illustrates the full family:
 
 | MINDENOM | Status | Classified n | WESS |
 |---|---|---|---|
-| 1 | 2-level tree (V14 → V15) | 255 | 27.69% |
+| 1 | 2-level tree (V14 -> V15) | 255 | 27.69% |
 | 30 | Stump (V17 only) | 186 | 16.51% |
-| 56 | No tree | — | — |
+| 56 | No tree |  -  |  -  |
 
 ---
 
@@ -179,7 +179,7 @@ fixture data must use precomputed output or be guarded with `eval = FALSE` to
 remain CRAN-safe by default. No slow canon fits should run during
 `devtools::check()` or `R CMD build`.
 
-**Graphics production polish (Phase 2I — remaining):**
+**Graphics production polish (Phase 2I  -  remaining):**
 - `plot.cta_family()` for MDSA descendant family comparison.
 - Optional ggplot/grid renderer, ellipse/circle split nodes, endpoint
   rectangles, arrow-style edges, dynamic sizing, performance caption, legend.
@@ -187,19 +187,19 @@ remain CRAN-safe by default. No slow canon fits should run during
   Mermaid is an export format, not the internal R graphics engine.
 
 **Deferred design work (not yet canon-backed):**
-- **Directional hypothesis support** — relevant to ODA/CTA rule reporting but
+- **Directional hypothesis support**  -  relevant to ODA/CTA rule reporting but
   specification is open. Tracked as issue #6; do not implement until canon
   target is written.
-- **Balance diagnostics** — future work based on the ODA/CTA discrimination
+- **Balance diagnostics**  -  future work based on the ODA/CTA discrimination
   framing: after matching or weighting, pre-intervention covariates should
   have weak or non-significant ability to discriminate assignment/study groups.
   SMD-style summaries may be useful complements but are not the canon center.
   Canon review against the Linden/Yarnold JEP covariate-balance paper in
   `docs/theory/` is required before implementation.
-- **Weighted propensity-weight variant** — `cta_propensity_weights()` uses raw
+- **Weighted propensity-weight variant**  -  `cta_propensity_weights()` uses raw
   observation counts exclusively. A `weighted = TRUE` path using `n_weighted`
   and weighted marginals remains deferred design.
-- **Downstream outcome models** — propensity weights are ready to pass to a
+- **Downstream outcome models**  -  propensity weights are ready to pass to a
   weighted outcome model; no wrapper or example for that step is provided yet.
 
 The lean-fit invariant must be preserved throughout all future additions.

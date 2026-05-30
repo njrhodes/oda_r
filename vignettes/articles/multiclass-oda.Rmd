@@ -27,13 +27,13 @@ classification. The scale is the same regardless of K.
 
 ## Ordered multiclass: cut values and segment-class assignments
 
-For an ordered attribute with C classes, the MultiODA engine finds C − 1 cut
+For an ordered attribute with C classes, the MultiODA engine finds C - 1 cut
 values partitioning the attribute range into C contiguous segments, each
 assigned to one class. The assignment is monotone when no directional
 constraint is given: the engine searches all valid ordered segment-class
 assignments and returns the one maximising Mean PAC.
 
-The rule is stored in `$rule$cut_values` (length C − 1) and
+The rule is stored in `$rule$cut_values` (length C - 1) and
 `$rule$seg_classes` (length C, one class per segment).
 
 ### iris example
@@ -48,7 +48,7 @@ fit3 <- oda_fit(
   x         = x,
   y         = y,
   attr_type = "ordered",
-  mcarlo    = FALSE,   # no MC permutation — instant; use mc_iter for p-value
+  mcarlo    = FALSE,   # no MC permutation  -  instant; use mc_iter for p-value
   loo       = "off"
 )
 print(fit3)
@@ -59,23 +59,23 @@ fit3$rule$cut_values   # two cutpoints separating three segments
 fit3$rule$seg_classes  # class predicted in each segment
 ```
 
-The three segments divide `Petal.Length` as: setosa (short petals) → a
-boundary → versicolor (medium) → a boundary → virginica (long petals).
+The three segments divide `Petal.Length` as: setosa (short petals) -> a
+boundary -> versicolor (medium) -> a boundary -> virginica (long petals).
 
 ## Categorical multiclass: level-class mapping
 
 For a nominal attribute the engine searches all valid partitions of attribute
 categories into classes. The best partition maximises Mean PAC. With
 `direction = "ascending"` and k = C categories matching C classes, the engine
-constrains the search to the identity mapping (category *i* → class *i*).
+constrains the search to the identity mapping (category *i* -> class *i*).
 
 ### protein type example
 
 Nishikawa et al. (1983) classified 325 proteins into four types by two
 independent methods. The convergent-validity hypothesis is that the two
-classification systems agree — i.e., amino acid type *i* predicts biological
+classification systems agree  -  i.e., amino acid type *i* predicts biological
 type *i*. `direction = "ascending"` imposes the identity mapping.^[Nishikawa,
-K., Kubota, Y., & Ooi, T. (1983). *Journal of Biochemistry*, 94, 997–1007.]
+K., Kubota, Y., & Ooi, T. (1983). *Journal of Biochemistry*, 94, 997-1007.]
 
 ```{r protein-data}
 biological_type <- c(
@@ -111,7 +111,7 @@ cat("PAC by class:", paste(round(m$pac_by_class * 100, 1), collapse = ", "), "%\
 
 All four PAC values must exceed the K-class chance benchmark (25%) for the
 model to beat chance for every class. PAC below chance for a class indicates
-the model is less useful than random prediction for that class — even when
+the model is less useful than random prediction for that class  -  even when
 Mean PAC and ESS are positive.
 
 **Overall accuracy vs. Mean PAC:**
@@ -127,8 +127,8 @@ For balanced class sizes these two measures agree. For imbalanced classes they
 diverge, and Mean PAC is the appropriate summary: it treats every class
 equally and scales ESS consistently regardless of class frequency.
 
-**Confusion matrix:** For C ≥ 3, `$confusion` is a C × C integer matrix
-(actual × predicted):
+**Confusion matrix:** For C >= 3, `$confusion` is a C x C integer matrix
+(actual x predicted):
 
 ```{r confusion-k4}
 fit4$confusion
@@ -138,7 +138,7 @@ fit4$confusion
 
 Leave-one-out is supported for ordered multiclass (`loo = "on"`) and for
 unweighted categorical multiclass. Weighted categorical multiclass LOO is
-explicitly forbidden — the engine raises an error because refit-per-fold
+explicitly forbidden  -  the engine raises an error because refit-per-fold
 with fixed categorical weights is not well-defined.
 
 ```{r loo-3class}
@@ -158,16 +158,16 @@ cat("LOO status:  ", fit3_loo$loo_status, "\n")
 
 | Feature | Binary ODA | Multiclass ODA |
 |---------|-----------|----------------|
-| Class values | 2 | ≥ 3 |
+| Class values | 2 | >= 3 |
 | Chance benchmark | 50% | 100/K% |
-| Ordered rule | 1 cutpoint | C−1 cutpoints |
-| Confusion matrix | TN/FP/FN/TP | C×C integer matrix |
+| Ordered rule | 1 cutpoint | C-1 cutpoints |
+| Confusion matrix | TN/FP/FN/TP | CxC integer matrix |
 | LOO | Supported | Ordered yes; weighted categorical: error |
 
 ## Further reading
 
-- `vignettes/protein-type-multiclass-oda.Rmd` — full CRAN vignette for the
+- `vignettes/protein-type-multiclass-oda.Rmd`  -  full CRAN vignette for the
   four-class protein example
-- `articles/directional-oda` — Chapter 4 identity-map directional for
+- `articles/directional-oda`  -  Chapter 4 identity-map directional for
   multiclass nominal attributes
-- `articles/oda-basics` — binary ODA foundations
+- `articles/oda-basics`  -  binary ODA foundations

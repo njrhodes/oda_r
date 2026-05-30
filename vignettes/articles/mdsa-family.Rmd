@@ -20,7 +20,7 @@ knitr::opts_chunk$set(collapse = TRUE, comment = "#>")
 
 MDSA (Model/Descriptor/Scenario Analysis) systematically explores how
 classification performance changes as the minimum endpoint size (MINDENOM)
-increases. Each MINDENOM value produces a family member — a distinct tree
+increases. Each MINDENOM value produces a family member  -  a distinct tree
 ranging from a complex multi-split model (small MINDENOM) to a simple stump or
 no-tree terminal (large MINDENOM).
 
@@ -108,29 +108,29 @@ cat("D statistic:     ", round(min_d_row$d, 4), "\n")
 cat("ESS:             ", round(min_d_row$overall_ess, 2), "%\n")
 ```
 
-## The myeloma family: MINDENOM 1 → 30 → 56
+## The myeloma family: MINDENOM 1 -> 30 -> 56
 
-*(To be expanded with artifact pipeline — see TODO at top of this file.)*
+*(To be expanded with artifact pipeline  -  see TODO at top of this file.)*
 
 The canonical myeloma family demonstrates the full MDSA trajectory:
 
-- **MINDENOM = 1:** V14 → V15 two-split tree (or V17 → V15 after pruning).
+- **MINDENOM = 1:** V14 -> V15 two-split tree (or V17 -> V15 after pruning).
   WESS = 27.69% (pruned: 25.43%).
 - **MINDENOM = 30:** V17 stump. WESS = 16.51%.
-- **MINDENOM = 56:** No admissible splits — leaf only.
+- **MINDENOM = 56:** No admissible splits  -  leaf only.
 
 All canonical values are in `docs/examples/myeloma-cta-translation.md`.
 
 ## Terminal state: no tree
 
 When no MINDENOM candidate produces a valid split (all child sizes < MINDENOM),
-the family member is a leaf node — the model predicts the majority class for
+the family member is a leaf node  -  the model predicts the majority class for
 all observations. In `cta_family_table()`, this appears as `n_terminals = 1`
 and ESS = 0%.
 
 ## Further reading
 
-- `articles/myeloma-cta` — full myeloma MINDENOM family walkthrough (when
+- `articles/myeloma-cta`  -  full myeloma MINDENOM family walkthrough (when
   precomputed artifacts are available)
-- `articles/cta-basics` — CTA fitting fundamentals
-- `docs/examples/myeloma-cta-translation.md` — canonical myeloma computed values
+- `articles/cta-basics`  -  CTA fitting fundamentals
+- `docs/examples/myeloma-cta-translation.md`  -  canonical myeloma computed values

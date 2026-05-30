@@ -96,7 +96,7 @@ if (requireNamespace("ggplot2", quietly = TRUE)) {
 Each leaf label shows the predicted class, total n at the endpoint, and
 (when `target_class` is set) the raw target-class count and proportion. These
 values come directly from the per-leaf `class_counts_raw` stored at fit time
-— no recomputation occurs inside the renderer.
+ -  no recomputation occurs inside the renderer.
 
 Endpoint colouring encodes relative target-class proportion *within this tree*
 only. It does not imply prevalence, risk, or any external reference standard.
@@ -114,7 +114,7 @@ plot_lort_tree(lort_pd, color_by = "prediction")
 
 ## Myeloma examples
 
-*(To be expanded with artifact pipeline — see TODO at top of this file.)*
+*(To be expanded with artifact pipeline  -  see TODO at top of this file.)*
 
 With the myeloma fit loaded, the full target-enriched tree for MINDENOM=1 and
 the stump for MINDENOM=30 will be rendered here with `target_class = 1L` and
@@ -122,6 +122,6 @@ the stump for MINDENOM=30 will be rendered here with `target_class = 1L` and
 
 ## Further reading
 
-- `docs/GRAPHICS_V3.md` — full v3 function reference, examples, and
+- `docs/GRAPHICS_V3.md`  -  full v3 function reference, examples, and
   `ggsave` usage
-- `articles/cta-basics` — CTA fitting and `predict.cta_tree()`
+- `articles/cta-basics`  -  CTA fitting and `predict.cta_tree()`

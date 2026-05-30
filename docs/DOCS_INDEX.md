@@ -2,7 +2,7 @@
 
 Navigation index for odacore documentation.
 
-**Start here:** [STATUS.md](STATUS.md) — current production state, what is implemented,
+**Start here:** [STATUS.md](STATUS.md) - current production state, what is implemented,
 what is deferred.
 
 ---
@@ -90,8 +90,8 @@ LORT distinctions:
 
 | Item | Note |
 |------|------|
-| SORT (`sort_fit`) | Reserved — requires SDA anchor; not implemented |
-| GORT (`gort_fit`) | Reserved — future design only |
+| SORT (`sort_fit`) | Reserved - requires SDA anchor; not implemented |
+| GORT (`gort_fit`) | Reserved - future design only |
 | Weighted SDA | Deferred to SDA-5 |
 | SDA-derived propensity weights | Deferred; SDA produces stage order, not propensity strata |
 | Power / sample-size calculation | Deferred; MINDENOM is current declared design constraint |
@@ -101,13 +101,12 @@ LORT distinctions:
 
 ## Internal / Archived Design Memos
 
-These files are **maintainer history** — not public API, not active roadmap.
+These files are **maintainer history** - not public API, not active roadmap.
 Do not drive implementation decisions from them.
 
 | File | Note |
 |------|------|
 | [internal/ODACORE_VISION.md](internal/ODACORE_VISION.md) | Phase map and architecture notes; superseded by STATUS.md |
-| [internal/PROD_CHECKPOINT.md](internal/PROD_CHECKPOINT.md) | Production checkpoint after Slices O-Q |
 | [internal/PRODUCTION_TOOLS_GAP_AUDIT.md](internal/PRODUCTION_TOOLS_GAP_AUDIT.md) | Gap audit memo for production tools and propensity |
 | [internal/CTA_ORT_DESIGN.md](internal/CTA_ORT_DESIGN.md) | LORT design doc; implementation complete in `R/cta_ort.R` |
 | [internal/ORT_SELECTION_METHODS.md](internal/ORT_SELECTION_METHODS.md) | LORT/SORT/GORT selection decision memo; contains stale probe results |

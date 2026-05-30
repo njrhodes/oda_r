@@ -16,7 +16,7 @@ knitr::opts_chunk$set(collapse = TRUE, comment = "#>")
     3. Cross-reference all output values against docs/examples/myeloma-cta-translation.md.
 -->
 
-**Status:** Draft — precomputed artifacts not yet generated.
+**Status:** Draft  -  precomputed artifacts not yet generated.
 Once `inst/extdata/articles/myeloma_fits.rds` is available, this article will
 demonstrate the full CTA translation pipeline on the myeloma MINDENOM=1 tree.
 
@@ -30,17 +30,17 @@ function call.
 | Function | Purpose |
 |----------|---------|
 | `cta_endpoint_summary()` | Tree structure, terminal endpoints, denominators |
-| `cta_endpoint_counts()` | Raw and weighted counts per endpoint × class |
+| `cta_endpoint_counts()` | Raw and weighted counts per endpoint x class |
 | `cta_staging_table()` | Target-class proportion, odds, perfect-endpoint flags |
 | `cta_propensity_weights()` | Stabilised endpoint-level propensity weights |
-| `cta_assign_endpoints()` | Row → endpoint assignment (traversal on demand) |
-| `cta_observation_weights()` | Row → endpoint-level weight assignment |
+| `cta_assign_endpoints()` | Row -> endpoint assignment (traversal on demand) |
+| `cta_observation_weights()` | Row -> endpoint-level weight assignment |
 | `cta_confusion_table()` | Training confusion and ESS from stored matrix |
 
 **Source material:**
 
-- `docs/CTA_TRANSLATION_STACK.md` — pipeline navigation and function map
-- `docs/examples/myeloma-cta-translation.md` — worked numeric example with all values
+- `docs/CTA_TRANSLATION_STACK.md`  -  pipeline navigation and function map
+- `docs/examples/myeloma-cta-translation.md`  -  worked numeric example with all values
 
 ---
 

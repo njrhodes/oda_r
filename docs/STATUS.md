@@ -1,4 +1,4 @@
-# odacore — Current Production Status
+# odacore - Current Production Status
 
 `odacore` is a pure-R reimplementation of the MegaODA.exe / CTA.exe statistical
 classification engine. Where fixture coverage exists, correctness is defined by
@@ -13,7 +13,7 @@ the Windows executables; any divergence on a covered fixture is a bug in odacore
 | Component | Entry point | Notes |
 |-----------|-------------|-------|
 | Binary ODA | `oda_fit()` | C = 2; ordered, categorical, binary attributes |
-| Multiclass ODA | `oda_fit()` | C ≥ 3; priors weighting, multiclass ordered/categorical |
+| Multiclass ODA | `oda_fit()` | C >= 3; priors weighting, multiclass ordered/categorical |
 | CTA | `cta_fit()` | ENUMERATE, LOO STABLE, PRUNE, MINDENOM; myeloma + CTA_DEMO fixtures |
 | SDA | `sda_fit()` | Novometric `min_d` and legacy `unioda_max_ess` modes; SDA-1 through SDA-4B complete |
 | MDSA descendant family | `cta_descendant_family()` / `cta_family_table()` | D parsimony, family comparison |
@@ -45,8 +45,8 @@ the Windows executables; any divergence on a covered fixture is a bug in odacore
 
 | Item | Status |
 |------|--------|
-| SORT (`sort_fit`) | Reserved — requires SDA anchor; not implemented |
-| GORT (`gort_fit`) | Reserved — future design only; not implemented |
+| SORT (`sort_fit`) | Reserved - requires SDA anchor; not implemented |
+| GORT (`gort_fit`) | Reserved - future design only; not implemented |
 | Weighted SDA | Deferred to SDA-5 |
 | SDA-derived propensity weights | Deferred; SDA produces stage order, not propensity strata |
 | Power / sample-size calculation helper | Deferred; MINDENOM is the current declared design constraint |
@@ -73,7 +73,7 @@ the Windows executables; any divergence on a covered fixture is a bug in odacore
 |---------|------------------|--------|
 | CTA_DEMO | 1, 8 | Passing |
 | Myeloma | 1, 30, 56 | Passing |
-| Iris (multiclass ODA) | — | Passing |
+| Iris (multiclass ODA) | - | Passing |
 
 ---
 

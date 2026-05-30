@@ -13,13 +13,13 @@ This file defines canonical `oda_fit()` behavior for odacore.
 
 ## Degenerate Solutions
 
-A solution is **degenerate** when the predicted labels cover fewer than C classes — i.e., at least one class is never predicted.
+A solution is **degenerate** when the predicted labels cover fewer than C classes  -  i.e., at least one class is never predicted.
 
 **Default behavior (`degen = FALSE`):** Degenerate solutions are rejected. A candidate rule that maps every observation to the same class is not a valid ODA solution regardless of its ESS value. This applies to both UniODA (binary and multiclass) and to every split node evaluated by CTA.
 
 **`degen = TRUE`:** Available only for UniODA and MultiODA (`oda_fit()`, `oda_univariate_core()`, `oda_multiclass_unioda_core()`). When `degen = TRUE`, degenerate solutions are allowed and `priors_on` is forced `FALSE`. This is a non-default, user-declared option for special research contexts.
 
-**CTA (`cta_fit()`, `oda_cta_fit()`):** CTA never produces degenerate trees. `degen = TRUE` is not an option for CTA. A CTA tree in which all terminal endpoints predict the same class is not a valid result — it represents a model failure (no discriminating split was found), which is reported as `no_tree`. A CTA member that selects a degenerate split must be rejected at the node level, not post-hoc.
+**CTA (`cta_fit()`, `oda_cta_fit()`):** CTA never produces degenerate trees. `degen = TRUE` is not an option for CTA. A CTA tree in which all terminal endpoints predict the same class is not a valid result  -  it represents a model failure (no discriminating split was found), which is reported as `no_tree`. A CTA member that selects a degenerate split must be rejected at the node level, not post-hoc.
 
 **LORT / recursive CTA (`cta_fit(recursive = TRUE)`):** Same rule. Each recursive MDSA level must produce a non-degenerate split or terminate as `no_tree` at that node.
 
@@ -89,7 +89,7 @@ Missing values include:
 * `NA`
 * declared missing codes, for example `-9`
 
-For a candidate attribute, missing observations are excluded from that attribute’s UniODA split search.
+For a candidate attribute, missing observations are excluded from that attribute's UniODA split search.
 
 CTA may retain observations with missing data if their path through the tree does not require the missing attribute.
 
@@ -127,15 +127,15 @@ LOO is a filter, not the optimization objective.
 Modes:
 
 * `loo = "off"`: no LOO filter
-* `loo = "stable"`: allow only attributes whose LOO ESS/WESS equals training ESS/WESS (|WESSL − WESS| ≤ 0.01 pp); `loo_status = "STABLE"` on accepted nodes
+* `loo = "stable"`: allow only attributes whose LOO ESS/WESS equals training ESS/WESS (|WESSL - WESS| <= 0.01 pp); `loo_status = "STABLE"` on accepted nodes
 * `loo = "pvalue"`: p-value gate with default threshold 0.05; accept when LOO Fisher p **strictly less than** 0.05; `loo_status = "PVALUE"` on accepted nodes
 * `loo = numeric`: p-value gate with user-declared threshold; accept when LOO Fisher p **strictly less than** the supplied value; must be a single finite value in (0, 1); `loo_status = "PVALUE"` on accepted nodes
 
-Note: `loo_status = "STABLE"` and `loo_status = "PVALUE"` are distinct — do not describe the p-value gate as "STABLE". LOO is a filter, not the optimization objective.
+Note: `loo_status = "STABLE"` and `loo_status = "PVALUE"` are distinct  -  do not describe the p-value gate as "STABLE". LOO is a filter, not the optimization objective.
 
 For CTA, LOO applies to every attribute used in the tree, not only to the final tree confusion.
 
-## DIRECTION (MPE Chapter 2 binary ordered — Phase 6A/6B)
+## DIRECTION (MPE Chapter 2 binary ordered  -  Phase 6A/6B)
 
 Canonical MegaODA Appendix A command shape:
 
@@ -153,7 +153,7 @@ R `direction` parameter values and mapping for binary ordered/binary:
 | `"greater"`  | High attribute values predict class 1 (Chapter 2 >) | `"0->1"`      |
 | `"less"`     | Low attribute values predict class 1 (Chapter 2 <)  | `"1->0"`      |
 
-Implementation scope (Phase 6A/6B — complete):
+Implementation scope (Phase 6A/6B  -  complete):
 - Candidate filter: only directions matching the constraint are evaluated.
 - MC permutation: directional constraint applied identically in each permutation refit.
 - LOO fold refits: directional constraint applied identically in each fold refit.
@@ -166,18 +166,18 @@ Categorical attributes + Chapter 2 direction: `direction` in `{"greater","less"}
 categorical attribute returns `ok = FALSE` with `reason = "direction_not_supported_for_categorical"`.
 Use `direction_map` for categorical directional hypotheses.
 
-## DIRECTION (MPE Chapter 4 categorical/table DIRECTIONAL — Phase 6C)
+## DIRECTION (MPE Chapter 4 categorical/table DIRECTIONAL  -  Phase 6C)
 
 Two additional direction values for multiclass and categorical identity-map DIRECTIONAL:
 
 | `direction`     | Meaning                                                    | Scope              |
 |-----------------|------------------------------------------------------------|--------------------|
-| `"ascending"`   | Segment/level s → class s (identity / ascending order)    | multiclass ordered + categorical k=C |
-| `"descending"`  | Segment/level s → class C+1-s (reverse order)             | multiclass ordered + categorical k=C |
+| `"ascending"`   | Segment/level s -> class s (identity / ascending order)    | multiclass ordered + categorical k=C |
+| `"descending"`  | Segment/level s -> class C+1-s (reverse order)             | multiclass ordered + categorical k=C |
 
 **Multiclass ordered (`direction = "ascending"` or `"descending"`):**
 - Constrains the segment-to-class assignment in `oda_best_ordered_multiclass_partition()`.
-- For each cut position, only the ascending (s→s) or descending (s→C+1-s) assignment
+- For each cut position, only the ascending (s->s) or descending (s->C+1-s) assignment
   is evaluated; no other assignments are considered.
 - MC permutation: same direction constraint applied per permutation refit.
 - Covers MPE Chapter 4 stability analysis (Bowker Table 4.1 DIRECTIONAL < 1 2 3 4).
@@ -194,13 +194,13 @@ Two additional direction values for multiclass and categorical identity-map DIRE
 - All attribute levels must be covered exactly once; at least two distinct classes.
 - Bypasses the partition search entirely; evaluates only the specified mapping.
 - MC permutation: each permutation evaluates the SAME fixed mapping on permuted y labels.
-- LOO: with fixed categorical rule, predictions are determined by x alone → trivially stable.
-- Covers MPE Chapter 4 gully erosion example (fixed partition, k ≠ C).
+- LOO: with fixed categorical rule, predictions are determined by x alone -> trivially stable.
+- Covers MPE Chapter 4 gully erosion example (fixed partition, k != C).
 
 **Compatible combinations:**
 - `direction = "both"` (default) + `direction_map` = nondirectional fit with a fixed partition.
 - `direction = "ascending"` + categorical + L==C = auto identity map (Chapter 4 ascending).
-- `direction = "ascending"` + categorical + L≠C + `direction_map` = custom fixed partition.
+- `direction = "ascending"` + categorical + L!=C + `direction_map` = custom fixed partition.
 - `direction = "ascending"` + ordered + multiclass = constrained segment-to-class (Chapter 4).
 - `direction = "greater"/"less"` + binary ordered = Chapter 2 directional (existing).
 

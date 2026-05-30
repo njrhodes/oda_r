@@ -29,20 +29,20 @@ reproducibility.
 
 | Name | Full Name | Status |
 |------|-----------|--------|
-| **LORT** | Locally Optimal Recursive Tree | **Implemented** — current `recursive = TRUE` behavior |
-| **SORT** | Sequentially Optimal Recursive Tree | **Reserved** — not yet implemented |
-| **GORT** | Globally Optimal Recursive Tree | **Reserved** — future design/research only |
+| **LORT** | Locally Optimal Recursive Tree | **Implemented** - current `recursive = TRUE` behavior |
+| **SORT** | Sequentially Optimal Recursive Tree | **Reserved** - not yet implemented |
+| **GORT** | Globally Optimal Recursive Tree | **Reserved** - future design/research only |
 
 ---
 
-## LORT — Locally Optimal Recursive Tree
+## LORT - Locally Optimal Recursive Tree
 
 **What it is:**
 LORT is the automatic greedy recursive CTA/MDSA workflow currently implemented
 in `cta_fit(recursive = TRUE)`.
 
 **Algorithm at each LORT node:**
-1. Check guards (`max_nodes` → `min_n` → `max_depth` → pure-node).
+1. Check guards (`max_nodes` -> `min_n` -> `max_depth` -> pure-node).
 2. Run `cta_descendant_family()` on the node-local sample.
 3. Select the locally min-D complete CTA family member (`fam$min_d_idx`).
 4. Embed that complete selected CTA member in the recursive tree.
@@ -82,7 +82,7 @@ strata_check_passed = TRUE in all tested cases.
 
 ---
 
-## SORT — Sequentially Optimal Recursive Tree
+## SORT - Sequentially Optimal Recursive Tree
 
 **What it is:**
 SORT is the reserved name for the SDA-anchored sequential recursive CTA/MDSA
@@ -101,7 +101,7 @@ workflow. It is not yet implemented.
 
 **Relationship to manual staged CTA.exe workflow:**
 SORT is the package-level equivalent of the manual MegaODA/CTA.exe workflow:
-`SDA → EX filter → CTA on each branch → integrate confusion`. The manual process
+`SDA -> EX filter -> CTA on each branch -> integrate confusion`. The manual process
 is now described as "the SORT pattern" to distinguish it from LORT.
 
 **Relationship to HO-CTA / EO-CTA:**
@@ -122,7 +122,7 @@ Do not claim full HO-CTA canon status unless source evidence supports it.
 
 ---
 
-## GORT — Globally Optimal Recursive Tree
+## GORT - Globally Optimal Recursive Tree
 
 **What it is:**
 GORT is a future design concept for global recursive search over all possible
@@ -145,9 +145,9 @@ recursive configurations. It is not implemented and is a reserved namespace only
 
 ```
 LORT: automatic greedy local min-D at each node
-       ↓
+       v
 SORT: SDA-anchored; LORT-like recursion but constrained by SDA-selected set
-       ↓ (extends further)
+       v (extends further)
 GORT: global search over recursive configurations before committing to root
 ```
 
@@ -202,7 +202,7 @@ API, not a parameter to the current recursion.
 ## Suggested Future SORT Task Template
 
 ```text
-Task: implement SORT — SDA-anchored sequential recursive CTA/MDSA
+Task: implement SORT - SDA-anchored sequential recursive CTA/MDSA
 
 Preconditions:
 - SDA implementation complete and validated (SDA-1 through SDA-4B).
@@ -233,7 +233,7 @@ SORT metadata:
 ## Suggested Future GORT Task Template
 
 ```text
-Task: implement GORT — globally optimal recursive search
+Task: implement GORT - globally optimal recursive search
 
 Preconditions (all required before any code):
 - Formal design doc: docs/GORT_DESIGN.md with objective definition,
@@ -267,14 +267,14 @@ unless explicitly documented otherwise.
 
 | Name | Type | Status |
 |------|------|--------|
-| S3 class `cta_ort` | class tag on `cta_fit(recursive=TRUE)` result | Legacy compat — means LORT |
-| `predict.cta_ort()` | S3 method | Legacy compat — dispatches for LORT objects |
-| `print.cta_ort()` | S3 method | Legacy compat — dispatches for LORT objects |
-| `summary.cta_ort()` | S3 method | Legacy compat — dispatches for LORT objects |
-| `plot.cta_ort()` | S3 method | Legacy compat — dispatches for LORT objects |
-| `ort_plot_data()` | exported function | Legacy compat — computes layout for LORT plots |
-| `cta_ort_node_table()` | exported function | Legacy compat — node table for LORT objects |
-| file `R/cta_ort.R` | source file | Legacy compat — implements LORT engine |
+| S3 class `cta_ort` | class tag on `cta_fit(recursive=TRUE)` result | Legacy compat - means LORT |
+| `predict.cta_ort()` | S3 method | Legacy compat - dispatches for LORT objects |
+| `print.cta_ort()` | S3 method | Legacy compat - dispatches for LORT objects |
+| `summary.cta_ort()` | S3 method | Legacy compat - dispatches for LORT objects |
+| `plot.cta_ort()` | S3 method | Legacy compat - dispatches for LORT objects |
+| `ort_plot_data()` | exported function | Legacy compat - computes layout for LORT plots |
+| `cta_ort_node_table()` | exported function | Legacy compat - node table for LORT objects |
+| file `R/cta_ort.R` | source file | Legacy compat - implements LORT engine |
 
 **Rules:**
 - Do not introduce new exported or public names that contain bare `ort` (without
@@ -311,7 +311,7 @@ LORT/SORT/GORT workflow labels.
 For current odacore purposes, novometric canon depends on:
 
 1. **Sample size / denominator adequacy**
-   - MINDENOM (denominator/design constraint — current implemented tool)
+   - MINDENOM (denominator/design constraint - current implemented tool)
    - Endpoint denominator support
    - Statistical sample/power declarations
    - Power/sample-size calculation helper: **deferred, not implemented**

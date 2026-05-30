@@ -13,7 +13,7 @@ knitr::opts_chunk$set(collapse = TRUE, comment = "#>")
 
   To unblock:
     1. Create data-raw/build_article_artifacts.R that fits myeloma at
-       MINDENOM=1, 30, 56 with the canonical settings (see CLAUDE.md §Myeloma)
+       MINDENOM=1, 30, 56 with the canonical settings (see docs/CTA_CANON.md, section Myeloma fixtures)
        and saves to inst/extdata/articles/myeloma_fits.rds.
     2. Expand the sections below using actual fit objects and
        cta_confusion_table() / cta_endpoint_summary() calls on those objects.
@@ -21,10 +21,10 @@ knitr::opts_chunk$set(collapse = TRUE, comment = "#>")
        MINDENOM=56 no tree.
 
   See: docs/examples/myeloma-cta-translation.md for all canonical computed values.
-  See: CLAUDE.md §Myeloma for canonical fit settings and confusion anchors.
+  See: docs/CTA_CANON.md for canonical fit settings and confusion anchors.
 -->
 
-**Status:** Draft — precomputed artifacts not yet generated.
+**Status:** Draft - precomputed artifacts not yet generated.
 This article will walk through the myeloma CTA MINDENOM family (MINDENOM = 1,
 30, 56) as a complete canon example once `inst/extdata/articles/myeloma_fits.rds`
 is available.
@@ -33,15 +33,15 @@ is available.
 
 | MINDENOM | Tree | Classified n | OVERALL ESS | WEIGHTED ESS |
 |----------|------|-------------|-------------|--------------|
-| 1 | V14→V15 (pruned: V17→V15) | 255 (pruned: 186) | — | 27.69% (pruned: 25.43%) |
+| 1 | V14->V15 (pruned: V17->V15) | 255 (pruned: 186) | - | 27.69% (pruned: 25.43%) |
 | 30 | V17 stump | 186 | 15.99% | 16.51% |
-| 56 | no tree | — | — | — |
+| 56 | no tree | - | - | - |
 
 **Source material:**
 
-- `tests/testthat/fixtures/myeloma/` — myeloma fixture data and CTA.exe outputs
-- `docs/examples/myeloma-cta-translation.md` — full walkthrough with all computed values
-- `docs/CTA_CANON.md` — MINDENOM anchor values and confusion matrices
+- `tests/testthat/fixtures/myeloma/` - myeloma fixture data and CTA.exe outputs
+- `docs/examples/myeloma-cta-translation.md` - full walkthrough with all computed values
+- `docs/CTA_CANON.md` - MINDENOM anchor values and confusion matrices
 
 ---
 
@@ -51,23 +51,23 @@ is available.
 
 The myeloma dataset has n = 255 patients (after excluding V2 = 0 zero-weight
 rows), a binary class variable (0 vs. 1), ten ordered attributes (V4, V9,
-V11–V12, V14–V19), case weights in V2, and missing value code −9. V17 has
+V11-V12, V14-V19), case weights in V2, and missing value code -9. V17 has
 69 missing values, so any tree using V17 as the root classifies only 186
 observations.
 
-## MINDENOM = 1: V14 → V15 tree
+## MINDENOM = 1: V14 -> V15 tree
 
 *(To be expanded.)*
 
-Root split: V14 ≤ 0.5 routes 200 observations left, 55 right. The left
-branch is further split by V15 ≤ 0.5. The pruned tree uses V17 as root
+Root split: V14 <= 0.5 routes 200 observations left, 55 right. The left
+branch is further split by V15 <= 0.5. The pruned tree uses V17 as root
 instead (WESS 25.43%), classifying only 186 observations.
 
 ## MINDENOM = 30: V17 stump
 
 *(To be expanded.)*
 
-V17 right child has n = 55 < 56 (MINDENOM=56) but n = 55 ≥ 30 (MINDENOM=30).
+V17 right child has n = 55 < 56 (MINDENOM=56) but n = 55 >= 30 (MINDENOM=30).
 Result: V17 stump, confusion [[101, 34], [30, 21]], OVERALL ESS = 15.99%,
 WEIGHTED ESS = 16.51%.
 
@@ -82,5 +82,5 @@ split exists; the result is a leaf node only.
 
 When `WEIGHT` is active, the primary scoring metric is **WEIGHTED ESS** (WESS).
 OVERALL ESS uses raw counts and is reported alongside WESS for reference. Do
-not call WESS "ESS" or call OVERALL ESS "WESS" — the distinction matters when
+not call WESS "ESS" or call OVERALL ESS "WESS" - the distinction matters when
 comparing across MINDENOM levels.

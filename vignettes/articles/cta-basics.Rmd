@@ -24,7 +24,7 @@ that node. The tree grows top-down, one split at a time. Growth stops at a
 node when:
 
 1. The minimum endpoint size `mindenom` is not met by any candidate split.
-2. No candidate split passes the LOO STABLE gate (LOO ESS ≈ training ESS).
+2. No candidate split passes the LOO STABLE gate (LOO ESS ~ training ESS).
 3. No candidate split reaches significance (MC p < `alpha_split`).
 
 After growing, a backward **pruning** step removes nodes whose sub-tree does
@@ -35,8 +35,8 @@ threshold.
 
 | Argument | Default | Purpose |
 |----------|---------|---------|
-| `X` | — | Data frame of attribute columns |
-| `y` | — | Integer class variable |
+| `X` |  -  | Data frame of attribute columns |
+| `y` |  -  | Integer class variable |
 | `mindenom` | 10L | Minimum observations at any terminal endpoint |
 | `mc_iter` | 5000L | Monte Carlo permutations for significance screening |
 | `mc_seed` | 42L | Seed for MC reproducibility |
@@ -101,9 +101,9 @@ not just locally best at the root node.
 `loo = "stable"` (the default) screens candidate splits using the jackknife:
 
 - The full-node model is fit (training ESS).
-- For each observation at the node, the model is refit on the remaining n − 1
+- For each observation at the node, the model is refit on the remaining n - 1
   cases, and the held-out observation is predicted.
-- If |LOO ESS − training ESS| > 1 pp, the split is **UNSTABLE** and rejected.
+- If |LOO ESS - training ESS| > 1 pp, the split is **UNSTABLE** and rejected.
 - Only STABLE splits are eligible for inclusion in the tree.
 
 This prevents the tree from retaining splits that depend critically on
@@ -114,7 +114,7 @@ tree_loo <- cta_fit(X, y,
   mindenom    = 15L,
   mc_iter     = 300L,
   mc_seed     = 42L,
-  loo         = "stable",   # default — LOO STABLE gate active
+  loo         = "stable",   # default  -  LOO STABLE gate active
   priors_on   = TRUE,
   attr_names  = c("x1", "x2")
 )
@@ -175,7 +175,7 @@ plot_cta_tree(pd)
 ## Confusion table
 
 `cta_confusion_table()` extracts the training confusion from the fitted object
-without refitting. The confusion is stored as a C × C raw integer matrix at
+without refitting. The confusion is stored as a C x C raw integer matrix at
 fit time:
 
 ```{r confusion}
@@ -190,7 +190,7 @@ and `mc_iter = 25000` is:
 
 - Root: V2, cut = 4.5
 - Overall ESS = 52.63%
-- Attributes V1, V3–V5 are not selected
+- Attributes V1, V3-V5 are not selected
 
 These values are verified against CTA.exe output in `tests/testthat/test-cta.R`.
 See `vignettes/articles/myeloma-cta` for a fully worked MINDENOM family
@@ -198,9 +198,9 @@ walkthrough on a real dataset with case weights.
 
 ## Further reading
 
-- `articles/myeloma-cta` — full MINDENOM family example (when precomputed
+- `articles/myeloma-cta`  -  full MINDENOM family example (when precomputed
   artifacts are available)
-- `articles/cta-translation` — endpoint staging and the translation pipeline
-- `articles/mdsa-family` — MINDENOM family and minimum-D model selection
-- `articles/cta-graphics` — tree diagram renderers (base-R and ggplot2)
-- `docs/CTA_CANON.md` — canonical CTA behavior specification
+- `articles/cta-translation`  -  endpoint staging and the translation pipeline
+- `articles/mdsa-family`  -  MINDENOM family and minimum-D model selection
+- `articles/cta-graphics`  -  tree diagram renderers (base-R and ggplot2)
+- `docs/CTA_CANON.md`  -  canonical CTA behavior specification

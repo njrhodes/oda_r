@@ -26,8 +26,8 @@ observed covariates under the declared analytic constraints.
 | `group` | integer vector | Binary group indicator (e.g., 0 = control, 1 = treated). This plays the role of `y` in all ODA/CTA calls. |
 | `w` | numeric or `NULL` | Optional case weights (matching weights, IPW, etc.). Passed to all ODA/CTA calls. |
 | `alpha` | numeric | Significance threshold. Default `0.05`. Used for multiplicity-adjusted significance flags. |
-| `loo` | character/numeric | LOO mode. Default `"off"`. See §10. |
-| `...` | — | Additional arguments forwarded to `oda_fit()` or `cta_fit()`. |
+| `loo` | character/numeric | LOO mode. Default `"off"`. See section 10. |
+| `...` |  -  | Additional arguments forwarded to `oda_fit()` or `cta_fit()`. |
 
 **Not inputs:** the outcome variable, treatment effect estimates, or any
 post-baseline variables.  Balance analysis is strictly pre-outcome and
@@ -144,7 +144,7 @@ A list of class `c("cta_balance_table")` with fields:
 | Field | Type | Description |
 |---|---|---|
 | `status` | character | `"valid_tree"`, `"stump"`, or `"no_tree"`. |
-| `balance_interpretation` | character | `"discriminating"` (some combination predicts group) or `"no_discriminating_combinations"` (no_tree). See §11. |
+| `balance_interpretation` | character | `"discriminating"` (some combination predicts group) or `"no_discriminating_combinations"` (no_tree). See section 11. |
 | `root_attribute` | character | Root split variable; `NA` for no_tree. |
 | `n_endpoints` | integer | Number of terminal endpoints; `NA` for no_tree. |
 | `overall_ess` | numeric | Full-tree ESS (%); `NA` for no_tree. |
@@ -194,7 +194,7 @@ covariate, with columns:
 | `sd_0` | numeric | Unweighted SD in group 0. |
 | `mean_1` | numeric | Unweighted mean (or proportion) in group 1. |
 | `sd_1` | numeric | Unweighted SD in group 1. |
-| `smd` | numeric | Raw SMD: (mean_1 − mean_0) / pooled SD. |
+| `smd` | numeric | Raw SMD: (mean_1 - mean_0) / pooled SD. |
 | `abs_smd` | numeric | `|smd|`. |
 | `balanced_020` | logical | `abs_smd < 0.20` (conventional rule of thumb). |
 | `balanced_010` | logical | `abs_smd < 0.10` (stricter threshold). |
@@ -299,7 +299,7 @@ A list of class `c("cta_balance_plot_data")` with elements:
 |---|---|---|
 | `status` | character | `"valid_tree"`, `"stump"`, or `"no_tree"`. |
 | `balance_interpretation` | character | `"discriminating"` or `"no_discriminating_combinations"`. |
-| `no_tree_message` | character | Human-readable no_tree annotation for renderers (see §11). `NA` when status ≠ `"no_tree"`. |
+| `no_tree_message` | character | Human-readable no_tree annotation for renderers (see section 11). `NA` when status != `"no_tree"`. |
 | `cta_pd` | list or `NULL` | `cta_plot_data()` output for the embedded tree; `NULL` for no_tree. |
 | `ess_display` | numeric | Full-tree ESS or WESS (%); `NA` for no_tree. |
 | `d_stat` | numeric | D statistic; `NA` for no_tree. |
@@ -310,7 +310,7 @@ A list of class `c("cta_balance_plot_data")` with elements:
 on the embedded `cta_balance$tree` with `target_class = target_class`.  All
 existing `cta_plot_data()` semantics apply unchanged.
 
-**For no_tree:** `cta_pd = NULL`; `no_tree_message` is populated (see §11).
+**For no_tree:** `cta_pd = NULL`; `no_tree_message` is populated (see section 11).
 
 **Key invariant:** `cta_balance_plot_data()` reads from `cta_balance_table()`
 output; it does not refit CTA.
@@ -382,16 +382,16 @@ Case weights affect both the ODA/CTA fitting and the SMD companion:
 
 Balance is a property of the training sample under the declared constraints.
 LOO cross-validation tests whether the ODA rule generalizes beyond that
-sample — a secondary question for balance analysis.
+sample  -  a secondary question for balance analysis.
 
 **Default:** `loo = "off"` in all balance table functions.
 
-**Available:** `loo = "stable"`, `"pvalue"`, or numeric threshold — forwarded
+**Available:** `loo = "stable"`, `"pvalue"`, or numeric threshold  -  forwarded
 to every underlying `oda_fit()` call.  LOO results are stored in `loo_status`
 and `ess_loo` columns.
 
 **Caution:** LOO balance analysis is expensive (each fold refits the ODA model
-on n−1 cases per covariate × fold) and is not needed for a standard balance
+on n-1 cases per covariate x fold) and is not needed for a standard balance
 report.  Users who enable LOO must set `mc_iter` carefully to avoid excessive
 runtimes.
 
@@ -417,8 +417,8 @@ balance analysis, `no_tree` means the groups cannot be discriminated, which is
 the goal.
 
 **Required output field:** `balance_interpretation`:
-- `"no_discriminating_combinations"` — when `no_tree`
-- `"discriminating"` — when a valid tree or stump was found
+- `"no_discriminating_combinations"`  -  when `no_tree`
+- `"discriminating"`  -  when a valid tree or stump was found
 
 **`no_tree_message` in `cta_balance_plot_data()`:**
 
@@ -433,7 +433,7 @@ The renderer must display this message prominently when `status = "no_tree"`.
 It must not display an empty or error state.
 
 **Univariate note:** A `no_tree` result from `oda_balance_table()` at the
-individual covariate level (i.e., `fit_ok = FALSE`) is different — it means
+individual covariate level (i.e., `fit_ok = FALSE`) is different  -  it means
 the individual covariate had no valid ODA solution (e.g., constant covariate,
 all missing), not that balance was achieved.  These cases are flagged via
 `fit_ok = FALSE`, not via `balance_interpretation`.
@@ -447,8 +447,8 @@ implementation:
 
 | Deferred item | Reason / when |
 |---|---|
-| ggplot/grid renderer (`plot.oda_balance`, `plot.cta_balance`) | Graphics v3B — after plot-data contract is validated |
-| Quarto/Mermaid export | Graphics v3C — after renderer exists |
+| ggplot/grid renderer (`plot.oda_balance`, `plot.cta_balance`) | Graphics v3B  -  after plot-data contract is validated |
+| Quarto/Mermaid export | Graphics v3C  -  after renderer exists |
 | Causal-effect estimation (ATE, ATT, DR estimators) | Different problem; not odacore scope |
 | Outcome modeling | Strictly post-balance; separate API |
 | SORT/GORT recursive balance workflows | SORT/GORT are reserved; not implemented |
@@ -463,17 +463,17 @@ implementation:
 ## Implementation order (when slice opens)
 
 ```
-1. smd_balance_table()                  ← pure arithmetic; no ODA/CTA calls
-2. oda_balance_table()                  ← loops over oda_fit(); multiplicity columns
-3. cta_balance_table()                  ← single cta_fit(); no_tree interpretation
-4. oda_balance_plot_data()              ← reads oda_balance_table() + optional SMD
-5. cta_balance_plot_data()              ← reads cta_balance_table() + cta_plot_data()
-6. Tests (synthetic fixture + myeloma)  ← balance tables on known fixtures
-7. Graphics v3B renderer                ← deferred; separate slice
+1. smd_balance_table()                  <- pure arithmetic; no ODA/CTA calls
+2. oda_balance_table()                  <- loops over oda_fit(); multiplicity columns
+3. cta_balance_table()                  <- single cta_fit(); no_tree interpretation
+4. oda_balance_plot_data()              <- reads oda_balance_table() + optional SMD
+5. cta_balance_plot_data()              <- reads cta_balance_table() + cta_plot_data()
+6. Tests (synthetic fixture + myeloma)  <- balance tables on known fixtures
+7. Graphics v3B renderer                <- deferred; separate slice
 ```
 
-Dependencies: steps 4–5 require steps 1–3 to exist.  Renderer (step 7) requires
-steps 4–5 to be stable.
+Dependencies: steps 4-5 require steps 1-3 to exist.  Renderer (step 7) requires
+steps 4-5 to be stable.
 
 ---
 
@@ -481,4 +481,4 @@ steps 4–5 to be stable.
 
 Linden A, Yarnold PR (2016). Using machine learning to assess covariate
 balance in matching studies.
-*Journal of Evaluation in Clinical Practice*, 22(6), 861–867.
+*Journal of Evaluation in Clinical Practice*, 22(6), 861-867.

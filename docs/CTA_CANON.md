@@ -16,7 +16,7 @@ CTA chains UniODA models across recursively defined sample strata. Each split no
 
 ## Degenerate Solutions
 
-CTA never produces degenerate trees. A CTA split is **degenerate** if its rule maps all observations at the node to a single predicted class. Such a split is invalid and must be rejected at the node-level candidate gate — not post-hoc.
+CTA never produces degenerate trees. A CTA split is **degenerate** if its rule maps all observations at the node to a single predicted class. Such a split is invalid and must be rejected at the node-level candidate gate  -  not post-hoc.
 
 Rules:
 
@@ -27,7 +27,7 @@ Rules:
 
 Do not treat an all-same-class CTA or LORT result as canonical output. It is a model failure that should surface as `no_tree` or a rejected candidate, not as a valid tree with ESS > 0.
 
-## no_tree Causes — Three Distinct Mechanisms
+## no_tree Causes  -  Three Distinct Mechanisms
 
 `no_tree = TRUE` on a `cta_tree` object and `is_terminal` nodes in a `cta_ort` object arise from distinct causes that must not be conflated:
 
@@ -36,12 +36,12 @@ Do not treat an all-same-class CTA or LORT result as canonical output. It is a m
 | **MINDENOM exhaustion** | All candidate splits produce at least one child with n < MINDENOM; no admissible root | `cta_tree$no_tree = TRUE` |
 | **Post-pruning degeneracy** | MC Sidak pruning collapses a class-1 branch; all surviving endpoints predict same class | `cta_tree$no_tree = TRUE` |
 | **LORT `min_n` guard** | ORT endpoint has n < `min_n`; recursion halted before MDSA scan | `cta_ort` node: `is_terminal = TRUE`, `stop_reason = "min_n"` |
-| **LORT `max_depth` guard** | ORT depth ≥ `max_depth` | `cta_ort` node: `is_terminal = TRUE`, `stop_reason = "max_depth"` |
-| **LORT `max_nodes` guard** | Total ORT node count ≥ `max_nodes` | `cta_ort` node: `is_terminal = TRUE`, `stop_reason = "max_nodes"` |
+| **LORT `max_depth` guard** | ORT depth >= `max_depth` | `cta_ort` node: `is_terminal = TRUE`, `stop_reason = "max_depth"` |
+| **LORT `max_nodes` guard** | Total ORT node count >= `max_nodes` | `cta_ort` node: `is_terminal = TRUE`, `stop_reason = "max_nodes"` |
 
 Key distinctions:
-- MINDENOM exhaustion is **denominator-admissibility** — the split is structurally inadmissible because too few observations reach the child node. This is not the degeneracy gate firing.
-- LORT recursion guards (`min_n`, `max_depth`, `max_nodes`) produce terminal ORT nodes with `stop_reason`. They are **not** CTA `no_tree` — they do not signal a model failure; they are compute/depth bounds that halt further recursion at that endpoint.
+- MINDENOM exhaustion is **denominator-admissibility**  -  the split is structurally inadmissible because too few observations reach the child node. This is not the degeneracy gate firing.
+- LORT recursion guards (`min_n`, `max_depth`, `max_nodes`) produce terminal ORT nodes with `stop_reason`. They are **not** CTA `no_tree`  -  they do not signal a model failure; they are compute/depth bounds that halt further recursion at that endpoint.
 - Post-pruning degeneracy is the only listed cause that represents a rejected degenerate model; MINDENOM exhaustion represents denominator inadmissibility under the declared constraints, which is also a legitimate no-fit outcome but not a degeneracy-gate firing.
 
 ---
@@ -115,7 +115,7 @@ Do not implement plain `ENUMERATE` as:
 * root-only ranking
 * first passing candidate
 * missing-adjusted proxy ranking
-* “effective WESS” root proxy
+* "effective WESS" root proxy
 * final-tree-only LOO filtering
 
 ## ENUMERATE ROOT
@@ -158,7 +158,7 @@ Candidate split search uses observations non-missing for that candidate attribut
 
 CTA retains observations when possible. An observation missing an attribute needed for its path does not proceed down that branch and is classified according to the applicable node/branch rule.
 
-The `OBS` shown for a node may refer to the number of observations non-missing for that node’s attribute, not necessarily the full sample size reaching that logical tree position.
+The `OBS` shown for a node may refer to the number of observations non-missing for that node's attribute, not necessarily the full sample size reaching that logical tree position.
 
 ## LOO
 
@@ -172,7 +172,7 @@ LOO {pvalue | STABLE};
 
 Rules:
 
-* `LOO STABLE` / `loo = "stable"`: allow only attributes whose LOO ESS/WESS equals training ESS/WESS (|WESSL − WESS| ≤ 0.01 pp); split node reports `loo_status = "STABLE"`
+* `LOO STABLE` / `loo = "stable"`: allow only attributes whose LOO ESS/WESS equals training ESS/WESS (|WESSL - WESS| <= 0.01 pp); split node reports `loo_status = "STABLE"`
 * `LOO pvalue` / `loo = "pvalue"`: p-value gate with default threshold 0.05; accept when LOO Fisher p **strictly less than** 0.05; split node reports `loo_status = "PVALUE"`
 * `loo = numeric`: p-value gate with user-declared threshold; accept when LOO Fisher p **strictly less than** the supplied value; must be a single finite value in (0, 1); split node reports `loo_status = "PVALUE"`
 
@@ -272,4 +272,4 @@ Examples:
 Do not alter canonical CTA behavior to implement research extensions.
 
 ## Performance note:
-CTA.exe is expected to be much faster than the R reference implementation. However, large slowdowns usually indicate repeated MC/LOO fits. Canonical behavior should be implemented first; later optimization should use memoization of node × attribute fits and early MC stopping, without changing results.
+CTA.exe is expected to be much faster than the R reference implementation. However, large slowdowns usually indicate repeated MC/LOO fits. Canonical behavior should be implemented first; later optimization should use memoization of node x attribute fits and early MC stopping, without changing results.

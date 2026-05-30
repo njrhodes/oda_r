@@ -14,7 +14,7 @@ sampling variation in the classification outcome is modelled.
 ## Fixed-confusion bootstrap: concept and scope
 
 Standard bootstrap confidence intervals for classification performance resample
-observations and refit the model on each resample — capturing both sampling
+observations and refit the model on each resample  -  capturing both sampling
 variation and model-selection variability. The fixed-confusion NOVOmetric
 bootstrap takes a different position: once the model is trained and the
 confusion matrix is observed, the question is how precisely that matrix
@@ -22,7 +22,7 @@ characterises the true classification performance in the population.
 
 The **fixed-confusion** approach:
 
-1. Expands the C × C confusion matrix to a row-per-observation table of
+1. Expands the C x C confusion matrix to a row-per-observation table of
    (actual, predicted) pairs.
 2. On each bootstrap replicate, resamples *k* rows with replacement from that
    table (preserving the observed joint distribution).
@@ -40,7 +40,7 @@ What this CI captures:
 
 What it does not capture:
 
-- Model-selection variability (different data → different rule).
+- Model-selection variability (different data -> different rule).
 - Overfitting: if the model was overfit, the confusion matrix used as input
   understates the true error rate.
 - Uncertainty in the confusion matrix structure (cells are treated as fixed
@@ -59,7 +59,7 @@ novo_boot_ci(
 )
 ```
 
-The input `x` must be a 2 × 2 integer matrix constructed with
+The input `x` must be a 2 x 2 integer matrix constructed with
 `byrow = TRUE` using the `[actual, predicted]` convention:
 
 ```
@@ -88,7 +88,7 @@ conf <- matrix(
 print(conf)
 ```
 
-Note: no myeloma fit is needed — the confusion matrix is hardcoded from the
+Note: no myeloma fit is needed  -  the confusion matrix is hardcoded from the
 known CTA.exe canonical output.
 
 ```{r novoboot}
@@ -113,7 +113,7 @@ ci$ci[ci$ci$metric == "ess", ]
 - **`overlap`**: logical; TRUE if the two 95% CIs overlap.
 
 **Novometric significance (Axiom 1):** `ci$significant == TRUE` when the model
-95% CI lower bound exceeds the chance 95% CI upper bound — the intervals are
+95% CI lower bound exceeds the chance 95% CI upper bound  -  the intervals are
 entirely non-overlapping, providing strong evidence that the observed effect
 is not a chance result.
 
@@ -143,13 +143,13 @@ different rule.
 estimates, use LOO (`loo = "on"` in `oda_fit()` or `cta_fit()`) or held-out
 validation before calling `novo_boot_ci()` on the out-of-sample confusion.
 
-**Multi-class extension:** `novo_boot_ci()` operates on 2 × 2 confusion
+**Multi-class extension:** `novo_boot_ci()` operates on 2 x 2 confusion
 matrices only (binary class). Multi-class extension is not yet implemented.
 
 ## Further reading
 
-- `?novo_boot_ci` — complete function documentation with the myeloma example
-- `articles/cta-basics` — CTA fitting and confusion table
+- `?novo_boot_ci`  -  complete function documentation with the myeloma example
+- `articles/cta-basics`  -  CTA fitting and confusion table
 - Yarnold PR (2020). Reformulating the First Axiom of Novometric Theory.
-  *Optimal Data Analysis* **9**, 7–8.
+  *Optimal Data Analysis* **9**, 7-8.
 - Yarnold PR, Soltysik RC (2016). *Maximizing Predictive Accuracy*. ODA Books.

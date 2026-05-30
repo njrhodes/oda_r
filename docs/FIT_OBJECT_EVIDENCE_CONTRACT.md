@@ -27,13 +27,13 @@ consume them.  This document is the Slice S audit deliverable.
 | `n_eff` | integer | Effective N (non-missing, non-excluded) |
 | `attr_type` | character | `"ordered"`, `"binary"`, or `"categorical"` |
 | `engine` | character | `"binary"` |
-| `has_weights` | logical | Any weight ≠ 1 |
+| `has_weights` | logical | Any weight != 1 |
 | `priors_on` | logical | Priors weighting active |
 | `miss_codes` | numeric or NULL | Miss-code values |
 | `confusion` | list | `TP`, `TN`, `FP`, `FN`, `sensitivity`, `specificity`, `mean_pac` |
 | `confusion_wt` | list | Same fields, weighted |
 
-**2×2 confusion matrix layout** (actual × predicted, 0-indexed classes):
+**2x2 confusion matrix layout** (actual x predicted, 0-indexed classes):
 
 ```
          pred=0  pred=1
@@ -58,10 +58,10 @@ actual=1  [FN]    [TP]
 | `has_weights` | logical | |
 | `priors_on` | logical | |
 | `miss_codes` | numeric or NULL | |
-| `confusion` | matrix | C×C integer, raw counts |
-| `confusion_wt` | matrix | C×C weighted counts |
+| `confusion` | matrix | CxC integer, raw counts |
+| `confusion_wt` | matrix | CxC weighted counts |
 
-**Note:** NOVOboot (`novo_boot_ci`) requires a 2×2 confusion.  It is not
+**Note:** NOVOboot (`novo_boot_ci`) requires a 2x2 confusion.  It is not
 applicable to multiclass ODA.  `novo_boot_ci.oda_fit` errors with a clear
 message if `inherits(fit, "oda_fit_binary")` is FALSE.
 
@@ -72,7 +72,7 @@ message if `inherits(fit, "oda_fit_binary")` is FALSE.
 | `nodes` | named list | Per-node: `node_id`, `depth`, `leaf`, `attribute`, `n_obs`, `majority_class`, `child_ids`, `ess`, `loo_ess`, `loo_p`, `loo_status`, `p_mc`, `class_counts_raw`, `class_counts_weighted` |
 | `root_id` | integer | |
 | `no_tree` | logical | TRUE when no admissible split |
-| `training_confusion` | matrix or NULL | C×C integer, actual × predicted; NULL for no_tree |
+| `training_confusion` | matrix or NULL | CxC integer, actual x predicted; NULL for no_tree |
 | `overall_ess` | numeric | WESS when weights active, ESS otherwise; NA for no_tree |
 | `has_weights` | logical | |
 | `n` | integer | Training N |
@@ -111,47 +111,47 @@ Inherits `cta_tree`, adds:
 **`training_confusion` for LORT:** The `training_confusion` on a `cta_ort` is
 the ROOT model confusion only, not the full-LORT confusion.  For NOVOboot
 purposes the correct confusion for LORT is derived from `$strata$class_counts`
-by summing over all terminal strata.  See §3.3 below.
+by summing over all terminal strata.  See section 3.3 below.
 
 ---
 
 ## 2. Public methods and their evidence consumption
 
-### 2.1 Accessors — confirmed correct, no changes needed
+### 2.1 Accessors  -  confirmed correct, no changes needed
 
 | Method / Function | Object | Evidence consumed | Status |
 |---|---|---|---|
-| `oda_confusion(fit)` | `oda_fit` | `$confusion`, `$confusion_wt`, `$loo$confusion` | ✓ correct |
-| `oda_metrics(fit)` | `oda_fit` | `$ess`, `$pac`, `$confusion`, `$p_mc`, `$loo` | ✓ correct |
-| `oda_d_stat(fit)` | `oda_fit` | `$ess`, `$rule$type`, strata count | ✓ correct |
-| `summary.oda_fit()` | `oda_fit` | `$ess`, `$confusion`, `$p_mc`, `$loo`, `$rule` | ✓ correct |
-| `print.oda_fit()` | `oda_fit` | delegates to summary | ✓ correct |
-| `summary.cta_tree()` | `cta_tree` | `$overall_ess`, `$training_confusion`, `$no_tree` | ✓ correct |
-| `cta_confusion_table()` | `cta_tree` | `$training_confusion` (stored) | ✓ correct |
-| `cta_d_stat()` | `cta_tree` | `$overall_ess`, `cta_strata()` | ✓ correct |
-| `cta_family_table()` | `cta_family` | `$overall_ess`, `$d` per member | ✓ correct |
+| `oda_confusion(fit)` | `oda_fit` | `$confusion`, `$confusion_wt`, `$loo$confusion` | OK correct |
+| `oda_metrics(fit)` | `oda_fit` | `$ess`, `$pac`, `$confusion`, `$p_mc`, `$loo` | OK correct |
+| `oda_d_stat(fit)` | `oda_fit` | `$ess`, `$rule$type`, strata count | OK correct |
+| `summary.oda_fit()` | `oda_fit` | `$ess`, `$confusion`, `$p_mc`, `$loo`, `$rule` | OK correct |
+| `print.oda_fit()` | `oda_fit` | delegates to summary | OK correct |
+| `summary.cta_tree()` | `cta_tree` | `$overall_ess`, `$training_confusion`, `$no_tree` | OK correct |
+| `cta_confusion_table()` | `cta_tree` | `$training_confusion` (stored) | OK correct |
+| `cta_d_stat()` | `cta_tree` | `$overall_ess`, `cta_strata()` | OK correct |
+| `cta_family_table()` | `cta_family` | `$overall_ess`, `$d` per member | OK correct |
 
-### 2.2 Plot-data extractors — gaps identified and fixed
+### 2.2 Plot-data extractors  -  gaps identified and fixed
 
 | Function | Object | Was missing | Fix |
 |---|---|---|---|
 | `cta_plot_data()` | `cta_tree` | `overall_ess`, `ess_label`, `d`, `model_label`, `training_n` | Added in Slice S |
 | `ort_plot_data()` | `cta_ort` | `overall_ess`, `ess_label`, `d`, `model_label`, `training_n` | Added in Slice S |
 
-### 2.3 Graphics renderers — `show_metrics` added
+### 2.3 Graphics renderers  -  `show_metrics` added
 
 | Function | Parameter added | Behavior |
 |---|---|---|
 | `plot_cta_tree()` | `show_metrics = FALSE` | When TRUE: appends `"ESS: xx.xx% | D: x.xx"` subtitle |
 | `plot_lort_tree()` | `show_metrics = FALSE` | Same; uses LORT evidence from `ort_plot_data()` |
 
-### 2.4 NOVOboot — S3 dispatch added
+### 2.4 NOVOboot  -  S3 dispatch added
 
 | Method | Evidence path | Notes |
 |---|---|---|
-| `novo_boot_ci.default(x, ...)` | `x` = 2×2 matrix (existing behavior) | |
-| `novo_boot_ci.oda_fit(fit, ...)` | `fit$confusion` → build 2×2 | Binary only; errors for multiclass |
-| `novo_boot_ci.cta_tree(tree, ...)` | `tree$training_confusion` | Must be 2×2; errors for no_tree or multiclass |
+| `novo_boot_ci.default(x, ...)` | `x` = 2x2 matrix (existing behavior) | |
+| `novo_boot_ci.oda_fit(fit, ...)` | `fit$confusion` -> build 2x2 | Binary only; errors for multiclass |
+| `novo_boot_ci.cta_tree(tree, ...)` | `tree$training_confusion` | Must be 2x2; errors for no_tree or multiclass |
 | `novo_boot_ci.cta_ort(ort, ...)` | Sum `ort$strata$class_counts` by `terminal_class` | Full-LORT confusion; errors when strata absent |
 
 ---
@@ -172,11 +172,11 @@ Requires `inherits(fit, "oda_fit_binary")`.
 ### 3.2 `novo_boot_ci.cta_tree`
 
 ```r
-m <- tree$training_confusion    # stored 2×2 integer matrix
+m <- tree$training_confusion    # stored 2x2 integer matrix
 novo_boot_ci.default(m, ...)
 ```
 
-Errors when `no_tree = TRUE` (NULL confusion) or when confusion is not 2×2.
+Errors when `no_tree = TRUE` (NULL confusion) or when confusion is not 2x2.
 
 ### 3.3 `novo_boot_ci.cta_ort`
 
@@ -233,7 +233,7 @@ Otherwise `effective_subtitle <- metrics_line`.
 
 | Gap | Reason deferred |
 |-----|----------------|
-| NOVOboot for multiclass ODA | NOVOboot requires 2×2 confusion; no correct extension exists for C>2 without redesign |
+| NOVOboot for multiclass ODA | NOVOboot requires 2x2 confusion; no correct extension exists for C>2 without redesign |
 | LOO-confusion NOVOboot | LOO confusion stored per-fold only; aggregation semantics not defined |
 | `show_confusion` renderer option | Out of scope for Slice S; add in Phase 2A if requested |
 | `model_evidence()` public generic | Adds abstraction for one-time use; not justified |
@@ -246,14 +246,14 @@ Otherwise `effective_subtitle <- metrics_line`.
 Test file: `tests/testthat/test-fit-evidence.R`
 
 Covers:
-- `novo_boot_ci.default` — matrix path unchanged
-- `novo_boot_ci.oda_fit` — binary only; errors on multiclass
-- `novo_boot_ci.cta_tree` — correct confusion; errors on no_tree
-- `novo_boot_ci.cta_ort` — full-LORT confusion from strata
+- `novo_boot_ci.default`  -  matrix path unchanged
+- `novo_boot_ci.oda_fit`  -  binary only; errors on multiclass
+- `novo_boot_ci.cta_tree`  -  correct confusion; errors on no_tree
+- `novo_boot_ci.cta_ort`  -  full-LORT confusion from strata
 - `cta_plot_data()` evidence fields present, correct type, NA for no_tree
 - `ort_plot_data()` evidence fields present, correct type
-- `plot_cta_tree(show_metrics = TRUE)` — subtitle contains ESS string
-- `plot_lort_tree(show_metrics = TRUE)` — subtitle contains ESS string
+- `plot_cta_tree(show_metrics = TRUE)`  -  subtitle contains ESS string
+- `plot_lort_tree(show_metrics = TRUE)`  -  subtitle contains ESS string
 - No-fabrication: evidence fields absent from `oda_fit` multiclass `novo_boot_ci` call
 - No-refitting: `novo_boot_ci` methods do not call `oda_fit`, `cta_fit`, `lort_fit`
 - Reserved names: `sda_propensity_weights`, `sort_propensity_weights` do not exist

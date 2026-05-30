@@ -56,9 +56,14 @@ test_drive.R
 tests/testthat/myeloma/
 tests/testthat/CTA_DEMO.CSV
 
+# Claude Code config — maintainer tooling, not public
+CLAUDE.md
+
+# Internal maintainer docs — not public API
+docs/internal/PROD_CHECKPOINT.md
+
 # local Claude/prompt workbench — session logs and workbench files are not committed
 prompts/*
-!prompts/prod-roadmap-*.md
 
 # top-level scratch/probe scripts — never commit
 tmp_*.R

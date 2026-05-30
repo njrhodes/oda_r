@@ -62,21 +62,21 @@ All canon fixtures pass as of the current production checkpoint:
 
 | Fixture | n | Type | ESS | Status |
 |---------|---|------|-----|--------|
-| Refugee Act (Ex1) | 407 | Binary ordered (binary attr) | 44.09% | ✓ pass |
-| Gully erosion (Ex2) | 720 | Binary categorical (4-cat) | 56.30% | ✓ pass |
-| Protein type (Ex3) | 325 | 4-class categorical | 50.96% | ✓ pass |
-| Migraine attacks (Ex4) | 67 | Binary ordered (0–7) | 24.69% | ✓ pass |
-| Iris (Petal.Length) | 150 | 3-class ordered | canonical gold | ✓ pass |
+| Refugee Act (Ex1) | 407 | Binary ordered (binary attr) | 44.09% | OK pass |
+| Gully erosion (Ex2) | 720 | Binary categorical (4-cat) | 56.30% | OK pass |
+| Protein type (Ex3) | 325 | 4-class categorical | 50.96% | OK pass |
+| Migraine attacks (Ex4) | 67 | Binary ordered (0-7) | 24.69% | OK pass |
+| Iris (Petal.Length) | 150 | 3-class ordered | canonical gold | OK pass |
 
 ### CTA
 
 | Fixture | MINDENOM | Weights | ESS/WESS | Status |
 |---------|----------|---------|----------|--------|
-| CTA_DEMO | 1 | none (ESS) | root V2, ESS 52.63% | ✓ pass |
-| CTA_DEMO | 8 | none (ESS) | root V2, ESS 68.08% | ✓ pass |
-| Myeloma | 1 | V2 (WESS) | V14→V15, WESS 27.69% | ✓ pass |
-| Myeloma | 30 | V2 (WESS) | V17 stump, WESS 16.51% | ✓ pass |
-| Myeloma | 56 | V2 (WESS) | no tree | ✓ pass |
+| CTA_DEMO | 1 | none (ESS) | root V2, ESS 52.63% | OK pass |
+| CTA_DEMO | 8 | none (ESS) | root V2, ESS 68.08% | OK pass |
+| Myeloma | 1 | V2 (WESS) | V14->V15, WESS 27.69% | OK pass |
+| Myeloma | 30 | V2 (WESS) | V17 stump, WESS 16.51% | OK pass |
+| Myeloma | 56 | V2 (WESS) | no tree | OK pass |
 
 Full test suite (fast tier): FAIL 0 / WARN 0 / PASS 1566 (checkpoint 1ff8579).
 
@@ -95,16 +95,16 @@ Full test suite (fast tier): FAIL 0 / WARN 0 / PASS 1566 (checkpoint 1ff8579).
   `cta_observation_weights`, `cta_confusion_table`.
 - **MDSA:** `cta_descendant_family`, `cta_family_table`, D statistic,
   minimum-D selection.
-- **LORT:** `lort_fit` / `cta_fit(recursive = TRUE)` — greedy locally optimal
+- **LORT:** `lort_fit` / `cta_fit(recursive = TRUE)` - greedy locally optimal
   recursive trees. Binary class only.
-- **SDA:** `sda_fit` — sequential discriminant analysis.
+- **SDA:** `sda_fit` - sequential discriminant analysis.
 - **Balance diagnostics:** `oda_balance_table`, `smd_balance_table`,
   `cta_balance_table` and associated plot-data functions.
 - **Graphics:** base-R `plot.cta_tree`, `plot.cta_ort`; ggplot2 tree renderers
   `plot_cta_tree`, `plot_lort_tree`; ggplot2 balance renderers
   `plot_oda_balance`, `plot_smd_balance`, `plot_balance_love`,
   `plot_cta_balance`.
-- **NOVOboot:** `novo_boot_ci` — fixed-confusion NOVOmetric bootstrap CIs.
+- **NOVOboot:** `novo_boot_ci` - fixed-confusion NOVOmetric bootstrap CIs.
 
 ### Partially implemented / known open items
 
@@ -136,6 +136,6 @@ Full test suite (fast tier): FAIL 0 / WARN 0 / PASS 1566 (checkpoint 1ff8579).
 
 ## Further reading
 
-- `docs/STATUS.md` — current production state, what is implemented, what is deferred
-- `docs/ODA_CANON.md` — canonical ODA behavior specification
-- `docs/CTA_CANON.md` — canonical CTA behavior specification
+- `docs/STATUS.md` - current production state, what is implemented, what is deferred
+- `docs/ODA_CANON.md` - canonical ODA behavior specification
+- `docs/CTA_CANON.md` - canonical CTA behavior specification

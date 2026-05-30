@@ -10,7 +10,7 @@ knitr::opts_chunk$set(collapse = TRUE, comment = "#>")
 ODA can incorporate a directional hypothesis stated *a priori*. Specifying a
 direction constrains both the training search and the Monte Carlo permutation
 test, yielding a one-tailed p-value consistent with the stated hypothesis.
-The training ESS and confusion matrix are unaffected — only the p-value
+The training ESS and confusion matrix are unaffected  -  only the p-value
 changes.
 
 This article covers three directional modes:
@@ -31,7 +31,7 @@ appropriate:
 - It restricts the search (or the MC evaluation) to the hypothesised direction.
 - The resulting p-value is one-tailed, which is more powerful under the correct
   direction.
-- Using a directional test after seeing the data is not valid — the direction
+- Using a directional test after seeing the data is not valid  -  the direction
   must be specified *a priori*.
 
 ## Chapter 2: binary ordered directional
@@ -74,17 +74,17 @@ fit_nd <- oda_fit(
   x = party, y = vote, attr_type = "ordered",
   mc_iter = 500L, mc_seed = 42L, loo = "on"
 )
-# ESS is identical; only p(MC) changes (directional p ≤ nondirectional p / 2)
+# ESS is identical; only p(MC) changes (directional p <= nondirectional p / 2)
 ```
 
-The training rule (party ≤ 0.5 → Con; party > 0.5 → Pro) and ESS = 44.09%
+The training rule (party <= 0.5 -> Con; party > 0.5 -> Pro) and ESS = 44.09%
 are the same as the nondirectional analysis. The directional p-value is
 one-tailed and smaller than the two-tailed p.
 
 **Notes:**
 
 - The attribute here is binary (0/1). For a binary attribute,
-  `attr_type = "ordered"` is correct — ODA treats it as ordered and finds the
+  `attr_type = "ordered"` is correct  -  ODA treats it as ordered and finds the
   cut at 0.5, which separates the two values.
 - `direction = "greater"` means higher attribute values predict class 1. For a
   binary attribute, this is equivalent to "attribute = 1 predicts class 1."
@@ -94,7 +94,7 @@ one-tailed and smaller than the two-tailed p.
 
 For a nominal attribute, a fixed-partition directional hypothesis assigns each
 attribute category to a class *a priori* via `direction_map`. ODA evaluates
-only this mapping — no partition search is performed. The MC test permutes the
+only this mapping  -  no partition search is performed. The MC test permutes the
 *y* labels while holding the fixed mapping constant.
 
 ### The gully erosion example
@@ -102,7 +102,7 @@ only this mapping — no partition search is performed. The MC test permutes the
 In a study of gully erosion in southeast Nigeria, four adjustment types were
 classified according to whether they require organised community effort.^[Okuh
 D, Osumgborogwu IE (2019). *Applied Ecology and Environmental Sciences*, 7,
-11–20.] The hypothesis is that Ridges (1) and Shifting Habitation (2) predict
+11-20.] The hypothesis is that Ridges (1) and Shifting Habitation (2) predict
 Community motivation, while Relocation (3) and Intensified Cultivation (4)
 predict Individual motivation.
 
@@ -129,7 +129,7 @@ print(fit_gully)
 ```
 
 Because the prediction rule is fixed *a priori*, every LOO fold applies the
-same mapping to the same x values — LOO ESS equals training ESS exactly, and
+same mapping to the same x values  -  LOO ESS equals training ESS exactly, and
 the fit is trivially stable. The MC p-value is directional (one-tailed) because
 each permutation evaluates the same fixed partition.
 
@@ -139,7 +139,7 @@ each permutation evaluates the same fixed partition.
   character), values are class assignments.
 - All attribute levels present in `x` must appear in `direction_map`.
 - The training ESS and confusion are identical to the nondirectional result
-  when the fixed partition happens to be the global optimum — which it is here.
+  when the fixed partition happens to be the global optimum  -  which it is here.
 
 ## Chapter 4: categorical identity map (`direction = "ascending"`)
 
@@ -182,8 +182,8 @@ nondirectional analysis; the p-value is smaller (one-tailed).
 
 - `direction = "ascending"` requires k (number of unique attribute values)
   equals C (number of class values). If they differ, an error is raised.
-- `direction = "descending"` reverses the mapping (attribute value k → class 1,
-  attribute value 1 → class C).
+- `direction = "descending"` reverses the mapping (attribute value k -> class 1,
+  attribute value 1 -> class C).
 - For multiclass categorical, LOO is not computed (`loo = "off"` is appropriate
   here because LOO for multiclass categorical is not supported).
 
@@ -197,16 +197,16 @@ The nondirectional default (`direction = "both"` for ordered, or no
 - The analysis is exploratory.
 
 Applying a directional constraint that matches the observed direction inflates
-the p-value precision without being a valid one-tailed test — direction must be
+the p-value precision without being a valid one-tailed test  -  direction must be
 declared *before* the data are seen.
 
 ## Further reading
 
-- `vignettes/refugee-act-oda.Rmd` — full CRAN vignette for the binary ordered
+- `vignettes/refugee-act-oda.Rmd`  -  full CRAN vignette for the binary ordered
   directional example
-- `vignettes/gully-adjustment-oda.Rmd` — full CRAN vignette for the
+- `vignettes/gully-adjustment-oda.Rmd`  -  full CRAN vignette for the
   fixed-partition categorical directional example
-- `vignettes/protein-type-multiclass-oda.Rmd` — full CRAN vignette for the
+- `vignettes/protein-type-multiclass-oda.Rmd`  -  full CRAN vignette for the
   identity-map multiclass directional example
-- `articles/oda-basics` — ODA foundations (nondirectional)
-- `articles/multiclass-oda` — multiclass ODA
+- `articles/oda-basics`  -  ODA foundations (nondirectional)
+- `articles/multiclass-oda`  -  multiclass ODA
