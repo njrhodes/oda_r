@@ -72,3 +72,6 @@ tmp_*.R
 tests/testthat/fixtures/vignettes/data/**/*.EXE
 tests/testthat/fixtures/vignettes/data/**/*.exe
 _site
+
+# knitr figure output from article development knit runs
+/figure/

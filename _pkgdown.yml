@@ -172,6 +172,11 @@ reference:
 # Articles
 # ---------------------------------------------------------------------------
 articles:
+  - title: "Practitioner Guide"
+    navbar: Practitioner Guide
+    contents:
+      - articles/odacore-user-guide
+
   - title: "Part I — ODA Foundations"
     navbar: ODA Foundations
     contents:

@@ -1,0 +1,777 @@
+---
+title: "odacore practitioner guide"
+output: rmarkdown::html_vignette
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment  = "#>"
+)
+```
+
+This guide walks through the full odacore workflow in order: power planning,
+data preparation, ODA fitting, CTA and recursive trees, Structural
+Decomposition Analysis, covariate balance diagnostics, graphics, and bootstrap
+confidence intervals.  All examples use public, exported functions only.  Code
+chunks are self-contained and reproducible.
+
+**Scope note.** odacore implements unit-weighted binary and multiclass ODA,
+Classification Tree Analysis (CTA), Locally Optimal Recursive Trees (LORT),
+Structural Decomposition Analysis (SDA), and associated reporting and diagnostic
+tools. Weighted SDA, multiclass CTA, SORT, and GORT are deferred and not yet
+implemented.  See the final section for a complete boundary list.
+
+**Relationship to the legacy ODA package.** The legacy `ODA` R package
+provides an R interface for MegaODA.exe and CTA.exe workflows and their outputs.
+`odacore` is a separate native-R implementation of core ODA, CTA, and selected
+novometric workflows, with test-backed public objects, evidence accessors,
+validation helpers, graphics, and practitioner examples.  `odacore` is a native-R
+core continuation of the ODA software ecosystem, not a drop-in replacement for
+every MegaODA/CTA.exe feature.  Use `ODA` for historical executable-interface
+workflows.  Use `odacore` for native R workflows that are implemented, documented,
+and tested in this package.
+
+---
+
+## 1. Installation
+
+Install from GitHub (development version) or from CRAN once published:
+
+```{r install, eval = FALSE}
+# Development version
+remotes::install_github("njrhodes/oda_rcore")
+
+# CRAN (once released)
+# install.packages("odacore")
+
+library(odacore)
+```
+
+```{r load, include = FALSE}
+library(odacore)
+```
+
+---
+
+## 2. Data readiness
+
+`oda_readiness_check()` audits a predictor frame and class vector for common
+problems: wrong types, missing values in coded form, class imbalance, and
+empty columns.  Run it before any ODA or CTA fit.
+
+```{r readiness-data}
+set.seed(2024L)
+n     <- 100L
+y     <- rep(c(0L, 1L), each = 50L)
+x1    <- c(round(rnorm(50L, mean = 40, sd = 10)),
+           round(rnorm(50L, mean = 56, sd = 10)))
+x2    <- c(round(rnorm(50L, mean = 24, sd =  9)),
+           round(rnorm(50L, mean = 30, sd =  9)))
+x3    <- as.integer(c(rbinom(50L, 1L, 0.25), rbinom(50L, 1L, 0.65)))
+treat <- as.integer(rep(c(0L, 1L), times = 50L))
+dat   <- data.frame(y = y, x1 = x1, x2 = x2, x3 = x3, treat = treat)
+
+X <- dat[, c("x1", "x2", "x3")]
+```
+
+```{r readiness-check}
+rdy <- oda_readiness_check(X = X, y = dat$y)
+rdy$ok
+rdy$attr_types
+```
+
+`oda_clean_missing_codes()` replaces a numeric missing code (e.g., -9) with
+`NA` across a data frame:
+
+```{r clean-missing, eval = FALSE}
+# Replace -9 with NA in all columns
+X_clean <- oda_clean_missing_codes(X, codes = -9)
+```
+
+`oda_infer_attr_types()` returns a named character vector of inferred ODA
+attribute types for a predictor frame:
+
+```{r infer-types}
+oda_infer_attr_types(X)
+```
+
+---
+
+## 3. Power and sample-size planning
+
+**Scope: unit-weighted binary 2-class, binary (2-level) attribute only.**
+This is the Fisher exact / ODA isomorphism planning case described by
+Rhodes (2020) and anchored in Yarnold and Soltysik (2005).  It is not a CTA,
+LORT, SDA, weighted, or multiclass power method.
+
+### 3.1 `oda_power()`: Monte Carlo power estimation
+
+Supply either per-group proportions (`p1`, `p2`) or an ESS target.  ESS maps
+to proportions under the symmetric balanced convention:
+`p2 = ESS/200 + 0.5`, `p1 = 1 - p2`.
+
+```{r power-basic}
+# Power at n = 50 per group for ESS = 48%
+pw <- oda_power(n1 = 50L, ess = 48, nsim = 2000L, mc_seed = 42L)
+print(pw)
+```
+
+```{r power-curve}
+# Power curve: vary n, fixed ESS
+pw_curve <- oda_power(
+  n1      = c(30L, 50L, 80L, 120L),
+  ess     = 48,
+  nsim    = 2000L,
+  mc_seed = 42L
+)
+print(pw_curve)
+```
+
+```{r power-direct}
+# Direct proportion input (asymmetric design)
+pw_direct <- oda_power(
+  n1 = 40L, n2 = 60L,
+  p1 = 0.30, p2 = 0.65,
+  nsim    = 2000L,
+  mc_seed = 42L
+)
+print(pw_direct)
+```
+
+Sidak correction for multiple comparisons:
+
+```{r power-sidak}
+pw_sid <- oda_power(
+  n1      = 80L,
+  ess     = 48,
+  comp    = 3L,       # 3 comparisons; Sidak-adjusts alpha
+  nsim    = 2000L,
+  mc_seed = 42L
+)
+pw_sid$alpha_adj    # adjusted alpha
+pw_sid$power
+```
+
+### 3.2 `oda_sample_size()`: minimum n for target power
+
+Bisects over n to find the smallest balanced sample size achieving
+`power_target` (default 0.80).  Use `nsim` >= 5000L and a fixed `mc_seed`
+for published results; the example uses lower `nsim` for speed.
+
+```{r sample-size}
+ss <- oda_sample_size(
+  power_target = 0.80,
+  ess          = 48,
+  nsim         = 2000L,
+  mc_seed      = 42L
+)
+print(ss)
+```
+
+---
+
+## 4. Univariate ODA (`oda_fit()`, binary class)
+
+ODA finds the single rule on one attribute that maximises Mean PAC across all
+class values.  For an ordered attribute the rule is a cutpoint; for a
+categorical attribute it is a partition; for a binary attribute it is a
+direct class assignment.
+
+**Effect size.** ESS (Effect Strength for Sensitivity) scales Mean PAC against
+the 50% chance baseline:
+
+```
+ESS = (Mean PAC - 0.50) / 0.50 * 100%
+```
+
+ESS = 0% is chance; ESS = 100% is perfect classification.
+
+```{r oda-fit}
+fit1 <- oda_fit(
+  x         = dat$x1,
+  y         = dat$y,
+  attr_type = "ordered",
+  mc_iter   = 2000L,
+  mc_seed   = 42L
+)
+print(fit1)
+```
+
+```{r oda-summary}
+summary(fit1)
+```
+
+```{r oda-accessors}
+oda_metrics(fit1)      # ESS, Mean PAC, p-value
+oda_d_stat(fit1)       # D-statistic (classification complexity)
+oda_confusion(fit1)    # raw confusion matrix
+```
+
+Apply the fitted rule to new data with `predict()`:
+
+```{r oda-predict}
+preds <- predict(fit1, newdata = dat$x1)
+table(predicted = preds, actual = dat$y)
+```
+
+### 4.1 Binary attribute
+
+```{r oda-binary}
+fit_bin <- oda_fit(
+  x         = dat$x3,
+  y         = dat$y,
+  attr_type = "binary",
+  mc_iter   = 2000L,
+  mc_seed   = 42L
+)
+print(fit_bin)
+```
+
+### 4.2 Missing-code handling
+
+Pass numeric missing codes to `miss_codes`; those values are excluded from
+the fit and scored as `NA` in predictions:
+
+```{r oda-miss, eval = FALSE}
+fit_miss <- oda_fit(
+  x          = dat$x1,
+  y          = dat$y,
+  miss_codes = c(-9, -99),
+  mc_iter    = 2000L,
+  mc_seed    = 42L
+)
+```
+
+### 4.3 Leave-one-out (LOO) gate
+
+`loo = "stable"` applies the MegaODA LOO STABLE criterion: a rule is accepted
+only when the LOO ESS approximates the training ESS (|delta| <= 0.01 pp).
+Use `loo = "off"` (default) when computing power-conservative estimates; use
+`"stable"` for final confirmatory analyses.
+
+```{r oda-loo}
+fit_loo <- oda_fit(
+  x         = dat$x1,
+  y         = dat$y,
+  attr_type = "ordered",
+  loo       = "stable",
+  mc_iter   = 2000L,
+  mc_seed   = 42L
+)
+oda_metrics(fit_loo)
+```
+
+---
+
+## 5. Multiclass ODA (`oda_fit()`, three or more classes)
+
+When `y` has three or more distinct values, `oda_fit()` dispatches to the
+multiclass engine.  The rule partitions the attribute into C ordered segments
+(for ordered attributes) or assigns categories to classes (for categorical
+attributes).
+
+```{r multiclass-fit}
+# Iris: predict species (3 classes) from petal length
+petal_fit <- oda_fit(
+  x         = iris$Petal.Length,
+  y         = as.integer(iris$Species),
+  attr_type = "ordered",
+  mc_iter   = 2000L,
+  mc_seed   = 42L
+)
+print(petal_fit)
+```
+
+```{r multiclass-summary}
+summary(petal_fit)
+oda_metrics(petal_fit)
+```
+
+```{r multiclass-predict}
+petal_preds <- predict(petal_fit, newdata = iris$Petal.Length)
+table(predicted = petal_preds, actual = as.integer(iris$Species))
+```
+
+Multiclass categorical example -- predict iris species from the species column
+re-encoded as a factor (illustrative only):
+
+```{r multiclass-categorical}
+petal_cat <- oda_fit(
+  x         = iris$Petal.Width,
+  y         = as.integer(iris$Species),
+  attr_type = "ordered",
+  mc_iter   = 2000L,
+  mc_seed   = 42L
+)
+oda_metrics(petal_cat)
+```
+
+---
+
+## 6. Classification Tree Analysis (`cta_fit()`)
+
+CTA grows a binary tree in which every internal node is an ODA model.  Each
+split divides the working sample into two branches on a single attribute
+cutpoint and the process recurses until no split passes the MINDENOM, LOO
+STABLE, and significance criteria.  A backward pruning step then removes nodes
+whose sub-tree does not improve full-tree ESS.
+
+**Key arguments:**
+
+| Argument | Default | Role |
+|----------|---------|------|
+| `mindenom` | 10L | Minimum terminal endpoint size |
+| `mc_iter` | 5000L | Monte Carlo permutations for significance |
+| `mc_seed` | 42L | RNG seed |
+| `alpha_split` | 0.05 | Significance threshold for a split |
+| `loo` | `"stable"` | LOO STABLE gate (`"off"` skips) |
+| `priors_on` | TRUE | Balance classes in objective |
+
+```{r cta-fit}
+tree <- cta_fit(
+  X           = X,
+  y           = dat$y,
+  mindenom    = 10L,
+  mc_iter     = 1000L,
+  mc_seed     = 42L,
+  loo         = "stable",
+  priors_on   = TRUE,
+  attr_names  = c("x1", "x2", "x3")
+)
+print(tree)
+```
+
+```{r cta-node-table}
+cta_node_table(tree)
+```
+
+```{r cta-confusion}
+cta_confusion_table(tree)
+```
+
+```{r cta-d}
+cta_d_stat(tree)     # D = number of terminal endpoints - 1
+```
+
+```{r cta-predict}
+preds_cta <- predict(tree, newdata = X)
+table(predicted = preds_cta, actual = dat$y)
+```
+
+### 6.1 MINDENOM family
+
+The MINDENOM family is the sequence of trees obtained by increasing MINDENOM
+from 1 to n.  The min-D member is the simplest tree that still achieves the
+same classificatory performance as the most complex member.
+
+```{r cta-family}
+fam <- cta_descendant_family(
+  X          = X,
+  y          = dat$y,
+  mc_iter    = 300L,
+  mc_seed    = 42L,
+  max_steps  = 5L    # increase for production
+)
+cta_family_table(fam)
+```
+
+---
+
+## 7. CTA reporting and propensity
+
+All reporting functions compute on demand from the stored tree object.
+Nothing extra is stored at fit time (lean-fit invariant).
+
+```{r cta-staging}
+# Endpoints ordered by ascending target-class proportion (lowest to highest risk)
+cta_staging_table(tree)
+```
+
+```{r cta-endpoint-summary}
+cta_endpoint_summary(tree)
+```
+
+```{r cta-propensity}
+# Stabilized propensity-style weights per endpoint x class
+cta_propensity_weights(tree)
+```
+
+```{r cta-assign}
+# Assign training observations to terminal endpoints (on demand)
+ep <- cta_assign_endpoints(tree, newdata = X)
+head(ep)
+```
+
+```{r cta-obs-weights}
+# Map each observation to its endpoint-level weight
+ow <- cta_observation_weights(tree, newdata = X, y = dat$y)
+head(ow)
+```
+
+---
+
+## 8. Locally Optimal Recursive Trees (LORT)
+
+LORT (`lort_fit()`) applies the greedy local min-D strategy: at each terminal
+endpoint it scans the MINDENOM descendant family, selects the min-D member,
+and recurses until no further structure is found or a compute guard fires.
+
+**Scope:** LORT is adjacent workflow-layer composition using canonical CTA and
+MDSA components.  It is not Chapter 12 SORT canon, does not use a global search,
+and does not require an SDA source object.
+
+```{r lort-fit}
+lort <- lort_fit(
+  X                = X,
+  y                = dat$y,
+  mc_iter          = 200L,   # increase to 5000L for production
+  mc_seed          = 42L,
+  min_n            = 20L,
+  max_depth        = 4L,     # safety cap for illustration
+  family_max_steps = 5L,     # limit MDSA depth per node for illustration
+  loo              = "off",  # "stable" recommended for production
+  verbose          = FALSE
+)
+print(lort)
+```
+
+```{r lort-strata}
+cta_strata(lort)         # one row per leaf
+```
+
+```{r lort-predict}
+lort_preds <- predict(lort, newdata = X)
+table(predicted = lort_preds, actual = dat$y)
+```
+
+```{r lort-node-table}
+cta_ort_node_table(lort)
+```
+
+NOVOboot works directly on a `cta_ort` object (see Section 12).
+
+---
+
+## 9. Structural Decomposition Analysis (`sda_fit()`)
+
+SDA fits a sequence of ODA models.  After each step the correctly classified
+observations are removed and fitting continues on the residual sample.  The
+procedure terminates when no attribute reaches significance on the residual, or
+when a safety guard fires.
+
+**Scope:** SDA is a procedure that traverses the attribute space by class; it
+is not a model.  Weighted SDA is deferred (SDA-5).  SDA does not estimate
+propensity scores.
+
+Two modes:
+- `"unioda_max_ess"`: iterative UniODA, selects the attribute with the highest
+  ESS at each step.
+- `"novometric_min_d"`: per-attribute MDSA via `cta_descendant_family()`;
+  requires `mindenom`.
+
+```{r sda-fit}
+sda <- sda_fit(
+  X       = X,
+  y       = dat$y,
+  mode    = "unioda_max_ess",
+  mc_iter = 1000L,
+  mc_seed = 42L,
+  verbose = FALSE
+)
+print(sda)
+```
+
+```{r sda-steps}
+sda_step_table(sda)
+```
+
+```{r sda-selected}
+sda_selected_attributes(sda)
+```
+
+```{r sda-candidate}
+sda_candidate_table(sda)
+```
+
+### 9.1 SDA planning with `auto_sda_plan()`
+
+`auto_sda_plan()` is a pre-analysis dry-run planner.  It audits a data frame
+for SDA readiness and reports the candidate set, excluded columns, class
+balance, and mode.  It does not fit any models.
+
+```{r sda-plan}
+# Pass the full data frame and the name of the outcome column
+plan <- auto_sda_plan(
+  data    = dat,
+  outcome = "y",
+  mode    = "unioda_max_ess",
+  dry_run = TRUE
+)
+print(plan)
+```
+
+### 9.2 SDA to CTA bridge
+
+After SDA identifies the discriminating attribute sequence, use
+`sda_to_cta_data()` to prepare data for a downstream CTA fit restricted to
+the SDA-selected attributes:
+
+```{r sda-cta-bridge}
+cta_data <- sda_to_cta_data(sda, X = X, y = dat$y)
+# Returns list(X_cta, y_cta); X_cta contains only SDA-selected columns
+head(cta_data$X_cta)
+```
+
+```{r as-cta-candidates}
+candidates <- as_cta_candidates(sda)
+print(candidates)
+```
+
+---
+
+## 10. Covariate balance diagnostics
+
+`oda_balance_table()` runs a univariate ODA model for each covariate with
+`group` as the class variable.  The result quantifies how well each covariate
+discriminates between groups before and, optionally, after weighting.
+
+```{r balance-fit}
+bal <- oda_balance_table(
+  group   = dat$treat,
+  X       = dat[, c("x1", "x2", "x3")],
+  mc_iter = 1000L,
+  mc_seed = 42L,
+  adjust  = "none"
+)
+print(bal)
+```
+
+```{r balance-smd}
+# SMD companion table (standardised mean differences)
+smd <- smd_balance_table(
+  group = dat$treat,
+  X     = dat[, c("x1", "x2", "x3")]
+)
+print(smd)
+```
+
+CTA multivariate balance table -- fits its own CTA with `group` as the class
+variable to characterise joint covariate imbalance across endpoints:
+
+```{r cta-balance}
+cta_bal <- cta_balance_table(
+  group   = dat$treat,
+  X       = dat[, c("x1", "x2", "x3")],
+  mc_iter = 500L,
+  mc_seed = 42L
+)
+print(cta_bal)
+```
+
+---
+
+## 11. Graphics
+
+Graphics require ggplot2 (listed in Suggests).  All renderer functions are pure
+renderers: they never call fitting functions.  Pass the fitted object or
+pre-computed plot-data directly.
+
+```{r has-ggplot2, include = FALSE}
+has_gg <- requireNamespace("ggplot2", quietly = TRUE)
+```
+
+### 11.1 CTA tree diagram
+
+```{r cta-tree-plot, eval = has_gg, fig.width = 7, fig.height = 5}
+plot_cta_tree(tree, target_class = 1L, color_by = "target_rate")
+```
+
+The data contract layer (`cta_plot_data()`) is renderer-independent and can be
+inspected or passed to custom renderers:
+
+```{r cta-plot-data}
+pd <- cta_plot_data(tree)
+names(pd)
+```
+
+### 11.2 LORT diagram
+
+```{r lort-plot, eval = has_gg, fig.width = 7, fig.height = 5}
+plot_lort_tree(lort, target_class = 1L)
+```
+
+### 11.3 ODA covariate balance plot
+
+```{r balance-plot, eval = has_gg, fig.width = 6, fig.height = 4}
+plot_oda_balance(bal)
+```
+
+### 11.4 SMD balance and Love plot
+
+```{r smd-plot, eval = has_gg, fig.width = 6, fig.height = 4}
+plot_smd_balance(smd)
+```
+
+```{r love-plot, eval = has_gg, fig.width = 6, fig.height = 4}
+plot_balance_love(smd)
+```
+
+### 11.5 CTA balance plot
+
+```{r cta-balance-plot, eval = has_gg, fig.width = 6, fig.height = 4}
+plot_cta_balance(cta_bal)
+```
+
+---
+
+## 12. Novometric bootstrap (`novo_boot_ci()`)
+
+NOVOboot estimates the precision of an observed classification effect by
+comparing model and chance distributions via permutation bootstrap.  The
+method is based on Yarnold (2020) and Yarnold and Soltysik (2016).
+
+**Fixed-confusion bootstrap:** `novo_boot_ci()` samples from the stored
+confusion matrix.  It does not refit ODA or CTA models and does not estimate
+model-selection variability.
+
+Novometric significance (Axiom 1) is declared when the 95% confidence
+intervals for model ESS and chance ESS do not overlap.
+
+### 12.1 From an ODA fit
+
+```{r novoboot-oda}
+ci_oda <- novo_boot_ci(fit1, nboot = 2000L, seed = 42L)
+print(ci_oda)
+```
+
+### 12.2 From a CTA tree
+
+```{r novoboot-cta}
+ci_cta <- novo_boot_ci(tree, nboot = 2000L, seed = 42L)
+print(ci_cta)
+```
+
+Node-level bootstrap (single terminal endpoint):
+
+```{r novoboot-cta-node}
+ep_ids <- cta_strata(tree)$endpoint_node_id
+if (length(ep_ids) >= 1L) {
+  ci_node <- novo_boot_ci(tree, node_id = ep_ids[1L],
+                          nboot = 1000L, seed = 42L)
+  print(ci_node)
+}
+```
+
+### 12.3 From a LORT tree
+
+```{r novoboot-lort}
+ci_lort <- novo_boot_ci(lort, nboot = 2000L, seed = 42L)
+print(ci_lort)
+```
+
+### 12.4 From a raw 2x2 matrix
+
+```{r novoboot-matrix}
+m <- matrix(c(40L, 10L, 8L, 42L), nrow = 2L,
+            dimnames = list(actual    = c("0", "1"),
+                            predicted = c("0", "1")))
+ci_mat <- novo_boot_ci(m, nboot = 2000L, seed = 42L)
+print(ci_mat)
+```
+
+`as_confusion_matrix()` converts a tidy confusion data frame (e.g., from
+`cta_confusion_table()`) to the 2x2 matrix form required by the default
+method:
+
+```{r as-confusion-matrix}
+ct  <- cta_confusion_table(tree)
+m2  <- as_confusion_matrix(ct)
+print(m2)
+```
+
+---
+
+## 13. Production checklist
+
+Before committing to a final analysis, verify each item:
+
+**Data preparation**
+
+1. Run `oda_readiness_check()`.  Confirm `rdy$ok == TRUE`; resolve all issues
+   before proceeding.
+2. Apply `oda_clean_missing_codes()` if numeric missing codes are present.
+   Verify the count of `NA` values introduced matches the expected missing count.
+3. Confirm attribute types via `oda_infer_attr_types()`.  Override with
+   `attr_types` argument when auto-detection is ambiguous.
+
+**ODA**
+
+4. Use `mc_iter >= 25000L` (the MegaODA default) for published significance
+   tests.  Lower values (e.g., 1000-5000) are acceptable for exploratory work.
+5. Use `loo = "stable"` for confirmatory analyses.  Verify `loo_status` in the
+   fit summary is `"STABLE"` for the accepted rule.
+6. Report ESS (not overall accuracy) as the primary effect measure.
+
+**CTA**
+
+7. Select `mindenom` based on the minimum acceptable endpoint size, not by
+   tuning on model performance.  Document the chosen value and its rationale.
+8. Confirm `cta_node_table()` shows the expected tree structure.
+9. Use `cta_staging_table()` to verify endpoint risk ordering before reporting.
+10. Use `cta_propensity_weights()` for endpoint-level stabilized weights; use
+    `cta_assign_endpoints()` + `cta_observation_weights()` when observation-
+    level weights are needed.
+
+**Effect size and bootstrap**
+
+11. Report D-statistic (`cta_d_stat()`) alongside ESS; it quantifies
+    classification complexity.
+12. Run `novo_boot_ci()` with `nboot >= 5000L` for final confidence intervals.
+    Confirm Axiom 1 significance (non-overlapping 95% CIs for model vs. chance).
+
+**Power planning (prospective studies)**
+
+13. Use `oda_power()` with `nsim >= 10000L` and a fixed `mc_seed` for
+    published power estimates.
+14. Use `oda_sample_size()` with `mc_seed` fixed so the bisection result is
+    reproducible across sessions.
+
+---
+
+## 14. What odacore does not yet do
+
+The following capabilities are explicitly deferred or reserved:
+
+| Capability | Status |
+|-----------|--------|
+| SORT (`sort_fit()`) | Reserved -- requires SDA anchor; not implemented |
+| GORT (`gort_fit()`) | Reserved -- future design only; not implemented |
+| Weighted SDA | Deferred (SDA-5); weighted SDA will error if attempted |
+| SDA-derived propensity weights | Deferred; SDA produces step order, not propensity strata |
+| Multiclass CTA | Not yet scoped |
+| Multiclass / weighted / CTA power | Not yet scoped |
+| Generic propensity API | Not planned |
+
+If a capability you need is on this list, it is a design gap, not a usage
+error.  Check `docs/STATUS.md` in the package source for the current
+implementation state.
+
+---
+
+## References
+
+Rhodes JR (2020). On the relationship between ODA and Fisher's exact test
+for unit-weighted 2-class binary problems.
+
+Yarnold PR, Soltysik RC (2005). *Optimal Data Analysis: A Guidebook with
+Software for Windows.* Washington, DC: APA Books.
+
+Yarnold PR, Soltysik RC (2016). *Optimal Data Analysis: A Guidebook with
+Software for Windows (2nd ed.)* Washington, DC: APA Books.
+
+Yarnold PR, Linden A (2017). Novometric analysis of cross-validated
+ODA models. *Optimal Data Analysis*, 6, 30-39.
+
+Yarnold PR (2020). *Maximizing Predictive Accuracy.* Chicago, IL:
+ODA Books.
