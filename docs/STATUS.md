@@ -18,6 +18,7 @@ the Windows executables; any divergence on a covered fixture is a bug in odacore
 | SDA | `sda_fit()` | Novometric `min_d` and legacy `unioda_max_ess` modes; SDA-1 through SDA-4B complete |
 | MDSA descendant family | `cta_descendant_family()` / `cta_family_table()` | D parsimony, family comparison |
 | Novometric bootstrap | `novo_boot_ci()` | S3 generic; ODA / CTA / LORT dispatch |
+| Power / sample-size planning | `oda_power()` / `oda_sample_size()` | Unit-weighted binary 2×2 only; Fisher exact isomorphism (Rhodes 2020) |
 
 ### Adjacent workflow-layer (uses canon components)
 
@@ -49,7 +50,7 @@ the Windows executables; any divergence on a covered fixture is a bug in odacore
 | GORT (`gort_fit`) | Reserved - future design only; not implemented |
 | Weighted SDA | Deferred to SDA-5 |
 | SDA-derived propensity weights | Deferred; SDA produces stage order, not propensity strata |
-| Power / sample-size calculation helper | Deferred; MINDENOM is the current declared design constraint |
+| Multiclass ODA power / sample-size | Deferred; not yet scoped |
 | Multiclass CTA | Future extension |
 | Generic propensity API | Not planned |
 | Fraud / credit-card demos | Out of scope |

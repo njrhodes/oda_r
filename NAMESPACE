@@ -118,8 +118,14 @@ S3method(novo_boot_ci, cta_tree)
 S3method(novo_boot_ci, cta_ort)
 S3method(print, novo_boot_ci)
 
+# ----- Power / sample size -----
+export(oda_power)
+export(oda_sample_size)
+S3method(print, oda_power)
+S3method(print, oda_sample_size)
+
 # ----- Imports -----
 importFrom(grDevices, colorRampPalette)
-importFrom(stats, fisher.test, predict, qbeta, quantile, runif, sd, setNames)
+importFrom(stats, dhyper, fisher.test, predict, qbeta, quantile, rbinom, runif, sd, setNames)
 importFrom(utils, combn, head, modifyList)
 importFrom(graphics, arrows, mtext, par, plot.new, plot.window, polygon, title, segments, rect, text)

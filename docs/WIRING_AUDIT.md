@@ -66,6 +66,18 @@ All exported symbols inspected against canon contracts.
 | `novo_boot_ci` (default, oda_fit, cta_tree, cta_ort) | KEEP — all six dispatch paths wired |
 | `as_confusion_matrix` | KEEP — tidy df → 2x2 matrix bridge for `novo_boot_ci.default` |
 
+### Power and sample-size surface -- KEEP (narrow canon scope)
+
+| Symbol | Status | Canon source |
+|--------|--------|--------------|
+| `oda_power` | KEEP — planning support | Rhodes 2020; Yarnold & Soltysik 2005, Ch. 2/4 |
+| `oda_sample_size` | KEEP — planning support | Rhodes 2020 (bisection over `oda_power`) |
+
+**Scope constraint:** Unit-weighted, binary class, binary (2-level) attribute only.
+This is the Fisher exact/ODA isomorphism planning case.
+It is NOT CTA power, LORT power, SDA power, weighted power, or multiclass power.
+Those are future design work, not current scope.
+
 ### Production tools surface -- KEEP
 
 | Symbol | Status |
