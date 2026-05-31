@@ -62,7 +62,7 @@ fit_myeloma <- function(mindenom) {
     mc_iter     = 5000L,
     mc_target   = 0.05,
     mc_stop     = 99.9,
-    mc_stopup   = 99.9,
+    mc_stopup   = NA,
     loo         = "stable",
     attr_names  = attrs
   )
@@ -480,7 +480,7 @@ fam <- cta_descendant_family(
   mc_iter        = 5000L,
   mc_target      = 0.05,
   mc_stop        = 99.9,
-  mc_stopup      = 99.9,
+  mc_stopup      = NA,
   loo            = "stable",
   attr_names     = attrs
 )

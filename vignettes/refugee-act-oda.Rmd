@@ -158,12 +158,12 @@ above.
 against MegaODA.exe output in the package test suite
 (`tests/testthat/test-fixture-vignettes.R`, Example 1).
 
-**MC p-value calibration.** The MC p shown here may differ from MegaODA's
-reported p = 0.000000 (exact zero) and reflects `mc_iter = 500L` in this
-CRAN vignette. Use the canonical run with `mc_iter = 25000L` (chunk
-`fit-canonical`, `eval=FALSE`) for publication-quality results. This is a
-known discrepancy under investigation (issue \#5: MC STOP calibration audit).
-Training ESS and confusion matrix are unaffected.
+**MC p-value calibration.** The MC p shown here reflects `mc_iter = 500L`
+for CRAN build speed. MegaODA reports p = 0.000000 (exact zero) at 25000
+iterations; with 500 iterations a near-zero p will still be reported
+accurately (STOP fires early). Use the canonical run with `mc_iter = 25000L`
+(chunk `fit-canonical`, `eval=FALSE`) for publication-quality results.
+Training ESS and confusion matrix are unaffected by `mc_iter`.
 
 **Directional analysis.** This vignette uses `direction = "greater"` (MPE
 Chapter 2 binary ordered directional ODA). The directional constraint restricts

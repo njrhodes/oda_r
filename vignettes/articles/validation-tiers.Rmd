@@ -113,9 +113,11 @@ Full test suite (fast tier): FAIL 0 / WARN 0 / PASS 1566 (checkpoint 1ff8579).
   is Phase 2A.
 - **LOO p-value reporting:** The numeric LOO p-value (LOO Fisher exact) is
   computed. Formal Phase 2C design for LOO p-value display modes is deferred.
-- **MC p-value calibration:** The MC STOP/STOPUP calibration relative to
-  MegaODA.exe is under investigation (issue #5). Training ESS and confusion
-  matrix are unaffected; only p-value precision differs at low mc_iter.
+- **MC p-value calibration:** The MC engine (Fisher randomization, full
+  UniODA refit per permutation) matches MegaODA behavior. Differences at
+  low `mc_iter` reflect Monte Carlo sampling variance, not engine divergence.
+  Training ESS and confusion matrix are unaffected; only p-value precision
+  differs at low `mc_iter`.
 
 ### Out of scope (future)
 

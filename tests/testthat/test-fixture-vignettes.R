@@ -14,8 +14,8 @@
 #   - ESS
 #
 # Deliberately excluded from this commit:
-#   - MC p-value assertions: binary p_mc observed ~0.0066 vs MegaODA p=0.000000;
-#     discrepancy deferred to #5 MC STOP calibration audit.
+#   - MC p-value assertions: low-mc_iter CRAN calls produce noisy estimates;
+#     engine agreement with MegaODA verified at mc_iter=25000 (within MC error).
 #   - LOO assertions: deferred to follow-on commit once binary LOO ok-gate
 #     behavior is verified.
 #

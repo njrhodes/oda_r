@@ -170,8 +170,7 @@ ODA's chance benchmark is 50% Mean PAC (ESS = 0%), not overall accuracy.
 The `p(MC)` shown reflects `mc_iter = 500L`. For publication, use
 `mc_iter = 25000L` (the canonical MegaODA reference run). The training ESS
 and confusion matrix are unaffected by `mc_iter`; only the p-value precision
-changes. This is tracked as issue #5 (MC STOP calibration audit) in the
-package repository.
+changes with low iteration counts.
 
 ## Accessor functions
 
