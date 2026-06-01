@@ -301,7 +301,8 @@ cta_fit <- function(X, y, verbose = FALSE,
       max_depth        = max_depth,
       max_nodes        = max_nodes,
       family_max_steps = family_max_steps,
-      verbose          = verbose
+      verbose          = verbose,
+      diag_env         = dots$diag_env
     ))
   }
   oda_cta_fit(X = X, y = y, verbose = verbose, ...)

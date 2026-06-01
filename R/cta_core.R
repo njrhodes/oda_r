@@ -729,14 +729,19 @@ oda_cta_fit <- function(
     seed_j <- if (is.null(mc_seed)) NULL else
       (as.integer(mc_seed) + as.integer(pos_id) * 100L + j) %% .Machine$integer.max
     t0 <- proc.time()[["elapsed"]]
-    .vmsg("[CTA node ", pos_id, "] MC+LOO: ", attr_names[j])
+    # Canon: MC significance gate first; LOO only for Signif T candidates.
+    # EXE family logs confirm LOO STABLE is reported only for selected/significant
+    # nodes, never for Signif F candidates.  Running LOO unconditionally inside
+    # oda_fit() for all candidates is incorrect gate ordering and wastes n-fold
+    # LOO work on candidates that will be rejected by MC anyway.
+    .vmsg("[CTA node ", pos_id, "] MC: ", attr_names[j])
     fit <- tryCatch(
       oda_fit(x = x_j, y = y_n, w = w_n, priors_on = priors_on,
               miss_codes = miss_codes, K_segments = K_segments,
               mcarlo = TRUE, mc_iter = as.integer(mc_iter),
               mc_target = mc_target, mc_stop = mc_stop,
               mc_stopup = mc_stopup, mc_seed = seed_j,
-              loo = loo_arg, eval_order = "loo_then_mc",
+              loo = "off",
               mindenom = mindenom),
       error = function(e) list(ok = FALSE))
     elapsed <- round(proc.time()[["elapsed"]] - t0, 2)
@@ -782,19 +787,75 @@ oda_cta_fit <- function(
       .log_gen(p_mc, ess, FALSE, "ess_low")
       return(NULL)
     }
-    if (identical(loo_arg, "stable")) {
-      if (is.null(fit$loo) || !isTRUE(fit$loo$allowed)) {
-        .vmsg("  -> rejected: LOO unstable (", elapsed, "s)")
-        .log_gen(p_mc, ess, FALSE, "loo_unstable")
-        return(NULL)
+    # LOO gate: only for Signif T candidates that survived MC and ESS screens.
+    if (!identical(loo_arg, "off")) {
+      seed_loo <- if (is.null(mc_seed)) NULL else seed_j + 1L
+      t0_loo   <- proc.time()[["elapsed"]]
+      # Recode y_n to {0,1} to match oda_fit()'s internal coding used for fit$rule.
+      # oda_fit() recodes y to {0,1} internally; fit$rule is in that {0,1} space.
+      bin_labels_n <- sort(unique(as.integer(y_n[!is.na(y_n)])))
+      y_coded_n    <- ifelse(as.integer(y_n) == bin_labels_n[1L], 0L, 1L)
+      loo_out  <- tryCatch(
+        oda_loo_for_rule(
+          x          = x_j,
+          y          = y_coded_n,
+          rule       = fit$rule,
+          w          = w_n,
+          chance_model = "class",
+          k_attr     = fit$k_attr,
+          attr_type  = fit$attr_type %||% "ordered",
+          priors_on  = priors_on,
+          miss_codes = miss_codes,
+          mc_iter    = as.integer(mc_iter),
+          mc_target  = mc_target,
+          mc_stop    = mc_stop,
+          mc_stopup  = mc_stopup,
+          mc_seed    = seed_loo
+        ),
+        error = function(e) NULL
+      )
+      loo_elapsed <- round(proc.time()[["elapsed"]] - t0_loo, 2)
+      elapsed     <- elapsed + loo_elapsed
+      if (!is.null(diag_env)) {
+        wessl_d <- if (!is.null(loo_out)) loo_out$ess_loo %||% NA_real_ else NA_real_
+        loo_stable_flag <- if (identical(loo_arg, "stable"))
+          !is.na(wessl_d) && isTRUE(all.equal(ess, wessl_d, tolerance = 1e-12))
+        else NA
+        diag_env$loo_log[[length(diag_env$loo_log) + 1L]] <- list(
+          path        = "generic_oda",
+          attr_name   = attr_names[j],
+          pos_id      = pos_id,
+          row_hash    = rh_gen,
+          n_obs       = length(idx),
+          loo_mode    = if (is.null(loo_out)) "failed" else "n_fold_or_algebraic",
+          ess_loo     = wessl_d,
+          stable      = loo_stable_flag,
+          elapsed_sec = loo_elapsed
+        )
       }
-    } else if (is.numeric(loo)) {
-      loo_pv <- fit$loo$p_value %||% NA_real_
-      if (is.na(loo_pv) || loo_pv >= loo) {
-        .vmsg("  -> rejected: LOO p=", round(loo_pv, 4), " (", elapsed, "s)")
-        .log_gen(p_mc, ess, FALSE, "loo_p_fail")
-        return(NULL)
+      if (identical(loo_arg, "stable")) {
+        if (is.null(loo_out) || !isTRUE(loo_out$allowed)) {
+          .vmsg("  -> rejected: LOO not applicable (", elapsed, "s)")
+          .log_gen(p_mc, ess, FALSE, "loo_unstable")
+          return(NULL)
+        }
+        # STABLE: WESSL must equal WESS (tolerance matching unioda_core canon).
+        if (!isTRUE(all.equal(ess, loo_out$ess_loo %||% NA_real_,
+                              tolerance = 1e-12))) {
+          .vmsg("  -> rejected: LOO not stable (", elapsed, "s)")
+          .log_gen(p_mc, ess, FALSE, "loo_unstable")
+          return(NULL)
+        }
+      } else if (is.numeric(loo)) {
+        loo_pv <- if (!is.null(loo_out)) loo_out$p_value %||% NA_real_ else NA_real_
+        if (is.na(loo_pv) || loo_pv >= loo) {
+          .vmsg("  -> rejected: LOO p=", round(loo_pv %||% NA_real_, 4),
+                " (", elapsed, "s)")
+          .log_gen(p_mc, ess, FALSE, "loo_p_fail")
+          return(NULL)
+        }
       }
+      fit$loo <- loo_out  # attach for .loo_info() in .split_nd()
     }
     .vmsg("  -> accepted: ESS=", round(ess, 2), "% p=", round(p_mc, 4),
           " (", elapsed, "s)")

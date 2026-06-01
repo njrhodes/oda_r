@@ -59,7 +59,8 @@
   mc_iter, mc_stop, mc_stopup, alpha_split, prune_alpha, loo,
   min_n, max_depth, max_nodes,
   family_max_steps,  # integer; passed as max_steps to cta_descendant_family()
-  verbose
+  verbose,
+  diag_env = NULL    # optional diagnostic env forwarded to oda_cta_fit
   # mc_seed intentionally absent: seed is set once in .cta_ort_fit(); child
   # fits consume the RNG stream in deterministic R->L traversal order.
 ) {
@@ -130,8 +131,9 @@
     alpha_split = alpha_split,
     prune_alpha = prune_alpha,
     loo         = loo,
-    max_steps   = family_max_steps
+    max_steps   = family_max_steps,
     # mc_seed not passed: RNG stream flows from single top-level seed
+    diag_env    = diag_env
   )
 
   min_d_idx <- fam$min_d_idx
@@ -228,7 +230,8 @@
       max_depth        = max_depth,
       max_nodes        = max_nodes,
       family_max_steps = family_max_steps,
-      verbose          = verbose
+      verbose          = verbose,
+      diag_env         = diag_env
     )
 
     child_ids[ep_idx] <- child_id
@@ -380,7 +383,8 @@
   max_depth        = 8L,
   max_nodes        = 31L,
   family_max_steps = 20L,
-  verbose          = FALSE
+  verbose          = FALSE,
+  diag_env         = NULL
 ) {
   X         <- as.data.frame(X)
   y         <- as.integer(y)
@@ -420,7 +424,8 @@
     max_depth        = max_depth,
     max_nodes        = max_nodes,
     family_max_steps = family_max_steps,
-    verbose          = verbose
+    verbose          = verbose,
+    diag_env         = diag_env
   )
 
   ort_nodes  <- counter_env$all_nodes
