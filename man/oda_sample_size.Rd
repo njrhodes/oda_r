@@ -76,8 +76,9 @@ oda_sample_size(ess = 48, power_target = 0.90, nsim = 500L, mc_seed = 42L)
 
 }
 \references{
-Rhodes JR (2020). On the relationship between ODA and Fisher's exact test
-  for unit-weighted 2-class binary problems.
+Rhodes, N. J. (2020). Statistical power analysis in ODA, CTA and
+  Novometrics. \emph{Optimal Data Analysis}, 9.
+  \url{https://odajournal.files.wordpress.com/2020/02/v9a5.pdf}
 
 Yarnold PR, Soltysik RC (2005). \emph{Optimal Data Analysis: A Guidebook
   with Software for Windows.} Washington, DC: APA Books.

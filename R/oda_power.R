@@ -3,8 +3,9 @@
 # ODA power and sample size analysis.
 #
 # Canon references:
-#   Rhodes JR (2020). The isomorphism between ODA and Fisher's exact test for
-#     unit-weighted 2-class 2-level problems.
+#   Rhodes, N. J. (2020). Statistical power analysis in ODA, CTA and
+#     Novometrics. Optimal Data Analysis, 9.
+#     https://odajournal.files.wordpress.com/2020/02/v9a5.pdf
 #   Yarnold PR, Soltysik RC (2005). Optimal Data Analysis: A Guidebook with
 #     Software for Windows. Washington, DC: APA Books.
 #
@@ -65,8 +66,8 @@
 #' the resulting 2\ifelse{html}{\out{&times;}}{\eqn{\times}}2 table is significant by Fisher's exact test at the
 #' (optionally Sidak-adjusted) alpha.
 #'
-#' This is the binary lowest-measurement planning case discussed by Rhodes (2020),
-#' rooted in the Fisher/ODA isomorphism described by Yarnold and Soltysik (2005).
+#' This is the binary lowest-measurement planning case discussed by Rhodes (2020).
+#' See also Yarnold and Soltysik (2005) for the underlying ODA/Fisher isomorphism.
 #' \strong{Scope:} unit-weighted, binary class, binary (2-level) attribute only.
 #' This is not a general CTA, LORT, SDA, weighted, or multiclass power method.
 #'
@@ -122,8 +123,9 @@
 #' }
 #'
 #' @references
-#' Rhodes JR (2020). On the relationship between ODA and Fisher's exact test
-#'   for unit-weighted 2-class binary problems.
+#' Rhodes, N. J. (2020). Statistical power analysis in ODA, CTA and
+#'   Novometrics. \emph{Optimal Data Analysis}, 9.
+#'   \url{https://odajournal.files.wordpress.com/2020/02/v9a5.pdf}
 #'
 #' Yarnold PR, Soltysik RC (2005). \emph{Optimal Data Analysis: A Guidebook
 #'   with Software for Windows.} Washington, DC: APA Books.
@@ -319,8 +321,9 @@ print.oda_power <- function(x, digits = 3L, ...) {
 #' }
 #'
 #' @references
-#' Rhodes JR (2020). On the relationship between ODA and Fisher's exact test
-#'   for unit-weighted 2-class binary problems.
+#' Rhodes, N. J. (2020). Statistical power analysis in ODA, CTA and
+#'   Novometrics. \emph{Optimal Data Analysis}, 9.
+#'   \url{https://odajournal.files.wordpress.com/2020/02/v9a5.pdf}
 #'
 #' Yarnold PR, Soltysik RC (2005). \emph{Optimal Data Analysis: A Guidebook
 #'   with Software for Windows.} Washington, DC: APA Books.

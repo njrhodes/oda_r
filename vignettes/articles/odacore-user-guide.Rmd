@@ -583,8 +583,13 @@ has_gg <- requireNamespace("ggplot2", quietly = TRUE)
 
 ### 11.1 CTA tree diagram
 
+Default rendering is B/W with no color or legend — suitable for direct journal
+submission.  Pass `color_by = "target_rate"` or `color_by = "prediction"` for
+colored endpoint fills.
+
 ```{r cta-tree-plot, eval = has_gg, fig.width = 7, fig.height = 5}
-plot_cta_tree(tree, target_class = 1L, color_by = "target_rate")
+# Default: B/W, no ESS on nodes, simple labels
+plot_cta_tree(tree, target_class = 1L)
 ```
 
 The data contract layer (`cta_plot_data()`) is renderer-independent and can be
@@ -595,10 +600,25 @@ pd <- cta_plot_data(tree)
 names(pd)
 ```
 
-### 11.2 LORT diagram
+### 11.2 LORT sub-tree inspection
+
+`plot_lort_tree()` renders a single LORT node's CTA sub-tree (indexed inspection).
+Use `index` to pick a specific node; `show_all = TRUE` returns a named list of
+ggplot objects.
 
 ```{r lort-plot, eval = has_gg, fig.width = 7, fig.height = 5}
-plot_lort_tree(lort, target_class = 1L)
+# Root sub-tree (node 1)
+plot_lort_tree(lort, index = 1L, target_class = 1L)
+```
+
+### 11.2b CTA family member
+
+`plot_cta_family()` renders a single member of a MDSA MINDENOM family.  Use
+`index = "min_d"` to plot the member with minimum D-statistic (`fam` was fitted
+in Section 6).
+
+```{r family-plot, eval = has_gg, fig.width = 7, fig.height = 5}
+plot_cta_family(fam, index = "min_d", target_class = 1L)
 ```
 
 ### 11.3 ODA covariate balance plot
@@ -761,8 +781,8 @@ implementation state.
 
 ## References
 
-Rhodes JR (2020). On the relationship between ODA and Fisher's exact test
-for unit-weighted 2-class binary problems.
+Rhodes, N. J. (2020). Statistical power analysis in ODA, CTA and Novometrics.
+*Optimal Data Analysis*, 9. https://odajournal.files.wordpress.com/2020/02/v9a5.pdf
 
 Yarnold PR, Soltysik RC (2005). *Optimal Data Analysis: A Guidebook with
 Software for Windows.* Washington, DC: APA Books.
