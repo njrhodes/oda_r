@@ -67,11 +67,11 @@ plot(tree)
 ## Graphics v3: ggplot2 renderers
 
 `plot_cta_tree()` requires ggplot2 (in Suggests). The function accepts either
-the fit object or pre-computed plot-data. `color_by` controls node colouring:
+the fit object or pre-computed plot-data. `color_by` controls terminal-node fill:
 
+- `"none"` (default): white fill — B/W, publication-ready with no legend.
 - `"prediction"`: discrete fill by predicted class.
 - `"target_rate"`: continuous gradient by target-class proportion.
-- `"none"`: no fill.
 
 ```{r ggplot2-tree, eval = requireNamespace("ggplot2", quietly = TRUE), fig.width = 6, fig.height = 4}
 plot_cta_tree(pd, color_by = "prediction")
@@ -103,13 +103,16 @@ only. It does not imply prevalence, risk, or any external reference standard.
 
 ## LORT trees
 
-LORT (Locally Optimal Recursive Trees) use `ort_plot_data()` and
-`plot_lort_tree()` with the same API:
+LORT (Locally Optimal Recursive Trees) are displayed by indexed sub-tree
+inspection.  `plot_lort_tree(lort, index = k)` renders the CTA sub-tree at
+LORT node `k`.  `show_all = TRUE` returns a named list of ggplot objects.
 
 ```{r lort-example, eval = FALSE}
-lort  <- lort_fit(X, y, mc_iter = 300L, mc_seed = 42L, min_n = 12L)
-lort_pd <- ort_plot_data(lort)
-plot_lort_tree(lort_pd, color_by = "prediction")
+lort <- lort_fit(X, y, mc_iter = 300L, mc_seed = 42L, min_n = 12L)
+# Root sub-tree (default index = 1)
+plot_lort_tree(lort, color_by = "prediction")
+# All sub-trees as a named list
+all_plots <- plot_lort_tree(lort, show_all = TRUE)
 ```
 
 ## Myeloma examples

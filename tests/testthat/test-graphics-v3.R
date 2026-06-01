@@ -91,11 +91,11 @@ test_that("plot_lort_tree: returns ggplot for fitted cta_ort (T3)", {
 })
 
 # ---------------------------------------------------------------------------
-# T4: plot_lort_tree() returns ggplot from ort_plot_data() output
+# T4: plot_lort_tree() index-based: index=1L renders root sub-tree (v4 API)
 # ---------------------------------------------------------------------------
-test_that("plot_lort_tree: returns ggplot from ort_plot_data() output (T4)", {
+test_that("plot_lort_tree: index=1L renders root sub-tree (T4)", {
   gg_skip()
-  p <- plot_lort_tree(gv3_opd)
+  p <- plot_lort_tree(gv3_lort, index = 1L)
   expect_s3_class(p, "ggplot")
 })
 
@@ -297,4 +297,247 @@ test_that("balance renderers: no fitting args in formal signatures (B8)", {
                 info = paste("Fitting args in", fn_nm, ":",
                              paste(found, collapse = ", ")))
   }
+})
+
+###############################################################################
+# v3C5 — LORT path navigation API (L-series)
+#  L1   lort_index_path() returns correct path data.frame
+#  L2   lort_local_tree() returns cta_tree for non-terminal nodes
+#  L3   at least one local CTA on path has >2 leaves
+#  L4a  plot_lort_path(layout="list") returns named ggplot list
+#  L4b  plot_lort_path(layout="multipanel") returns single patchwork object
+#  L4c  terminal/no_tree panels are styled result cards, not black voids
+#  L4d  internal split nodes rendered as ellipses (GeomPolygon layer)
+#  L5   lort_path_table() prints and returns path df invisibly
+###############################################################################
+
+# Module-level LORT fixture: build_block data (n=140), deterministic seed.
+# Root CTA: V1 stump (2 endpoints).
+# Node 2 (V1=1 arm): V2+V3 3-endpoint tree.
+# Path to node 5: root (1) -> V1=1 child (2) -> terminal (5).
+.lort_build_block <- function(v1, v2, v3, n0, n1) {
+  data.frame(
+    V1    = rep(v1, n0 + n1),
+    V2    = rep(v2, n0 + n1),
+    V3    = rep(v3, n0 + n1),
+    group = c(rep(0L, n0), rep(1L, n1)),
+    stringsAsFactors = FALSE
+  )
+}
+.lort_dat <- rbind(
+  .lort_build_block(0L, 0L, 0L, 38L, 2L),
+  .lort_build_block(0L, 1L, 0L, 22L, 18L),
+  .lort_build_block(1L, 0L, 0L, 18L, 2L),
+  .lort_build_block(1L, 0L, 1L, 2L,  18L),
+  .lort_build_block(1L, 1L, 0L, 0L,  20L)
+)
+.lort_group   <- .lort_dat$group
+.lort_X       <- .lort_dat[, c("V1", "V2", "V3")]
+gv3_lort4 <- lort_fit(.lort_X, .lort_group,
+                       mc_iter  = 1000L,
+                       mc_seed  = 42L,
+                       loo      = "off",
+                       min_n    = 5L)
+
+# ---------------------------------------------------------------------------
+# L1: lort_index_path() returns path data.frame with correct structure
+# ---------------------------------------------------------------------------
+test_that("lort_index_path: path to index 5 has correct structure (L1)", {
+  path5 <- lort_index_path(gv3_lort4, 5L)
+  expect_s3_class(path5, "data.frame")
+  expect_equal(nrow(path5), 3L)        # root, child, terminal
+  expect_equal(path5$lort_index, c(1L, 2L, 5L))
+  expect_equal(path5$depth, c(0L, 1L, 2L))
+  expect_true(path5$is_terminal[[3L]])    # node 5 is terminal
+  expect_false(path5$is_terminal[[1L]])   # root is not terminal
+  expect_false(path5$is_terminal[[2L]])   # node 2 is not terminal
+  # incoming path condition for last hop mentions V2
+  expect_true(grepl("V2", path5$incoming_path_condition[[3L]]))
+})
+
+# ---------------------------------------------------------------------------
+# L2: lort_local_tree() returns cta_tree for non-terminal path nodes
+# ---------------------------------------------------------------------------
+test_that("lort_local_tree: non-terminal nodes return cta_tree (L2)", {
+  path5 <- lort_index_path(gv3_lort4, 5L)
+  non_term_ids <- path5$lort_index[!path5$is_terminal]
+  for (k in non_term_ids) {
+    tr <- lort_local_tree(gv3_lort4, k)
+    expect_true(inherits(tr, "cta_tree"),
+                label = paste("Node", k, "returns cta_tree"))
+  }
+})
+
+# ---------------------------------------------------------------------------
+# L3: at least one local CTA on path has >2 leaves
+# ---------------------------------------------------------------------------
+test_that("lort_local_tree: at least one path node has >2 leaves (L3)", {
+  path5  <- lort_index_path(gv3_lort4, 5L)
+  trees  <- lapply(path5$lort_index, function(k) lort_local_tree(gv3_lort4, k))
+  has_multi <- any(vapply(trees, function(tr) {
+    !is.null(tr) && !isTRUE(tr$no_tree) &&
+      sum(vapply(tr$nodes, function(nd) isTRUE(nd$leaf), logical(1L))) > 2L
+  }, logical(1L)))
+  expect_true(has_multi)
+})
+
+# ---------------------------------------------------------------------------
+# L4a: plot_lort_path(layout="list") returns named list of ggplots
+# ---------------------------------------------------------------------------
+test_that("plot_lort_path: layout='list' returns named ggplot list (L4a)", {
+  gg_skip()
+  path5  <- lort_index_path(gv3_lort4, 5L)
+  plots  <- plot_lort_path(gv3_lort4, index = 5L, layout = "list")
+  expect_type(plots, "list")
+  expect_equal(length(plots), nrow(path5))
+  for (nm in names(plots))
+    expect_true(inherits(plots[[nm]], "ggplot"),
+                label = paste("Element", nm, "is ggplot"))
+  expect_true(all(grepl("^index_[0-9]+$", names(plots))))
+})
+
+# ---------------------------------------------------------------------------
+# L4b: plot_lort_path(layout="multipanel") returns single patchwork object
+# ---------------------------------------------------------------------------
+test_that("plot_lort_path: layout='multipanel' returns single patchwork object (L4b)", {
+  gg_skip()
+  if (!requireNamespace("patchwork", quietly = TRUE))
+    skip("patchwork not installed")
+  p <- plot_lort_path(gv3_lort4, index = 5L, layout = "multipanel")
+  # patchwork objects inherit from ggplot or patchwork class
+  expect_true(inherits(p, "gg") || inherits(p, "patchwork"),
+              label = "multipanel result is a gg/patchwork object")
+})
+
+# ---------------------------------------------------------------------------
+# L4c: terminal/no_tree panels are result cards, not black voids
+# ---------------------------------------------------------------------------
+test_that("plot_lort_path: terminal panel is a result card not a void (L4c)", {
+  gg_skip()
+  # Node 5 is terminal (no_tree). Its panel should use .gg_result_card,
+  # which has a border rect layer. Proxy: the plot has >1 layer.
+  plots <- plot_lort_path(gv3_lort4, index = 5L, layout = "list")
+  term_p <- plots[["index_5"]]
+  expect_true(inherits(term_p, "ggplot"))
+  expect_gt(length(term_p$layers), 1L)
+})
+
+# ---------------------------------------------------------------------------
+# L4d: CTA plot-data for a non-trivial tree uses ellipse polygon for split nodes
+# ---------------------------------------------------------------------------
+test_that("plot_cta_tree: internal nodes rendered as ellipses (L4d)", {
+  gg_skip()
+  # Node 2 has a 3-endpoint V2+V3 tree -- has internal split nodes
+  tr2 <- lort_local_tree(gv3_lort4, 2L)
+  p   <- plot_cta_tree(tr2)
+  # geom_polygon is used for ellipses; at least one polygon layer exists
+  layer_classes <- vapply(p$layers,
+                          function(l) class(l$geom)[1L], character(1L))
+  expect_true("GeomPolygon" %in% layer_classes,
+              label = "Internal nodes rendered via geom_polygon (ellipse)")
+})
+
+# ---------------------------------------------------------------------------
+# L5: lort_path_table() prints and returns path df invisibly  (was L6)
+# ---------------------------------------------------------------------------
+test_that("lort_path_table: prints and returns path df (L5)", {
+  expect_output(result <- lort_path_table(gv3_lort4, 5L), "LORT path")
+  expect_s3_class(result, "data.frame")
+  expect_equal(result$lort_index, c(1L, 2L, 5L))
+})
+
+###############################################################################
+# v3C6 -- plot_cta_family() API (F-series)
+#  F1   plot_cta_family(index=1L) returns a single ggplot
+#  F2   plot_cta_family(min_d=TRUE) returns a single ggplot (min-D member)
+#  F3   plot_cta_family(show_all=TRUE, layout="list") returns named list
+#  F4   plot_cta_family(show_all=TRUE, layout="multipanel") returns patchwork
+#  F5   cta_plot_data() nodes have p_mc and loo_p columns
+###############################################################################
+
+# Module-level CTA family fixture (synthetic, small, fast)
+.fam_X <- data.frame(
+  x1 = c(rep(0L, 30), rep(1L, 30)),
+  x2 = c(rep(0L, 15), rep(1L, 15), rep(0L, 15), rep(1L, 15))
+)
+.fam_y <- c(rep(0L, 45), rep(1L, 15))
+gv3_fam <- cta_descendant_family(.fam_X, .fam_y,
+  start_mindenom = 5L,
+  max_steps      = 3L,
+  mc_iter        = 200L,
+  mc_seed        = 42L,
+  loo            = "off",
+  attr_names     = c("x1", "x2"))
+
+# CTA fit with LOO for F5 loo_p column test
+gv3_cta_loo <- cta_fit(gv3_X, gv3_y, mindenom = 5L,
+                        mc_iter = 500L, mc_seed = 42L, loo = "pvalue")
+
+# ---------------------------------------------------------------------------
+# F1: plot_cta_family(index=N) returns single ggplot
+# ---------------------------------------------------------------------------
+test_that("plot_cta_family: index=1L returns ggplot (F1)", {
+  gg_skip()
+  p <- plot_cta_family(gv3_fam, index = 1L)
+  expect_s3_class(p, "ggplot")
+})
+
+# ---------------------------------------------------------------------------
+# F2: plot_cta_family(min_d=TRUE) returns single ggplot for min-D member
+# ---------------------------------------------------------------------------
+test_that("plot_cta_family: min_d=TRUE returns ggplot (F2)", {
+  gg_skip()
+  p <- plot_cta_family(gv3_fam, min_d = TRUE)
+  expect_s3_class(p, "ggplot")
+})
+
+# ---------------------------------------------------------------------------
+# F3: show_all + layout="list" returns named list
+# ---------------------------------------------------------------------------
+test_that("plot_cta_family: show_all + layout='list' returns named list (F3)", {
+  gg_skip()
+  pl <- plot_cta_family(gv3_fam, show_all = TRUE, layout = "list")
+  expect_true(is.list(pl))
+  expect_true(length(pl) == length(gv3_fam$members))
+  expect_true(all(vapply(pl, function(p) inherits(p, "ggplot"), logical(1L))))
+})
+
+# ---------------------------------------------------------------------------
+# F4: show_all + layout="multipanel" returns patchwork object
+# ---------------------------------------------------------------------------
+test_that("plot_cta_family: show_all + layout='multipanel' returns patchwork (F4)", {
+  gg_skip()
+  skip_if_not_installed("patchwork")
+  pp <- plot_cta_family(gv3_fam, show_all = TRUE, layout = "multipanel", ncol = 1L)
+  expect_true(inherits(pp, "patchwork") || inherits(pp, "ggplot"))
+})
+
+# ---------------------------------------------------------------------------
+# F5: cta_plot_data() nodes have p_mc and loo_p columns
+# ---------------------------------------------------------------------------
+test_that("cta_plot_data: nodes have p_mc, loo_p, loo_status columns (F5)", {
+  pd_base <- cta_plot_data(gv3_cta)
+  expect_true("p_mc"       %in% names(pd_base$nodes))
+  expect_true("loo_p"      %in% names(pd_base$nodes))
+  expect_true("loo_status" %in% names(pd_base$nodes))
+  # Split nodes have numeric p_mc; leaves are NA
+  split_rows <- pd_base$nodes[!pd_base$nodes$leaf, ]
+  leaf_rows  <- pd_base$nodes[ pd_base$nodes$leaf, ]
+  if (nrow(split_rows) > 0L)
+    expect_true(all(!is.na(split_rows$p_mc)))
+  if (nrow(leaf_rows) > 0L) {
+    expect_true(all(is.na(leaf_rows$p_mc)))
+    expect_true(all(is.na(leaf_rows$loo_status)))
+  }
+  # With LOO pvalue, split nodes have loo_p and loo_status == "PVALUE"
+  pd_loo <- cta_plot_data(gv3_cta_loo)
+  split_loo <- pd_loo$nodes[!pd_loo$nodes$leaf, ]
+  if (nrow(split_loo) > 0L) {
+    expect_true(all(!is.na(split_loo$loo_p)))
+    expect_true(all(split_loo$loo_status == "PVALUE"))
+  }
+  # loo = "off" -> loo_status == "OFF" on split nodes
+  split_off <- pd_base$nodes[!pd_base$nodes$leaf, ]
+  if (nrow(split_off) > 0L)
+    expect_true(all(split_off$loo_status == "OFF"))
 })

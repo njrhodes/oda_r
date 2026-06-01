@@ -26,7 +26,8 @@ Suggests:
     knitr,
     rmarkdown,
     pkgdown,
-    ggplot2 (>= 3.4.0)
+    ggplot2 (>= 3.4.0),
+    patchwork (>= 1.1.0)
 VignetteBuilder: knitr
 Config/testthat/edition: 3
 RoxygenNote: 7.3.3

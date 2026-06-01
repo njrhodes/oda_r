@@ -1060,11 +1060,16 @@ ort_plot_data <- function(object, target_class = NULL,
       cx <- node_df$x[i_ch]
       cy <- node_df$y[i_ch]
 
-      # Edge label = last element of child's path_conditions
+      # Edge label: last element of child's path_conditions, then last AND-segment.
+      # ep_cond is built as paste(ep_segs, collapse=" AND "); multi-split sub-trees
+      # produce compound strings like "V17>0.5 AND V15>0.5".  For a short edge
+      # label we want only the final segment (the condition at this split edge).
       child_conds <- c_nd$path_conditions
-      edge_lbl    <- if (length(child_conds) > 0L)
-                       child_conds[length(child_conds)]
-                     else ""
+      edge_lbl    <- if (length(child_conds) > 0L) {
+        last_cond <- child_conds[length(child_conds)]
+        parts     <- strsplit(last_cond, " AND ", fixed = TRUE)[[1L]]
+        trimws(parts[length(parts)])
+      } else ""
 
       edge_rows[[length(edge_rows) + 1L]] <- list(
         from_id = nd$node_id,
@@ -1268,4 +1273,238 @@ plot.cta_ort <- function(x,
   }
 
   invisible(pd)
+}
+
+# ---- LORT path accessors ---------------------------------------------------- #
+
+#' Build parent map and endpoint-index map for LORT nodes
+#' (internal helper used by lort_index_path and lort_path_table)
+#' @param ort_nodes Named list of LORT node objects from a \code{cta_ort} fit.
+.lort_parent_maps <- function(ort_nodes) {
+  keys       <- names(ort_nodes)
+  parent_map <- setNames(rep(NA_integer_, length(keys)), keys)
+  ep_idx_map <- setNames(rep(NA_integer_, length(keys)), keys)   # ep_idx in parent
+
+  for (pk in keys) {
+    pnd <- ort_nodes[[pk]]
+    if (!isTRUE(pnd$is_terminal) && length(pnd$child_ids) > 0L) {
+      for (ep_idx in seq_along(pnd$child_ids)) {
+        ck <- as.character(pnd$child_ids[ep_idx])
+        if (ck %in% keys) {
+          parent_map[ck] <- pnd$node_id
+          ep_idx_map[ck] <- ep_idx
+        }
+      }
+    }
+  }
+  list(parent_map = parent_map, ep_idx_map = ep_idx_map)
+}
+
+#' LORT path from root to a given node index
+#'
+#' Returns a data frame tracing the LORT recursion path from the root node
+#' (index 1) to the requested node, one row per LORT node on the path.
+#'
+#' @param x A \code{cta_ort} object from \code{\link{lort_fit}}.
+#' @param index Integer; target LORT node index.
+#' @return A data frame with columns:
+#'   \code{lort_index}, \code{parent_lort_index}, \code{depth}, \code{n},
+#'   \code{stop_reason}, \code{is_terminal},
+#'   \code{incoming_endpoint_id} (which endpoint of the parent led here),
+#'   \code{incoming_path_condition} (condition string for that endpoint),
+#'   \code{incoming_path_label} (human-readable label),
+#'   \code{local_status}, \code{local_ess}, \code{local_d},
+#'   \code{local_n_endpoints}.
+#' @seealso \code{\link{lort_local_tree}}, \code{\link{lort_path_table}},
+#'   \code{\link{plot_lort_path}}
+#' @export
+lort_index_path <- function(x, index) {
+  stopifnot(inherits(x, "cta_ort"))
+  index     <- as.integer(index)
+  ort_nodes <- x$ort_nodes %||% list()
+
+  if (!as.character(index) %in% names(ort_nodes))
+    stop(sprintf("LORT index %d not found.", index), call. = FALSE)
+
+  maps       <- .lort_parent_maps(ort_nodes)
+  parent_map <- maps$parent_map
+  ep_idx_map <- maps$ep_idx_map
+
+  # Walk from index back to root, collecting node IDs in reverse
+  path_ids <- integer(0)
+  cur_id   <- index
+  repeat {
+    path_ids <- c(cur_id, path_ids)
+    par <- parent_map[as.character(cur_id)]
+    if (is.na(par)) break
+    cur_id <- par
+  }
+
+  rows <- lapply(path_ids, function(nid) {
+    nd    <- ort_nodes[[as.character(nid)]]
+    mdl   <- nd$model
+    is_tree <- !is.null(mdl) && inherits(mdl, "cta_tree") && !isTRUE(mdl$no_tree)
+
+    local_n_ep <- if (is_tree) {
+      ep_tbl <- tryCatch(cta_endpoint_table(mdl), error = function(e) NULL)
+      if (!is.null(ep_tbl)) nrow(ep_tbl) else NA_integer_
+    } else NA_integer_
+
+    local_status <- if (isTRUE(nd$is_terminal)) {
+      paste0("terminal:", nd$stop_reason %||% "?")
+    } else if (is_tree) {
+      if (!is.na(local_n_ep) && local_n_ep == 2L) "stump" else "valid_tree"
+    } else {
+      "no_tree"
+    }
+
+    par_id  <- parent_map[as.character(nid)]
+    ep_id   <- as.integer(ep_idx_map[as.character(nid)])
+
+    # Incoming condition: last element of path_conditions
+    conds         <- nd$path_conditions %||% character(0)
+    incoming_cond <- if (length(conds) == 0L) NA_character_
+                     else conds[length(conds)]
+    incoming_lbl  <- if (is.na(incoming_cond) || is.na(ep_id)) NA_character_
+                     else sprintf("ep%d: %s", ep_id, incoming_cond)
+
+    list(
+      lort_index            = nid,
+      parent_lort_index     = if (is.na(par_id)) NA_integer_ else as.integer(par_id),
+      depth                 = nd$depth,
+      n                     = nd$n,
+      stop_reason           = nd$stop_reason %||% NA_character_,
+      is_terminal           = isTRUE(nd$is_terminal),
+      incoming_endpoint_id  = if (is.na(ep_id)) NA_integer_ else ep_id,
+      incoming_path_condition = incoming_cond,
+      incoming_path_label   = incoming_lbl,
+      local_status          = local_status,
+      local_ess             = nd$level_ess %||% NA_real_,
+      local_d               = nd$level_d   %||% NA_real_,
+      local_n_endpoints     = local_n_ep
+    )
+  })
+
+  df <- do.call(rbind, lapply(rows, as.data.frame, stringsAsFactors = FALSE))
+  rownames(df) <- NULL
+  df
+}
+
+#' Extract the local CTA model embedded at a LORT node
+#'
+#' Returns the full \code{cta_tree} object selected at LORT node \code{index}.
+#' This is the complete CTA/MDSA family member fitted on the observations that
+#' reached that node -- not a summary, not a stump approximation, not
+#' reconstructed from plot-data.
+#'
+#' Returns \code{NULL} when the node is terminal due to \code{min_n},
+#' \code{max_depth}, \code{max_nodes}, or a pure-class guard (no fit was
+#' attempted).  A \code{no_tree} result at a non-forced-terminal node yields
+#' a \code{cta_tree} with \code{$no_tree = TRUE}.
+#'
+#' @param x A \code{cta_ort} object from \code{\link{lort_fit}}.
+#' @param index Integer; LORT node index.
+#' @return A \code{cta_tree} object or \code{NULL} (with a message for
+#'   forced-terminal nodes).
+#' @seealso \code{\link{lort_index_path}}, \code{\link{plot_lort_path}}
+#' @export
+lort_local_tree <- function(x, index) {
+  stopifnot(inherits(x, "cta_ort"))
+  index     <- as.integer(index)
+  ort_nodes <- x$ort_nodes %||% list()
+  k         <- as.character(index)
+
+  if (!k %in% names(ort_nodes))
+    stop(sprintf("LORT index %d not found.", index), call. = FALSE)
+
+  nd <- ort_nodes[[k]]
+
+  if (is.null(nd$model)) {
+    message(sprintf(
+      "LORT index %d is a forced-terminal node (stop_reason = %s); no CTA was fitted.",
+      index, nd$stop_reason %||% "?"
+    ))
+    return(NULL)
+  }
+
+  nd$model
+}
+
+#' Formatted path table for a LORT recursion path
+#'
+#' Prints and returns (invisibly) a summary of the LORT recursion path from
+#' the root node to the requested index.  For each node on the path it shows
+#' the local CTA model's key metrics and the endpoint condition that led to the
+#' next recursive call.
+#'
+#' @param x A \code{cta_ort} object from \code{\link{lort_fit}}.
+#' @param index Integer; target LORT node index.
+#' @return Invisibly, the data frame from \code{\link{lort_index_path}}.
+#'   Printed output goes to \code{stdout()}.
+#' @seealso \code{\link{lort_index_path}}, \code{\link{lort_local_tree}},
+#'   \code{\link{plot_lort_path}}
+#' @export
+lort_path_table <- function(x, index) {
+  stopifnot(inherits(x, "cta_ort"))
+  path <- lort_index_path(x, index)
+  ort_nodes <- x$ort_nodes %||% list()
+
+  cat(sprintf("LORT path to index %d  (depth %d):\n",
+              as.integer(index), max(path$depth, na.rm = TRUE)))
+  cat(strrep("-", 60L), "\n")
+
+  for (i in seq_len(nrow(path))) {
+    row <- path[i, ]
+    nid <- row$lort_index
+
+    # Header for this node
+    if (nid == 1L) {
+      cat(sprintf("  LORT index %d  [ROOT, depth=0, n=%d]\n",
+                  nid, row$n))
+    } else {
+      cat(sprintf("  LORT index %d  [depth=%d, n=%d, via %s]\n",
+                  nid, row$depth, row$n,
+                  row$incoming_path_label %||% "?"))
+    }
+
+    # Local CTA summary
+    if (isTRUE(row$is_terminal)) {
+      cat(sprintf("    Terminal: %s\n", row$stop_reason %||% "?"))
+    } else {
+      ess_str <- if (!is.na(row$local_ess)) sprintf("%.2f%%", row$local_ess) else "?"
+      d_str   <- if (!is.na(row$local_d))   sprintf("%.4f", row$local_d)   else "?"
+      ep_str  <- if (!is.na(row$local_n_endpoints))
+                   as.character(row$local_n_endpoints) else "?"
+
+      # Root attribute of local CTA
+      nd <- ort_nodes[[as.character(nid)]]
+      mdl <- nd$model
+      root_attr <- NA_character_
+      if (!is.null(mdl) && !isTRUE(mdl$no_tree) && !is.null(mdl$nodes)) {
+        rn <- mdl$nodes[[mdl$root_id]]
+        if (!is.null(rn) && !isTRUE(rn$leaf))
+          root_attr <- rn$attribute %||% NA_character_
+      }
+
+      if (!is.na(root_attr)) {
+        cat(sprintf("    Local CTA: root=%s, ESS=%s, D=%s, endpoints=%s\n",
+                    root_attr, ess_str, d_str, ep_str))
+      } else {
+        cat(sprintf("    Local CTA: ESS=%s, D=%s, endpoints=%s\n",
+                    ess_str, d_str, ep_str))
+      }
+    }
+
+    # If not the last node, show the endpoint followed
+    if (i < nrow(path)) {
+      next_row <- path[i + 1L, ]
+      cat(sprintf("    Followed: endpoint %d -- %s  (n=%d)\n",
+                  next_row$incoming_endpoint_id %||% 0L,
+                  next_row$incoming_path_condition %||% "?",
+                  next_row$n))
+    }
+    cat("\n")
+  }
+
+  invisible(path)
 }

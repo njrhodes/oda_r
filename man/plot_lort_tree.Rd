@@ -6,66 +6,86 @@
 \usage{
 plot_lort_tree(
   x,
+  index = 1L,
+  show_all = FALSE,
+  show_path = FALSE,
   target_class = 1L,
-  color_by = c("target_rate", "prediction", "none"),
+  color_by = c("none", "target_rate", "prediction"),
+  label_detail = c("simple", "full"),
+  show_node_ess = FALSE,
+  show_p = TRUE,
+  show_loo = TRUE,
   main = NULL,
   subtitle = NULL,
-  show_n = TRUE,
-  show_percent = TRUE,
   show_rule = TRUE,
   show_metrics = FALSE,
-  wrap_width = 26L,
+  short_edge_labels = TRUE,
   node_text_size = 3.5,
   edge_text_size = 3.2,
-  node_width = NULL,
   palette = NULL,
-  theme = c("clean", "minimal")
+  ...
 )
 }
 \arguments{
-\item{x}{A \code{cta_ort} object from \code{\link{lort_fit}} (or
-\code{cta_fit(..., recursive=TRUE)}), or the list returned by
-\code{\link{ort_plot_data}}.}
+\item{x}{A \code{cta_ort} object from \code{\link{lort_fit}}.}
+
+\item{index}{Integer or character; which LORT node (sub-tree) to render.
+Default \code{1L} (root sub-tree).  Ignored when \code{show_all = TRUE}.}
+
+\item{show_all}{Logical; if \code{TRUE}, return a named list of ggplot
+objects, one per LORT node, in node-id order.  Default \code{FALSE}.}
+
+\item{show_path}{Logical; if \code{TRUE}, delegates to
+\code{\link{plot_lort_path}} to render the full path from root to
+\code{index}.  Default \code{FALSE}.}
 
 \item{target_class}{Integer; target class for endpoint coloring and
 target-rate annotation (default \code{1L}).}
 
-\item{color_by}{Character; controls terminal-node fill color.
-\code{"target_rate"} (default): gradient by target-class proportion;
-\code{"prediction"}: discrete fill by predicted class;
-\code{"none"}: all white.}
+\item{color_by}{Character; controls leaf-node fill color.
+\code{"none"} (default): white fill; \code{"target_rate"}: gradient;
+\code{"prediction"}: discrete fill by predicted class.}
 
-\item{main}{Character; plot title.  Default \code{"LORT"}.}
+\item{label_detail}{Character; \code{"simple"} (default) or \code{"full"}.}
+
+\item{show_node_ess}{Logical; append node-level ESS to split labels.
+Default \code{FALSE}.}
+
+\item{show_p}{Logical; append \code{MC p = X.XXX} to split-node labels.
+Default \code{TRUE}.}
+
+\item{show_loo}{Logical; append \code{LOO: STABLE} or \code{LOO p = X.XXX}
+to split-node labels when LOO was active.  Default \code{TRUE}.}
+
+\item{main}{Character; plot title.  Default: auto-generated.  When
+\code{show_all = TRUE} each plot's title includes the node id.}
 
 \item{subtitle}{Character; plot subtitle.}
 
-\item{show_n}{Logical; include observation count in node labels.}
-
-\item{show_percent}{Logical; include ESS in split-node labels.}
-
 \item{show_rule}{Logical; show branch condition labels on edges.}
 
-\item{show_metrics}{Logical; if \code{TRUE}, appends an ESS/WESS and D
-line to the plot subtitle.  Default \code{FALSE}.}
+\item{show_metrics}{Logical; append ESS/D to subtitle.  Default \code{FALSE}.}
 
-\item{wrap_width}{Integer; maximum characters per line.  Default \code{26L}.}
+\item{short_edge_labels}{Logical; strip attribute-name prefix from edge labels.
+Default \code{TRUE}.}
 
 \item{node_text_size}{Numeric; text size for node labels.  Default \code{3.5}.}
 
 \item{edge_text_size}{Numeric; text size for edge labels.  Default \code{3.2}.}
 
-\item{node_width}{Numeric or \code{NULL}; node box width (auto if \code{NULL}).}
-
 \item{palette}{Named list for color overrides.  \code{NULL} uses defaults.}
 
-\item{theme}{Character; \code{"clean"} (default) or \code{"minimal"}.}
+\item{...}{Additional arguments passed to \code{\link{plot_lort_path}}
+when \code{show_path = TRUE}; otherwise ignored.}
 }
 \value{
-A \code{\link[ggplot2]{ggplot}} object.
+A \code{\link[ggplot2]{ggplot}} object, or (when \code{show_all =
+  TRUE}) a named list of ggplot objects.
 }
 \description{
-Renders a publication-quality tree diagram for a fitted LORT object.
-Requires the \pkg{ggplot2} package (listed in \code{Suggests}).
+Renders a publication-quality CTA tree diagram for a single sub-tree within
+a LORT object (indexed inspection), or a named list of plots for all sub-trees
+(\code{show_all = TRUE}).  Requires the \pkg{ggplot2} package.
 }
 \examples{
 \donttest{
@@ -76,12 +96,12 @@ if (requireNamespace("ggplot2", quietly = TRUE)) {
   )
   y <- c(rep(0L,40), rep(1L,20))
   lort <- lort_fit(X, y, mc_iter=100L, mc_seed=42L, loo="off", min_n=5L)
-  p <- plot_lort_tree(lort, color_by="prediction")
+  p <- plot_lort_tree(lort, index=1L)
   print(p)
 }
 }
 }
 \seealso{
-\code{\link{lort_fit}}, \code{\link{ort_plot_data}},
-  \code{\link{plot_cta_tree}}, \code{\link[ggplot2]{ggsave}}
+\code{\link{lort_fit}}, \code{\link{plot_cta_tree}},
+  \code{\link{plot_cta_family}}, \code{\link[ggplot2]{ggsave}}
 }

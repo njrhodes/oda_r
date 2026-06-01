@@ -7,19 +7,19 @@
 plot_cta_tree(
   x,
   target_class = 1L,
-  color_by = c("target_rate", "prediction", "none"),
+  color_by = c("none", "target_rate", "prediction"),
+  label_detail = c("simple", "full"),
+  show_node_ess = FALSE,
+  show_p = TRUE,
+  show_loo = TRUE,
   main = NULL,
   subtitle = NULL,
-  show_n = TRUE,
-  show_percent = TRUE,
   show_rule = TRUE,
   show_metrics = FALSE,
-  wrap_width = 26L,
+  short_edge_labels = TRUE,
   node_text_size = 3.5,
   edge_text_size = 3.2,
-  node_width = NULL,
-  palette = NULL,
-  theme = c("clean", "minimal")
+  palette = NULL
 )
 }
 \arguments{
@@ -32,29 +32,40 @@ target-rate annotation (default \code{1L}).  Ignored when \code{x} is
 already \code{cta_plot_data} output.}
 
 \item{color_by}{Character; controls leaf-node fill color.
-\code{"target_rate"} (default): continuous gradient by target-class
-proportion; \code{"prediction"}: discrete fill by predicted class;
-\code{"none"}: all white.}
+\code{"none"} (default): white fill (B/W publication default);
+\code{"target_rate"}: continuous gradient by target-class proportion;
+\code{"prediction"}: discrete fill by predicted class.}
+
+\item{label_detail}{Character; node label verbosity.  \code{"simple"}
+(default): canonical MPE-style labels (attribute + condition + n for
+split nodes; Stage/class/n/rate for terminal nodes).  \code{"full"}:
+same content (reserved for future extension).}
+
+\item{show_node_ess}{Logical; if \code{TRUE}, append the node-level
+ESS/WESS to split-node labels.  Default \code{FALSE}.}
+
+\item{show_p}{Logical; if \code{TRUE} (default), append \code{MC p = X.XXX}
+to each split-node label when the MC permutation p-value is available.}
+
+\item{show_loo}{Logical; if \code{TRUE} (default), append the LOO result
+to each split-node label: \code{LOO: STABLE} when \code{loo = "stable"},
+\code{LOO p = X.XXX} when \code{loo = "pvalue"}.  Nothing is shown when
+\code{loo = "off"}.}
 
 \item{main}{Character; plot title.  Default: auto-generated from tree
-structure.}
+structure (n, endpoints, ESS/D).}
 
 \item{subtitle}{Character; plot subtitle.}
 
-\item{show_n}{Logical; include observation count in node labels.  Currently
-uses the labels pre-computed by \code{\link{cta_plot_data}}.}
-
-\item{show_percent}{Logical; include ESS/WESS in split-node labels.
-Currently uses pre-computed labels.}
-
-\item{show_rule}{Logical; show branch condition labels on edges.  Default
-\code{TRUE}.}
+\item{show_rule}{Logical; show branch condition labels on edges.
+Default \code{TRUE}.}
 
 \item{show_metrics}{Logical; if \code{TRUE}, appends an ESS/WESS and D
 line to the plot subtitle.  Default \code{FALSE}.}
 
-\item{wrap_width}{Integer; maximum characters per line for long labels.
-Default \code{26L}.  Applied to node labels via \code{strwrap()}.}
+\item{short_edge_labels}{Logical; if \code{TRUE} (default), strip the
+attribute-name prefix from edge labels so that \code{"x1 <= 24.5"}
+renders as \code{"<= 24.5"}.}
 
 \item{node_text_size}{Numeric; ggplot text size for node labels.
 Default \code{3.5}.}
@@ -62,14 +73,8 @@ Default \code{3.5}.}
 \item{edge_text_size}{Numeric; ggplot text size for edge labels.
 Default \code{3.2}.}
 
-\item{node_width}{Numeric; node box width in data units.  \code{NULL}
-(default) auto-sizes based on longest label.}
-
 \item{palette}{Named list for color overrides: \code{internal}, \code{low},
 \code{high}.  \code{NULL} uses defaults.}
-
-\item{theme}{Character; ggplot theme: \code{"clean"} (default, theme_void
-base) or \code{"minimal"} (theme_minimal base).}
 }
 \value{
 A \code{\link[ggplot2]{ggplot}} object.  Print it, modify it, or
@@ -87,12 +92,13 @@ if (requireNamespace("ggplot2", quietly = TRUE)) {
                   x2 = c(0L,0L,1L,0L,1L,1L,0L,1L))
   y <- c(1L,1L,1L,1L,2L,2L,2L,2L)
   tree <- cta_fit(X, y, mindenom=1L, mc_iter=500L, mc_seed=42L, loo="off")
-  p <- plot_cta_tree(tree, color_by="prediction")
+  p <- plot_cta_tree(tree)
   print(p)
 }
 }
 }
 \seealso{
 \code{\link{cta_fit}}, \code{\link{cta_plot_data}},
-  \code{\link{plot_lort_tree}}, \code{\link[ggplot2]{ggsave}}
+  \code{\link{plot_lort_tree}}, \code{\link{plot_cta_family}},
+  \code{\link[ggplot2]{ggsave}}
 }

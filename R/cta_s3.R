@@ -1741,8 +1741,12 @@ cta_observation_weights <- function(
 #'     (integer), \code{depth} (integer), \code{x} (numeric), \code{y}
 #'     (numeric), \code{leaf} (logical), \code{attribute} (character; NA
 #'     for leaves), \code{n_obs} (integer), \code{majority_class} (integer),
-#'     \code{ess} (numeric; NA for leaves), \code{label} (character display
-#'     text).  Additional columns when \code{target_class} supplied (NA on
+#'     \code{ess} (numeric; NA for leaves), \code{p_mc} (numeric; MC
+#'     permutation p-value for the node split; NA for leaves),
+#'     \code{loo_p} (numeric; LOO Fisher permutation p-value; NA for leaves
+#'     or when \code{loo = "off"}), \code{loo_status} (character;
+#'     \code{"STABLE"}, \code{"PVALUE"}, or \code{"OFF"}; NA for leaves),
+#'     \code{label} (character display text).  Additional columns when \code{target_class} supplied (NA on
 #'     split nodes): \code{endpoint_id} (integer), \code{stage} (integer),
 #'     \code{target_class} (integer), \code{target_n} (numeric),
 #'     \code{denominator} (numeric), \code{target_proportion} (numeric),
@@ -1849,6 +1853,9 @@ cta_plot_data <- function(tree, target_class = NULL, class_labels = NULL,
   maj_vec    <- integer(n)
   ess_vec    <- numeric(n)
   lbl_vec    <- character(n)
+  pmc_vec    <- numeric(n)
+  lp_vec     <- numeric(n)
+  lstatus_v  <- character(n)
 
   ess_label <- if (has_weights) "WESS" else "ESS"
 
@@ -1860,16 +1867,19 @@ cta_plot_data <- function(tree, target_class = NULL, class_labels = NULL,
     x_i      <- x_pos[as.character(nid)] %||% NA_real_
     dep_i    <- nd$depth %||% NA_integer_
 
-    nid_vec[i]   <- nid
-    pid_vec[i]   <- nd$parent_id %||% NA_integer_
-    depth_vec[i] <- dep_i
-    x_vec[i]     <- x_i
-    y_vec[i]     <- -dep_i
-    leaf_vec[i]  <- is_leaf
-    attr_vec[i]  <- if (!is_leaf) (nd$attribute %||% NA_character_) else NA_character_
-    nobs_vec[i]  <- nd$n_obs %||% NA_integer_
-    maj_vec[i]   <- nd$majority_class %||% NA_integer_
-    ess_vec[i]   <- ess_val
+    nid_vec[i]    <- nid
+    pid_vec[i]    <- nd$parent_id %||% NA_integer_
+    depth_vec[i]  <- dep_i
+    x_vec[i]      <- x_i
+    y_vec[i]      <- -dep_i
+    leaf_vec[i]   <- is_leaf
+    attr_vec[i]   <- if (!is_leaf) (nd$attribute %||% NA_character_) else NA_character_
+    nobs_vec[i]   <- nd$n_obs %||% NA_integer_
+    maj_vec[i]    <- nd$majority_class %||% NA_integer_
+    ess_vec[i]    <- ess_val
+    pmc_vec[i]    <- if (!is_leaf) (nd$p_mc        %||% NA_real_)      else NA_real_
+    lp_vec[i]     <- if (!is_leaf) (nd$loo_p       %||% NA_real_)      else NA_real_
+    lstatus_v[i]  <- if (!is_leaf) (nd$loo_status  %||% NA_character_) else NA_character_
     lbl_vec[i]   <- if (is_leaf) {
       sprintf("class=%d\nn=%d", nd$majority_class %||% NA_integer_,
               nd$n_obs %||% NA_integer_)
@@ -1893,6 +1903,9 @@ cta_plot_data <- function(tree, target_class = NULL, class_labels = NULL,
     n_obs          = nobs_vec,
     majority_class = maj_vec,
     ess            = ess_vec,
+    p_mc           = pmc_vec,
+    loo_p          = lp_vec,
+    loo_status     = lstatus_v,
     label          = lbl_vec,
     stringsAsFactors = FALSE
   )

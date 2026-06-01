@@ -7,6 +7,137 @@ covariate balance diagnostics.
 
 ---
 
+## Graphics v4 visual remediation targets
+
+Visual reference: ODA Journal articles and MPE book (Yarnold & Soltysik 2016)
+chapter figures. Target: figures that could appear in a journal submission
+without post-processing.
+
+### CTA tree — publication standard
+
+**Split nodes** (internal):
+- Content: attribute name, cut value, n at node, ESS or WESS
+- Label example: `x3\n<= 0.5  >0.5\nn=96, ESS=64.2%`
+- Border: solid, medium weight; fill: light blue
+
+**Terminal nodes** (endpoints/leaves):
+- Content: Stage ID, predicted class, n classified, target-class rate%
+- Label example: `Stage 1\nClass 0\nn=24, 17%`
+- Fill: gradient by target rate (low = light, high = dark red); or discrete by prediction
+
+**Edges**:
+- Label: **short only** — just the branch condition at THIS split, not the full path
+- Correct: `<= 0.5` or `> 0.5`
+- Incorrect: `x3 <= 0.5` (attribute already shown in parent) or compound `x3>0.5 AND x1>25` (path belongs in companion table)
+- The full root-to-leaf path logic is the job of a companion table (e.g., `cta_endpoint_table()`), not the diagram edges
+
+**Title**:
+- Format: `CTA — n=N, K endpoints, ESS=XX.X%, D=X.XXXX`
+- The D-statistic and global ESS/WESS belong in the title, not buried in nodes
+
+**v3 failures corrected in v4:**
+1. Fixed `half_h = 0.28` — cramped boxes for 4-line terminal labels → replaced with adaptive height from max line count
+2. No auto-title with ESS/D/n → added default auto-title
+3. Edge labels included attribute name prefix (`V14<=0.5`) → now stripped to `<=0.5` by default
+4. No stage IDs on terminal nodes → `cta_plot_data()` already adds Stage N; renderer exposes it
+
+### LORT tree — publication standard
+
+LORT is a **sequence of CTA sub-trees**, one per stratum. It is NOT a single
+composite CTA tree. The visual must reflect this:
+
+**Layout requirements:**
+- Horizontal depth bands (shaded alternating stripes) separate LORT levels
+- Terminal LORT nodes (final strata with no further sub-tree) have a dashed border to distinguish them from CTA internal-split nodes
+- Stage number is prominent on each terminal stratum block
+- Depth-level header annotations ("Level 1", "Level 2", ...) at the left margin
+
+**Edge labels:**
+- Each edge connects a stratum block to its child stratum (through a CTA endpoint)
+- Label: the branch condition at the CTA endpoint split only — NOT the full path
+- `path_conditions` is a vector; the last element may be a compound string from multi-split CTA sub-trees; strip to the final `AND` segment
+
+**v3 failures corrected in v4:**
+1. Used same `.render_tree_gg()` as CTA — LORT looked like a malformed CTA plot → now uses LORT-specific visual differentiation (depth bands + dashed terminal borders)
+2. Edge labels were compound paths (`V17>0.5 AND V15>0.5`) from multi-level sub-trees → fixed in `ort_plot_data()` to extract final segment
+
+### Balance plots — publication standard
+
+**SMD lollipop / Love plot** (`plot_smd_balance`, `plot_balance_love`):
+- Had the right diagnostic intent in v3 but failed public visual review
+- v4 targets: typography hierarchy (attribute labels larger, axis label smaller), threshold line must carry an inline annotation (`"|SMD| = 0.10"`) not rely on the legend alone, legend must be compact and right-positioned (not dominating), point size increased for journal print, balanced/imbalanced color contrast improved
+
+**ODA ESS balance** (`plot_oda_balance`):
+- Dot plot of ESS per attribute, colored by significance
+- v4: same as v3, no major change needed
+
+**CTA balance no-tree** (`plot_cta_balance`, `status = "no_tree"`):
+- v3 failure: `.gg_message_panel()` produced a blank void canvas with floating text — looked like an error screen or software crash
+- v4 target: styled result card with:
+  - Bordered box panel (not void canvas)
+  - Clear positive header: "No Discriminating Tree Found"
+  - "This is favorable evidence of multivariable covariate balance"
+  - Footer with constraint parameters (MINDENOM, alpha)
+  - Color: success green tones, NOT error red
+
+### Figure + table pairing rule (v4 mandate)
+
+Every public graphic in the practitioner guide must be paired with a companion
+table. The figure answers "what did the model find?" visually; the table provides
+the quantitative evidence. Never overload a single plot.
+
+| Figure | Companion table |
+|--------|-----------------|
+| `plot_cta_tree()` | `cta_endpoint_table()` or `cta_staging_table()` |
+| `plot_lort_tree()` | `cta_ort_node_table()` |
+| `plot_oda_balance()` | `oda_balance_table()` output |
+| `plot_smd_balance()` | `smd_balance_table()` output |
+| `plot_cta_balance()` | `cta_balance_table()` output |
+
+### Deterministic guide dataset (v4 mandate)
+
+Replace rnorm-based random `dat` in guide with a fully deterministic 4-block dataset:
+
+```r
+# 96 obs × 4 blocks × 24, no randomness, exact 4-stage CTA tree structure
+# x1 (binary, root split): x1=15 for obs 1-24 and 49-72, x1=35 for obs 25-48 and 73-96
+# x3 (binary, child split): x3=0 for obs 1-48, x3=1 for obs 49-96
+# y (binary outcome): controlled target rates per (x1,x3) block
+# x2 (ordered, non-informative): 6-cycle, breaks row-order correlation
+dat_guide <- local({
+  x3    <- c(rep(0L, 48), rep(1L, 48))
+  x1    <- c(rep(15L, 24), rep(35L, 24), rep(15L, 24), rep(35L, 24))
+  y     <- c(
+    rep(c(0L, 1L), times = c(22L, 2L)),   # Stage 1: x1=15,x3=0 →  2/24 =  8.3%
+    rep(c(0L, 1L), times = c(14L,10L)),   # Stage 2: x1=15,x3=1 → 10/24 = 41.7%
+    rep(c(0L, 1L), times = c(10L,14L)),   # Stage 3: x1=35,x3=0 → 14/24 = 58.3%
+    rep(c(0L, 1L), times = c(2L, 22L))    # Stage 4: x1=35,x3=1 → 22/24 = 91.7%
+  )
+  x2    <- rep(c(25L, 30L, 35L, 40L, 45L, 50L), length.out = 96L)
+  treat <- rep(c(0L, 1L), times = 48L)
+  data.frame(y = y, x1 = x1, x2 = x2, x3 = x3, treat = treat)
+})
+```
+
+Expected CTA tree: root split on x1 (binary: {15} vs {35}), then x3 split (cut 0.5)
+in each x1 branch, yielding 4 terminal endpoints (Stages 1–4) with rates
+8%/42%/58%/92%, ESS ≈ 50%, D = 4.0.
+
+Note: x1 and x3 are both binary attributes. CTA uses binary_map rule for each.
+x2 uses a 6-cycle pattern to break row-order correlation with y.
+
+---
+
+## Graphics v4 design decision
+
+Deep and recursive tree structures (LORT, MDSA family) are displayed by indexed
+sub-tree inspection and optional multipanel overview, not by forcing all logic into
+one composite plot.  `plot_lort_tree(x, index=k)` renders the CTA sub-tree at LORT
+node k.  `plot_cta_family(family, index=k)` renders the k-th family member.
+`show_all=TRUE` returns a named list of ggplot objects.
+
+---
+
 ## Overview
 
 Graphics v3 adds six direct ggplot2 rendering functions as an alternative
@@ -22,20 +153,24 @@ to the base-R `plot.cta_tree()` / `plot.cta_ort()` methods.  All functions:
 
 ## Function reference
 
-### Tree renderers (v3C1)
+### Tree renderers (v3C1 / v4)
 
 | Function | Input | Description |
 |----------|-------|-------------|
 | `plot_cta_tree(x, ...)` | `cta_tree` or `cta_plot_data()` output | CTA tree diagram |
-| `plot_lort_tree(x, ...)` | `cta_ort` or `ort_plot_data()` output | LORT tree diagram |
+| `plot_lort_tree(x, index, show_all, ...)` | `cta_ort` | LORT indexed sub-tree |
+| `plot_cta_family(family, index, show_all, ...)` | `cta_family` | MDSA family member |
 
-Both accept a `color_by` argument:
+All three accept a `color_by` argument:
 
 | Value | Leaf fill |
 |-------|-----------|
-| `"target_rate"` (default) | Continuous gradient by target-class proportion (0-100%) |
+| `"none"` (default) | White fill, no legend (B/W publication default) |
+| `"target_rate"` | Continuous gradient by target-class proportion (0-100%) |
 | `"prediction"` | Discrete fill by predicted class |
-| `"none"` | White fill (no legend) |
+
+`plot_lort_tree()` and `plot_cta_family()` render one member at a time (`index`)
+or return a named list of ggplot objects (`show_all = TRUE`).
 
 ### Balance renderers (v3C2)
 
