@@ -889,7 +889,7 @@ plot_cta_tree <- function(x,
     n_val  <- pd$training_n %||% NA_integer_
     footer <- if (!is.na(n_val)) sprintf("n = %d", n_val) else NULL
     return(.gg_result_card(
-      header       = "No Local CTA Tree",
+      header       = "No CTA Tree Found",
       body         = "No valid split found above the significance threshold.\nAll candidate attributes failed the minimum denominator or LOO gate.",
       footer       = footer,
       title        = main %||% "CTA Tree",
@@ -1207,9 +1207,10 @@ plot_lort_path <- function(x,
     auto_title <- sprintf("LORT index %d | n=%d | %s%s%s",
                           nid, row$n, path_desc, ess_str, d_str)
 
-    if (is.null(nd) || is.null(nd$model)) {
-      # Forced-terminal: no model object at all
-      stop_rsn <- row$stop_reason %||% "unknown"
+    is_no_tree <- is.null(nd) || is.null(nd$model) || isTRUE(nd$model$no_tree)
+    if (is_no_tree) {
+      # No local CTA tree: forced-terminal (null model) or model returned no_tree
+      stop_rsn <- row$stop_reason %||% "no valid split found"
       plots[[i]] <- .gg_result_card(
         header       = "No Local CTA Tree",
         body         = sprintf("Stop reason: %s", stop_rsn),
@@ -1362,6 +1363,10 @@ plot_cta_family <- function(family,
 
     auto_title <- title_override %||% main %||% {
       lbl <- sprintf("CTA Family -- MINDENOM=%d", as.integer(md_val))
+      ess_val   <- mem$overall_ess %||% NA_real_
+      ess_label <- if (isTRUE(mem$has_weights)) "WESS" else "ESS"
+      if (!no_tr && !is.na(ess_val) && is.finite(ess_val))
+        lbl <- sprintf("%s, %s=%.2f%%", lbl, ess_label, ess_val)
       if (!no_tr && !is.na(d_val) && is.finite(d_val))
         lbl <- sprintf("%s, D=%.4f", lbl, d_val)
       if (no_tr) lbl <- paste0(lbl, " [no tree]")

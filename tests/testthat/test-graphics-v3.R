@@ -724,3 +724,62 @@ test_that("cta_plot_data: nodes have p_mc, loo_p, loo_status columns (F5)", {
   if (nrow(split_off) > 0L)
     expect_true(all(split_off$loo_status == "OFF"))
 })
+
+###############################################################################
+# v3C7 -- Canon wording and shape tests (W-series)
+#  W1   CTA no-tree card header says "No CTA Tree Found" (not LORT wording)
+#  W2   LORT terminal panel header says "No Local CTA Tree" with LORT index footer
+#  W3   Endpoint/leaf nodes are rendered as GeomRect rectangles
+###############################################################################
+
+# Helper: extract all annotation text labels from a ggplot object.
+# In ggplot2 >= 3.4 annotate() stores non-positional aesthetics (e.g. label)
+# in lyr$aes_params, NOT in lyr$data.
+.anno_labels <- function(p) {
+  out <- character(0L)
+  for (lyr in p$layers) {
+    if (!is.null(lyr$aes_params) && "label" %in% names(lyr$aes_params))
+      out <- c(out, as.character(lyr$aes_params[["label"]]))
+  }
+  out
+}
+
+# ---------------------------------------------------------------------------
+# W1: CTA no-tree card header says "No CTA Tree Found"
+# ---------------------------------------------------------------------------
+test_that("plot_cta_tree: no-tree card header is 'No CTA Tree Found' (W1)", {
+  gg_skip()
+  p      <- plot_cta_tree(gv3_notree)
+  labels <- .anno_labels(p)
+  expect_true(any(grepl("No CTA Tree Found", labels, fixed = TRUE)),
+              label = "Header annotation must be 'No CTA Tree Found'")
+  expect_false(any(grepl("No Local CTA Tree", labels, fixed = TRUE)),
+               label = "CTA no-tree card must not say 'No Local CTA Tree'")
+})
+
+# ---------------------------------------------------------------------------
+# W2: LORT terminal panel header says "No Local CTA Tree" with LORT index footer
+# ---------------------------------------------------------------------------
+test_that("plot_lort_path: terminal panel uses LORT-specific wording (W2)", {
+  gg_skip()
+  plots   <- plot_lort_path(gv3_lort4, index = 5L, layout = "list")
+  term_p  <- plots[["index_5"]]
+  labels  <- .anno_labels(term_p)
+  expect_true(any(grepl("No Local CTA Tree", labels, fixed = TRUE)),
+              label = "LORT terminal panel header must be 'No Local CTA Tree'")
+  # Footer must mention the LORT index number
+  expect_true(any(grepl("LORT index", labels, fixed = TRUE)),
+              label = "LORT terminal panel footer must mention 'LORT index'")
+})
+
+# ---------------------------------------------------------------------------
+# W3: Leaf/endpoint nodes are rendered as GeomRect rectangles
+# ---------------------------------------------------------------------------
+test_that("plot_cta_tree: endpoint nodes rendered as rectangles (W3)", {
+  gg_skip()
+  p           <- plot_cta_tree(gv3_cta, color_by = "none")
+  layer_geoms <- vapply(p$layers,
+                        function(lyr) class(lyr$geom)[1L], character(1L))
+  expect_true(any(layer_geoms == "GeomRect"),
+              label = "At least one GeomRect layer must exist for endpoints")
+})
