@@ -851,3 +851,520 @@ cta_balance_plot_data <- function(cta_balance, target_class = 1L, digits = 1L) {
   class(out) <- "cta_balance_plot_data"
   out
 }
+
+# ---- oda_balance_effect_table ----------------------------------------------- #
+
+#' ODA covariate balance evidence-interval table
+#'
+#' Builds one row per covariate \eqn{\times} analysis scale containing the
+#' observed ESS/WESS, a bootstrap confidence interval (model sampling
+#' variability), and a chance interval (null distribution from group-label
+#' permutation).  The resulting table answers whether each covariate's model
+#' confidence interval clears the chance interval.
+#'
+#' Three passes are run per covariate:
+#' \enumerate{
+#'   \item \strong{Observed:} \code{oda_fit(mcarlo = TRUE)} -- point estimate
+#'     and Monte Carlo p-value.
+#'   \item \strong{Bootstrap:} \code{nboot} resamples (rows with replacement),
+#'     \code{mcarlo = FALSE} -- percentile confidence interval.
+#'   \item \strong{Chance:} \code{chance_iter} group-label permutations,
+#'     \code{mcarlo = FALSE} -- null percentile interval.
+#' }
+#'
+#' When \code{compare_weights = TRUE} and \code{w} is supplied, both an
+#' \code{"unweighted"} and a \code{"weighted"} row are produced per covariate.
+#' Multiplicity corrections (Sidak, Bonferroni) are applied within each
+#' analysis scale across covariates.
+#'
+#' \strong{Interpretation:}
+#' \itemize{
+#'   \item \code{balanced_by_interval = TRUE}: model bootstrap CI overlaps the
+#'     chance interval (\code{boot_lo <= chance_hi}) -- no evidence of
+#'     residual imbalance for this covariate.
+#'   \item \code{residual_imbalance = TRUE}: model CI clears chance
+#'     (\code{boot_lo > chance_hi}) -- residual imbalance detected.
+#' }
+#'
+#' @param group Integer (or coercible) binary group indicator with exactly two
+#'   distinct non-missing values.  Plays \code{y} in ODA.
+#' @param X Data frame of baseline covariate columns (\code{nrow(X) ==
+#'   length(group)}).
+#' @param w Optional numeric case-weight vector.  When supplied, weighted ODA
+#'   is used and \code{metric = "WESS"}.
+#' @param compare_weights Logical; when \code{TRUE} and \code{w} is supplied,
+#'   produces two rows per covariate: \code{analysis = "unweighted"} (w
+#'   ignored) and \code{analysis = "weighted"} (w used).  Default
+#'   \code{FALSE}.
+#' @param covariate_types Optional named character vector mapping column names
+#'   to ODA attribute types.  Unmapped columns use \code{"auto"}.
+#' @param nboot Integer; number of bootstrap resamples.  Default \code{2000L}.
+#' @param chance_iter Integer; number of group-label permutations for the
+#'   null interval.  Default \code{2000L}.
+#' @param ci Numeric; nominal coverage for both intervals.  Default
+#'   \code{0.95}.
+#' @param mc_seed Integer RNG seed set once at function entry.  Controls all
+#'   bootstrap and permutation sampling deterministically.  \code{NULL} for
+#'   unseeded.
+#' @param mc_iter Integer; MC iterations passed to the observed \code{oda_fit}
+#'   call.  Default \code{1000L}.
+#' @param ... Additional arguments forwarded to each \code{\link{oda_fit}}
+#'   call (e.g., \code{priors_on}, \code{loo}).  \code{mcarlo} and
+#'   \code{mc_iter} are controlled internally and must not be passed here.
+#' @return A list of class \code{"oda_balance_effect_table"} with:
+#' \describe{
+#'   \item{\code{rows}}{Data frame; one row per covariate \eqn{\times}
+#'     analysis scale.  Columns: \code{attribute}, \code{analysis},
+#'     \code{metric}, \code{estimate}, \code{boot_lo}, \code{boot_hi},
+#'     \code{chance_lo}, \code{chance_hi}, \code{p_mc}, \code{p_sidak},
+#'     \code{p_bonferroni}, \code{rule_summary}, \code{sensitivity},
+#'     \code{specificity}, \code{n_total}, \code{balanced_by_interval},
+#'     \code{residual_imbalance}.}
+#'   \item{\code{meta}}{List of metadata: \code{n_covariates}, \code{n_obs},
+#'     \code{has_weights}, \code{compare_weights}, \code{analyses},
+#'     \code{nboot}, \code{chance_iter}, \code{ci}, \code{mc_iter},
+#'     \code{mc_seed}.}
+#' }
+#' @references
+#' Linden A, Yarnold PR (2016). Using machine learning to assess covariate
+#' balance in matching studies. \emph{Journal of Evaluation in Clinical
+#' Practice}, \strong{22}(6), 861-867.
+#' @seealso \code{\link{oda_balance_table}}, \code{\link{plot_oda_balance_effects}}
+#' @examples
+#' set.seed(1)
+#' group <- c(rep(0L, 30), rep(1L, 30))
+#' X <- data.frame(
+#'   age   = c(rnorm(30, 45, 8), rnorm(30, 55, 8)),
+#'   score = rnorm(60, 50, 10)
+#' )
+#' et <- oda_balance_effect_table(group, X,
+#'                                 nboot = 50L, chance_iter = 50L,
+#'                                 mc_iter = 200L, mc_seed = 1L)
+#' et$rows[, c("attribute", "estimate", "boot_lo", "boot_hi",
+#'             "chance_lo", "chance_hi", "balanced_by_interval")]
+#' @export
+oda_balance_effect_table <- function(group,
+                                      X,
+                                      w               = NULL,
+                                      compare_weights = FALSE,
+                                      covariate_types = NULL,
+                                      nboot           = 2000L,
+                                      chance_iter     = 2000L,
+                                      ci              = 0.95,
+                                      mc_seed         = NULL,
+                                      mc_iter         = 1000L,
+                                      ...) {
+  group       <- as.integer(group)
+  X           <- as.data.frame(X)
+  n           <- nrow(X)
+  n_cov       <- ncol(X)
+  col_nms     <- names(X)
+  nboot       <- as.integer(nboot)
+  chance_iter <- as.integer(chance_iter)
+  ci          <- as.numeric(ci)
+
+  if (length(group) != n)
+    stop("group must have the same length as nrow(X).", call. = FALSE)
+
+  grp_vals <- sort(unique(group[!is.na(group)]))
+  if (length(grp_vals) != 2L)
+    stop("group must be a binary variable with exactly 2 distinct non-missing values.",
+         call. = FALSE)
+
+  if (!is.null(w)) .validate_case_weights(w, n)
+
+  # Seed once at function entry; all resampling follows deterministically.
+  if (!is.null(mc_seed)) set.seed(as.integer(mc_seed))
+
+  # Strip args controlled internally so they cannot conflict via dots.
+  dots              <- list(...)
+  dots[["mcarlo"]]  <- NULL
+  dots[["mc_iter"]] <- NULL
+
+  alpha_tail <- (1 - ci) / 2
+
+  do_weighted <- isTRUE(compare_weights) && !is.null(w)
+  analyses    <- if (do_weighted) c("unweighted", "weighted") else "unweighted"
+
+  scale_tbls <- vector("list", length(analyses))
+
+  for (ai in seq_along(analyses)) {
+    analysis <- analyses[ai]
+    w_sc     <- if (identical(analysis, "weighted")) w else NULL
+    has_wts  <- !is.null(w_sc)
+    metric   <- if (has_wts) "WESS" else "ESS"
+
+    obs_rows <- vector("list", n_cov)
+
+    for (j in seq_len(n_cov)) {
+      col_nm <- col_nms[j]
+      at     <- if (!is.null(covariate_types) && col_nm %in% names(covariate_types))
+                  covariate_types[[col_nm]] else "auto"
+      x_vec  <- X[[j]]
+
+      # --- Pass 1: Observed ODA with MC p-value ------------------------------
+      obs_fit <- tryCatch(
+        do.call(oda_fit,
+                c(list(x         = x_vec,
+                       y         = group,
+                       w         = w_sc,
+                       attr_type = at,
+                       mcarlo    = TRUE,
+                       mc_iter   = as.integer(mc_iter)),
+                  dots)),
+        error = function(e) list(ok = FALSE, reason = conditionMessage(e))
+      )
+      obs_ok  <- isTRUE(obs_fit$ok)
+      obs_ess <- if (obs_ok) obs_fit$ess %||% NA_real_ else NA_real_
+      obs_p   <- if (obs_ok) obs_fit$p_mc %||% NA_real_ else NA_real_
+      obs_sen <- if (obs_ok) obs_fit$confusion$sensitivity %||% NA_real_ else NA_real_
+      obs_spe <- if (obs_ok) obs_fit$confusion$specificity %||% NA_real_ else NA_real_
+      obs_n   <- if (obs_ok) as.integer(obs_fit$n_eff %||% NA_integer_) else NA_integer_
+      obs_rls <- .oda_balance_rule_summary(obs_fit, attr_nm = col_nm)
+
+      # --- Pass 2: Bootstrap CI ----------------------------------------------
+      boot_ess <- numeric(nboot)
+      for (b in seq_len(nboot)) {
+        idx_b      <- sample.int(n, n, replace = TRUE)
+        fit_b      <- tryCatch(
+          do.call(oda_fit,
+                  c(list(x         = x_vec[idx_b],
+                         y         = group[idx_b],
+                         w         = if (!is.null(w_sc)) w_sc[idx_b] else NULL,
+                         attr_type = at,
+                         mcarlo    = FALSE),
+                    dots)),
+          error = function(e) list(ok = FALSE)
+        )
+        boot_ess[b] <- if (isTRUE(fit_b$ok)) fit_b$ess %||% NA_real_ else NA_real_
+      }
+
+      # --- Pass 3: Chance (null) interval ------------------------------------
+      chance_ess <- numeric(chance_iter)
+      for (cc in seq_len(chance_iter)) {
+        perm_g       <- group[sample.int(n, n, replace = FALSE)]
+        fit_c        <- tryCatch(
+          do.call(oda_fit,
+                  c(list(x         = x_vec,
+                         y         = perm_g,
+                         w         = w_sc,
+                         attr_type = at,
+                         mcarlo    = FALSE),
+                    dots)),
+          error = function(e) list(ok = FALSE)
+        )
+        chance_ess[cc] <- if (isTRUE(fit_c$ok)) fit_c$ess %||% NA_real_ else NA_real_
+      }
+
+      # --- Percentile CIs ----------------------------------------------------
+      boot_lo   <- unname(quantile(boot_ess,   alpha_tail,     na.rm = TRUE))
+      boot_hi   <- unname(quantile(boot_ess,   1 - alpha_tail, na.rm = TRUE))
+      chance_lo <- unname(quantile(chance_ess, alpha_tail,     na.rm = TRUE))
+      chance_hi <- unname(quantile(chance_ess, 1 - alpha_tail, na.rm = TRUE))
+
+      bal_ok <- if (!is.na(boot_lo) && !is.na(chance_hi))
+                  boot_lo <= chance_hi else NA
+      resid  <- if (!is.na(boot_lo) && !is.na(chance_hi))
+                  boot_lo > chance_hi  else NA
+
+      obs_rows[[j]] <- list(
+        attribute            = col_nm,
+        analysis             = analysis,
+        metric               = metric,
+        estimate             = obs_ess,
+        boot_lo              = boot_lo,
+        boot_hi              = boot_hi,
+        chance_lo            = chance_lo,
+        chance_hi            = chance_hi,
+        p_mc                 = obs_p,
+        p_sidak              = NA_real_,
+        p_bonferroni         = NA_real_,
+        rule_summary         = obs_rls,
+        sensitivity          = obs_sen,
+        specificity          = obs_spe,
+        n_total              = obs_n,
+        balanced_by_interval = bal_ok,
+        residual_imbalance   = resid
+      )
+    }
+
+    # Multiplicity corrections within this analysis scale
+    sc_tbl  <- do.call(rbind, lapply(obs_rows, as.data.frame,
+                                     stringsAsFactors = FALSE))
+    valid_p <- !is.na(sc_tbl$p_mc)
+    k       <- sum(valid_p)
+    if (k > 0L) {
+      sc_tbl$p_sidak[valid_p] <-
+        vapply(sc_tbl$p_mc[valid_p], .sidak_p,      double(1L), k = k)
+      sc_tbl$p_bonferroni[valid_p] <-
+        vapply(sc_tbl$p_mc[valid_p], .bonferroni_p, double(1L), k = k)
+    }
+
+    scale_tbls[[ai]] <- sc_tbl
+  }
+
+  rows <- do.call(rbind, scale_tbls)
+  rownames(rows) <- NULL
+
+  out <- list(
+    rows = rows,
+    meta = list(
+      n_covariates    = n_cov,
+      n_obs           = n,
+      has_weights     = !is.null(w),
+      compare_weights = isTRUE(compare_weights),
+      analyses        = analyses,
+      nboot           = nboot,
+      chance_iter     = chance_iter,
+      ci              = ci,
+      mc_iter         = as.integer(mc_iter),
+      mc_seed         = mc_seed
+    )
+  )
+  class(out) <- "oda_balance_effect_table"
+  out
+}
+
+# ---- cta_balance_effect_summary --------------------------------------------- #
+
+#' CTA covariate balance evidence-interval summary
+#'
+#' Builds one row per analysis scale (multivariate CTA) containing the
+#' observed full-tree ESS/WESS, a bootstrap confidence interval, and a chance
+#' interval.  This is the multivariate analogue of
+#' \code{\link{oda_balance_effect_table}}: a single CTA ENUMERATE run per
+#' bootstrap or permutation iteration classifies all covariates jointly.
+#'
+#' Three passes are run:
+#' \enumerate{
+#'   \item \strong{Observed:} full \code{cta_fit()} with \code{mc_iter} --
+#'     point estimate and tree metadata.
+#'   \item \strong{Bootstrap:} \code{nboot} row-resamples, \code{loo = "off"}
+#'     -- ESS/WESS percentile CI. \code{no_tree} results contribute \code{0}.
+#'   \item \strong{Chance:} \code{chance_iter} group-label permutations -- null
+#'     percentile interval. \code{no_tree} results contribute \code{0}.
+#' }
+#'
+#' \strong{no_tree convention:} when CTA finds no admissible tree on a
+#' bootstrap or chance iteration, ESS = 0 (no discrimination above chance).
+#' The observed no_tree result is also recorded as \code{estimate = 0}.
+#'
+#' @param group Integer (or coercible) binary group indicator.
+#' @param X Data frame of baseline covariate columns.
+#' @param w Optional numeric case-weight vector.
+#' @param compare_weights Logical; when \code{TRUE} and \code{w} is supplied,
+#'   produces two rows: \code{"unweighted"} and \code{"weighted"}.  Default
+#'   \code{FALSE}.
+#' @param mindenom Integer minimum endpoint denominator.  Default \code{1L}.
+#' @param nboot Integer bootstrap resamples.  Default \code{200L} (CTA
+#'   ENUMERATE is expensive per iteration).
+#' @param chance_iter Integer group-label permutations.  Default \code{200L}.
+#' @param ci Numeric nominal coverage.  Default \code{0.95}.
+#' @param mc_seed Integer RNG seed set once at function entry.  \code{NULL}
+#'   for unseeded.
+#' @param mc_iter Integer CTA MC iterations per node for the observed fit.
+#'   Default \code{5000L}.
+#' @param ... Additional arguments forwarded to \code{\link{cta_fit}} for the
+#'   observed fit (e.g., \code{alpha_split}, \code{prune_alpha}).
+#'   \code{mindenom}, \code{mc_iter}, \code{mc_seed}, and \code{loo} are
+#'   controlled internally.
+#' @return A list of class \code{"cta_balance_effect_summary"} with:
+#' \describe{
+#'   \item{\code{rows}}{Data frame; one row per analysis scale.  Columns:
+#'     \code{analysis}, \code{metric}, \code{estimate}, \code{boot_lo},
+#'     \code{boot_hi}, \code{chance_lo}, \code{chance_hi}, \code{d_stat},
+#'     \code{n_endpoints}, \code{root_attribute}, \code{status},
+#'     \code{balance_interpretation}.}
+#'   \item{\code{meta}}{List: \code{n_obs}, \code{has_weights},
+#'     \code{compare_weights}, \code{analyses}, \code{mindenom},
+#'     \code{nboot}, \code{chance_iter}, \code{ci}, \code{mc_iter},
+#'     \code{mc_seed}.}
+#' }
+#' @references
+#' Linden A, Yarnold PR (2016). Using machine learning to assess covariate
+#' balance in matching studies. \emph{Journal of Evaluation in Clinical
+#' Practice}, \strong{22}(6), 861-867.
+#' @seealso \code{\link{cta_balance_table}}, \code{\link{plot_cta_balance_effects}}
+#' @examples
+#' X <- data.frame(
+#'   A = c(rep(0L, 20), rep(1L, 20), rep(1L, 20)),
+#'   B = c(rep(0L, 20), rep(0L, 20), rep(1L, 20))
+#' )
+#' group <- c(rep(0L, 40), rep(1L, 20))
+#' ces <- cta_balance_effect_summary(group, X, mindenom = 5L,
+#'                                    mc_iter = 200L, mc_seed = 42L,
+#'                                    nboot = 20L, chance_iter = 20L)
+#' ces$rows[, c("analysis", "estimate", "boot_lo", "boot_hi",
+#'              "chance_lo", "chance_hi", "status")]
+#' @export
+cta_balance_effect_summary <- function(group,
+                                        X,
+                                        w               = NULL,
+                                        compare_weights = FALSE,
+                                        mindenom        = 1L,
+                                        nboot           = 200L,
+                                        chance_iter     = 200L,
+                                        ci              = 0.95,
+                                        mc_seed         = NULL,
+                                        mc_iter         = 5000L,
+                                        ...) {
+  group       <- as.integer(group)
+  X           <- as.data.frame(X)
+  n           <- nrow(X)
+  nboot       <- as.integer(nboot)
+  chance_iter <- as.integer(chance_iter)
+  ci          <- as.numeric(ci)
+  mindenom    <- as.integer(mindenom)
+
+  if (length(group) != n)
+    stop("group must have the same length as nrow(X).", call. = FALSE)
+
+  grp_vals <- sort(unique(group[!is.na(group)]))
+  if (length(grp_vals) != 2L)
+    stop("group must be a binary variable with exactly 2 distinct non-missing values.",
+         call. = FALSE)
+
+  if (!is.null(w)) .validate_case_weights(w, n)
+
+  if (!is.null(mc_seed)) set.seed(as.integer(mc_seed))
+
+  # Strip args that are passed explicitly to inner cta_fit calls.
+  dots               <- list(...)
+  dots[["mindenom"]] <- NULL
+  dots[["mc_iter"]]  <- NULL
+  dots[["mc_seed"]]  <- NULL
+  dots[["loo"]]      <- NULL
+
+  alpha_tail <- (1 - ci) / 2
+
+  do_weighted <- isTRUE(compare_weights) && !is.null(w)
+  analyses    <- if (do_weighted) c("unweighted", "weighted") else "unweighted"
+
+  # Internal helper: fit CTA and return ESS (0 for no_tree, NA for error).
+  .cta_iter_ess <- function(y_arg, X_arg, w_arg, iter) {
+    fa <- c(list(X        = X_arg,
+                 y        = y_arg,
+                 mindenom = mindenom,
+                 mc_iter  = iter,
+                 loo      = "off"),
+            dots)
+    if (!is.null(w_arg)) fa$w <- w_arg
+    tr <- tryCatch(do.call(cta_fit, fa),
+                   error = function(e) list(.err = TRUE))
+    if (isTRUE(tr$.err))    return(NA_real_)
+    if (isTRUE(tr$no_tree)) return(0)
+    tr$overall_ess %||% NA_real_
+  }
+
+  # For bootstrap/chance iterations, use a lighter mc_iter so the total
+  # runtime stays manageable.  500L is a pragmatic default; caller can
+  # override via mc_iter (we use the same value for all passes).
+  iter_inner <- min(as.integer(mc_iter), 500L)
+
+  scale_rows <- vector("list", length(analyses))
+
+  for (ai in seq_along(analyses)) {
+    analysis <- analyses[ai]
+    w_sc     <- if (identical(analysis, "weighted")) w else NULL
+    has_wts  <- !is.null(w_sc)
+    metric   <- if (has_wts) "WESS" else "ESS"
+
+    # --- Pass 1: Observed CTA fit --------------------------------------------
+    obs_args <- c(list(X        = X,
+                       y        = group,
+                       mindenom = mindenom,
+                       mc_iter  = as.integer(mc_iter),
+                       loo      = "off"),
+                  dots)
+    if (!is.null(w_sc))    obs_args$w        <- w_sc
+    if (!is.null(mc_seed)) obs_args$mc_seed  <- as.integer(mc_seed)
+
+    obs_tree <- tryCatch(do.call(cta_fit, obs_args),
+                         error = function(e)
+                           list(.err = TRUE, reason = conditionMessage(e)))
+
+    if (isTRUE(obs_tree$.err)) {
+      obs_ess    <- NA_real_
+      obs_status <- "fit_error"
+      obs_n_ep   <- NA_integer_
+      obs_root   <- NA_character_
+      obs_d      <- NA_real_
+      obs_interp <- NA_character_
+    } else if (isTRUE(obs_tree$no_tree)) {
+      obs_ess    <- 0
+      obs_status <- "no_tree"
+      obs_n_ep   <- NA_integer_
+      obs_root   <- NA_character_
+      obs_d      <- NA_real_
+      obs_interp <- "no_discriminating_combinations"
+    } else {
+      obs_ess    <- obs_tree$overall_ess %||% NA_real_
+      n_st       <- cta_strata(obs_tree)
+      obs_status <- if (!is.na(n_st) && n_st == 2L) "stump" else "valid_tree"
+      obs_n_ep   <- n_st
+      nd1        <- obs_tree$nodes[[1L]]
+      obs_root   <- if (!is.null(nd1) && !isTRUE(nd1$leaf))
+                      nd1$attribute %||% NA_character_ else NA_character_
+      obs_d      <- cta_d_stat(obs_tree)
+      obs_interp <- "discriminating"
+    }
+
+    # --- Pass 2: Bootstrap CI ------------------------------------------------
+    boot_ess <- numeric(nboot)
+    for (b in seq_len(nboot)) {
+      idx_b       <- sample.int(n, n, replace = TRUE)
+      boot_ess[b] <- .cta_iter_ess(group[idx_b], X[idx_b, , drop = FALSE],
+                                    if (!is.null(w_sc)) w_sc[idx_b] else NULL,
+                                    iter_inner)
+    }
+
+    # --- Pass 3: Chance (null) interval --------------------------------------
+    chance_ess <- numeric(chance_iter)
+    for (cc in seq_len(chance_iter)) {
+      perm_g          <- group[sample.int(n, n, replace = FALSE)]
+      chance_ess[cc]  <- .cta_iter_ess(perm_g, X, w_sc, iter_inner)
+    }
+
+    boot_lo   <- unname(quantile(boot_ess,   alpha_tail,     na.rm = TRUE))
+    boot_hi   <- unname(quantile(boot_ess,   1 - alpha_tail, na.rm = TRUE))
+    chance_lo <- unname(quantile(chance_ess, alpha_tail,     na.rm = TRUE))
+    chance_hi <- unname(quantile(chance_ess, 1 - alpha_tail, na.rm = TRUE))
+
+    scale_rows[[ai]] <- list(
+      analysis               = analysis,
+      metric                 = metric,
+      estimate               = obs_ess,
+      boot_lo                = boot_lo,
+      boot_hi                = boot_hi,
+      chance_lo              = chance_lo,
+      chance_hi              = chance_hi,
+      d_stat                 = obs_d,
+      n_endpoints            = obs_n_ep,
+      root_attribute         = obs_root,
+      status                 = obs_status,
+      balance_interpretation = obs_interp
+    )
+  }
+
+  rows <- do.call(rbind, lapply(scale_rows, as.data.frame,
+                                stringsAsFactors = FALSE))
+  rownames(rows) <- NULL
+
+  out <- list(
+    rows = rows,
+    meta = list(
+      n_obs           = n,
+      has_weights     = !is.null(w),
+      compare_weights = isTRUE(compare_weights),
+      analyses        = analyses,
+      mindenom        = mindenom,
+      nboot           = nboot,
+      chance_iter     = chance_iter,
+      ci              = ci,
+      mc_iter         = as.integer(mc_iter),
+      mc_seed         = mc_seed
+    )
+  )
+  class(out) <- "cta_balance_effect_summary"
+  out
+}

@@ -300,6 +300,189 @@ test_that("balance renderers: no fitting args in formal signatures (B8)", {
 })
 
 ###############################################################################
+# v3C3 - Evidence-interval balance builder and renderer tests
+#
+# Test plan:
+#  E1  oda_balance_effect_table() returns correct class and row structure
+#  E2  oda_balance_effect_table() compare_weights=TRUE produces unweighted
+#      and weighted rows
+#  E3  oda_balance_effect_table() balanced_by_interval / residual_imbalance
+#      are logical
+#  E4  plot_oda_balance_effects() returns ggplot from
+#      oda_balance_effect_table
+#  E5  plot_oda_balance_effects() wrong class errors clearly
+#  E6  cta_balance_effect_summary() returns correct class and row structure
+#  E7  cta_balance_effect_summary() no_tree result has estimate = 0
+#  E8  plot_cta_balance_effects() returns ggplot from
+#      cta_balance_effect_summary
+#  E9  plot_cta_balance_effects() wrong class errors clearly
+#  E10 plot_oda_balance_effects() and plot_cta_balance_effects() have no
+#      fitting args in their signatures
+###############################################################################
+
+# ---- Module-level fixtures (v3C3) ------------------------------------------ #
+
+# Reuse gv3_X / gv3_y from v3C1 (same deterministic data).
+# Use small nboot/chance_iter so tests run in < 5s each.
+gv3_eff_tbl <- oda_balance_effect_table(
+  gv3_y, gv3_X,
+  nboot       = 50L,
+  chance_iter = 50L,
+  mc_iter     = 200L,
+  mc_seed     = 42L
+)
+
+gv3_cta_eff <- cta_balance_effect_summary(
+  gv3_y, gv3_X,
+  mindenom    = 5L,
+  nboot       = 20L,
+  chance_iter = 20L,
+  mc_iter     = 200L,
+  mc_seed     = 42L
+)
+
+# No-tree summary: alpha_split = 0 forces no splits accepted
+gv3_cta_eff_nt <- cta_balance_effect_summary(
+  gv3_y, gv3_X,
+  mindenom    = 5L,
+  nboot       = 10L,
+  chance_iter = 10L,
+  mc_iter     = 50L,
+  mc_seed     = 42L,
+  alpha_split = 0
+)
+
+# ---------------------------------------------------------------------------
+# E1: oda_balance_effect_table() class and structure
+# ---------------------------------------------------------------------------
+test_that("oda_balance_effect_table: class and structure (E1)", {
+  expect_s3_class(gv3_eff_tbl, "oda_balance_effect_table")
+  expect_true(is.data.frame(gv3_eff_tbl$rows))
+  # One row per covariate (no compare_weights)
+  expect_equal(nrow(gv3_eff_tbl$rows), ncol(gv3_X))
+  req_cols <- c("attribute", "analysis", "metric", "estimate",
+                "boot_lo", "boot_hi", "chance_lo", "chance_hi",
+                "p_mc", "p_sidak", "p_bonferroni",
+                "rule_summary", "sensitivity", "specificity", "n_total",
+                "balanced_by_interval", "residual_imbalance")
+  for (col in req_cols)
+    expect_true(col %in% names(gv3_eff_tbl$rows),
+                info = paste("Missing column:", col))
+  # All analysis values are "unweighted"
+  expect_true(all(gv3_eff_tbl$rows$analysis == "unweighted"))
+})
+
+# ---------------------------------------------------------------------------
+# E2: compare_weights = TRUE produces both unweighted and weighted rows
+# ---------------------------------------------------------------------------
+test_that("oda_balance_effect_table: compare_weights=TRUE adds weighted rows (E2)", {
+  et2 <- oda_balance_effect_table(
+    gv3_y, gv3_X,
+    w           = rep(1, length(gv3_y)),
+    compare_weights = TRUE,
+    nboot       = 10L,
+    chance_iter = 10L,
+    mc_iter     = 50L,
+    mc_seed     = 42L
+  )
+  analyses <- unique(et2$rows$analysis)
+  expect_true("unweighted" %in% analyses)
+  expect_true("weighted"   %in% analyses)
+  expect_equal(nrow(et2$rows), 2L * ncol(gv3_X))
+})
+
+# ---------------------------------------------------------------------------
+# E3: interval flag columns are logical
+# ---------------------------------------------------------------------------
+test_that("oda_balance_effect_table: interval flags are logical (E3)", {
+  expect_true(is.logical(gv3_eff_tbl$rows$balanced_by_interval))
+  expect_true(is.logical(gv3_eff_tbl$rows$residual_imbalance))
+})
+
+# ---------------------------------------------------------------------------
+# E4: plot_oda_balance_effects() returns ggplot
+# ---------------------------------------------------------------------------
+test_that("plot_oda_balance_effects: returns ggplot (E4)", {
+  gg_skip()
+  p <- plot_oda_balance_effects(gv3_eff_tbl)
+  expect_s3_class(p, "ggplot")
+})
+
+# ---------------------------------------------------------------------------
+# E5: plot_oda_balance_effects() wrong class errors clearly
+# ---------------------------------------------------------------------------
+test_that("plot_oda_balance_effects: wrong class errors (E5)", {
+  gg_skip()
+  expect_error(plot_oda_balance_effects(list()), "oda_balance_effect_table")
+  expect_error(plot_oda_balance_effects(gv3_bt),  "oda_balance_effect_table")
+})
+
+# ---------------------------------------------------------------------------
+# E6: cta_balance_effect_summary() class and structure
+# ---------------------------------------------------------------------------
+test_that("cta_balance_effect_summary: class and structure (E6)", {
+  expect_s3_class(gv3_cta_eff, "cta_balance_effect_summary")
+  expect_true(is.data.frame(gv3_cta_eff$rows))
+  # Tree-level schema: one row per analysis variant (unweighted / weighted)
+  req_cols <- c("analysis", "metric", "estimate",
+                "boot_lo", "boot_hi", "chance_lo", "chance_hi",
+                "d_stat", "n_endpoints", "root_attribute",
+                "status", "balance_interpretation")
+  for (col in req_cols)
+    expect_true(col %in% names(gv3_cta_eff$rows),
+                info = paste("Missing column:", col))
+  # At least one row returned
+  expect_gte(nrow(gv3_cta_eff$rows), 1L)
+})
+
+# ---------------------------------------------------------------------------
+# E7: cta_balance_effect_summary() no_tree result has estimate = 0
+# ---------------------------------------------------------------------------
+test_that("cta_balance_effect_summary: no_tree estimate = 0 (E7)", {
+  expect_true(all(gv3_cta_eff_nt$rows$estimate == 0))
+})
+
+# ---------------------------------------------------------------------------
+# E8: plot_cta_balance_effects() returns ggplot
+# ---------------------------------------------------------------------------
+test_that("plot_cta_balance_effects: returns ggplot (E8)", {
+  gg_skip()
+  p <- plot_cta_balance_effects(gv3_cta_eff)
+  expect_s3_class(p, "ggplot")
+})
+
+# ---------------------------------------------------------------------------
+# E9: plot_cta_balance_effects() wrong class / no_tree handled
+# ---------------------------------------------------------------------------
+test_that("plot_cta_balance_effects: wrong class errors; no_tree is ggplot (E9)", {
+  gg_skip()
+  expect_error(plot_cta_balance_effects(list()), "cta_balance_effect_summary")
+  # no_tree summary should still render (message panel or similar)
+  p_nt <- plot_cta_balance_effects(gv3_cta_eff_nt)
+  expect_s3_class(p_nt, "ggplot")
+})
+
+# ---------------------------------------------------------------------------
+# E10: evidence-interval renderers have no fitting args in signatures
+# ---------------------------------------------------------------------------
+test_that("evidence renderers: no fitting args in signatures (E10)", {
+  gg_skip()
+  fitting_args <- c("X", "y", "w", "mindenom", "mc_iter", "mc_seed",
+                    "alpha_split", "prune_alpha", "loo", "miss_codes",
+                    "nboot", "chance_iter")
+  fns <- list(
+    plot_oda_balance_effects = plot_oda_balance_effects,
+    plot_cta_balance_effects = plot_cta_balance_effects
+  )
+  for (fn_nm in names(fns)) {
+    found <- intersect(names(formals(fns[[fn_nm]])), fitting_args)
+    expect_equal(length(found), 0L,
+                 info = paste("Fitting args in", fn_nm, ":",
+                              paste(found, collapse = ", ")))
+  }
+})
+
+###############################################################################
 # v3C5 — LORT path navigation API (L-series)
 #  L1   lort_index_path() returns correct path data.frame
 #  L2   lort_local_tree() returns cta_tree for non-terminal nodes

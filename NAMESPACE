@@ -98,6 +98,8 @@ export(plot_oda_balance)
 export(plot_smd_balance)
 export(plot_balance_love)
 export(plot_cta_balance)
+export(plot_oda_balance_effects)
+export(plot_cta_balance_effects)
 
 # ----- Covariate balance -----
 export(oda_balance_table)
@@ -105,6 +107,8 @@ export(smd_balance_table)
 export(oda_balance_plot_data)
 export(cta_balance_table)
 export(cta_balance_plot_data)
+export(oda_balance_effect_table)
+export(cta_balance_effect_summary)
 
 # ----- Production tools (Slice Q) -----
 export(oda_readiness_check)
