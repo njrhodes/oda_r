@@ -795,12 +795,18 @@ oda_cta_fit <- function(
       # oda_fit() recodes y to {0,1} internally; fit$rule is in that {0,1} space.
       bin_labels_n <- sort(unique(as.integer(y_n[!is.na(y_n)])))
       y_coded_n    <- ifelse(as.integer(y_n) == bin_labels_n[1L], 0L, 1L)
+      # Clean miss codes before LOO: oda_loo_for_rule must receive the same
+      # cleaned data that oda_univariate_core used for training.  Without this
+      # cleaning, miss-coded obs (e.g. -9) that are not NA get classified by
+      # oda_rule_predict() in the binary_map fast path, contaminating ess_loo
+      # and causing the STABLE check to fail spuriously.
+      loo_clean    <- oda_clean_xy(x_j, y_coded_n, w_n, miss_codes = miss_codes)
       loo_out  <- tryCatch(
         oda_loo_for_rule(
-          x          = x_j,
-          y          = y_coded_n,
+          x          = loo_clean$x,
+          y          = loo_clean$y,
           rule       = fit$rule,
-          w          = w_n,
+          w          = loo_clean$w,
           chance_model = "class",
           k_attr     = fit$k_attr,
           attr_type  = fit$attr_type %||% "ordered",
