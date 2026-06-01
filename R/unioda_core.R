@@ -248,6 +248,61 @@ oda_apply_primary_secondary <- function(cand_df, primary, secondary, y, w,
 #'   DIRECTIONAL. When supplied, each permutation evaluates the SAME fixed
 #'   mapping on permuted y labels. Default NULL.
 #' @return List with p_mc, ge_count, iter_used, ess_obs.
+
+# --------------------------------------------------------------------------- #
+# Fast MC permutation ESS helpers (internal)                                  #
+# --------------------------------------------------------------------------- #
+
+# Precompute x/w structure for fast per-permutation ESS scoring.
+# x_clean and w_clean must already have miss codes removed and be the same
+# length as y passed to oda_mc_p_value() (which is pre-cleaned by the caller).
+# attr_type: resolved string ("ordered", "binary", or "categorical").
+# mindenom: MINDENOM for admissible cuts. Use 1L here to match the default
+#   used when oda_univariate_core() is called from within oda_mc_p_value().
+# Returns a precomp list or NULL when the fast path is not applicable.
+.oda_mc_precomp <- function(x_clean, w_clean, attr_type, mindenom = 1L) {
+  if (attr_type == "categorical") return(NULL)
+  ord      <- order(x_clean)
+  x_s      <- x_clean[ord]
+  w_s      <- w_clean[ord]
+  block_id <- as.integer(cumsum(c(TRUE, diff(x_s) != 0)))
+  m        <- block_id[length(block_id)]
+  if (m < 2L) return(NULL)
+  tw_b  <- as.numeric(rowsum(w_s, block_id, reorder = FALSE))
+  TW    <- cumsum(tw_b)
+  n_b   <- as.integer(tabulate(block_id, nbins = m))
+  N_v   <- cumsum(n_b)
+  Nm    <- N_v[m]
+  adm_j <- seq_len(m - 1L)
+  adm_j <- adm_j[N_v[adm_j] >= mindenom & (Nm - N_v[adm_j]) >= mindenom]
+  if (length(adm_j) == 0L) return(NULL)
+  list(ord = ord, block_id = block_id, w_s = w_s,
+       TW = TW, total_w = TW[m], m = m, adm_j = adm_j)
+}
+
+# Per-permutation max ESS for chance_model = "class" (chance = 0.5).
+# y_star: permuted integer y (length == length(precomp$ord)).
+# direction: "off" (non-directional), "0->1", or "1->0".
+# Priors are irrelevant here: sens = class-1-right / total-class-1 and
+# spec = class-0-left / total-class-0 are identical whether weights are
+# priors-scaled or not (the class totals cancel in both numerator and
+# denominator). Returns the max ESS scalar >= 0.
+.oda_fast_ess_perm <- function(y_star, precomp, direction) {
+  y_s <- y_star[precomp$ord]
+  c1  <- as.numeric(rowsum(precomp$w_s * (y_s == 1L), precomp$block_id,
+                           reorder = FALSE))
+  O   <- cumsum(c1)
+  W1  <- O[precomp$m]
+  W0  <- precomp$total_w - W1
+  if (W1 <= 0 || W0 <= 0) return(0)
+  # ESS_01 at each admissible cut (direction "0->1"; ESS_10 = -ESS_01).
+  ess_01 <- ((W1 - O[precomp$adm_j]) / W1 +
+              (precomp$TW[precomp$adm_j] - O[precomp$adm_j]) / W0 - 1) * 100
+  if (direction == "off") max(abs(ess_01))
+  else if (direction == "0->1") max(ess_01)
+  else max(-ess_01)   # "1->0"
+}
+
 oda_mc_p_value <- function(
     x, y,
     w            = NULL,
@@ -289,31 +344,41 @@ oda_mc_p_value <- function(
   min_check   <- 50L
   check_every <- 50L
 
+  # Precompute for fast ordered/binary ESS scoring (chance_model = "class" only).
+  # x is pre-cleaned by the caller (oda_univariate_core), so no miss-code filter needed.
+  .fast_pc <- if (chance_model == "class") {
+    .oda_mc_precomp(x, w, oda_resolve_attr_type(x, attr_type), mindenom = 1L)
+  } else NULL
+
   for (b in seq_len(mc_iter)) {
     iter_used <- b
     y_star    <- sample(y, size = n, replace = FALSE)
 
-    fit_b <- oda_univariate_core(
-      x = x, y = y_star, w = w,
-      attr_type     = attr_type,
-      priors_on     = priors_on,
-      primary       = primary,
-      secondary     = secondary,
-      miss_codes    = miss_codes,
-      loo           = "off",
-      mcarlo        = FALSE,
-      mc_iter       = 0L,
-      mc_target     = mc_target,
-      mc_stop       = mc_stop,
-      mc_stopup     = mc_stopup,
-      mc_adjust     = mc_adjust,
-      mc_seed       = NULL,
-      chance_model  = chance_model,
-      direction     = direction,
-      direction_map = direction_map
-    )
+    if (!is.null(.fast_pc)) {
+      ess_b <- .oda_fast_ess_perm(y_star, .fast_pc, direction)
+    } else {
+      fit_b <- oda_univariate_core(
+        x = x, y = y_star, w = w,
+        attr_type     = attr_type,
+        priors_on     = priors_on,
+        primary       = primary,
+        secondary     = secondary,
+        miss_codes    = miss_codes,
+        loo           = "off",
+        mcarlo        = FALSE,
+        mc_iter       = 0L,
+        mc_target     = mc_target,
+        mc_stop       = mc_stop,
+        mc_stopup     = mc_stopup,
+        mc_adjust     = mc_adjust,
+        mc_seed       = NULL,
+        chance_model  = chance_model,
+        direction     = direction,
+        direction_map = direction_map
+      )
+      ess_b <- if (!isTRUE(fit_b$ok)) 0 else fit_b$ess
+    }
 
-    ess_b <- if (!isTRUE(fit_b$ok)) 0 else fit_b$ess
     if (ess_b >= ess_obs - 1e-12) ge_count <- ge_count + 1L
 
     # Clopper-Pearson early stopping
