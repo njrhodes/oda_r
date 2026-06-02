@@ -1690,8 +1690,15 @@ predict.cta_tree <- function(object, newdata,
         ic  <- which(sl == y_hat)
         if (length(ic) == 0L) return(nd$majority_class)
       } else {
-        # Binary: y_hat is rule-side 0/1; route by position (0->child 1, 1->child 2).
-        y_hat <- as.integer(oda_rule_predict(x_val, rule))
+        # Binary routing: use rule_side (0=x<=cut -> child 1, 1=x>cut -> child 2),
+        # matching the tree-building convention in .ho_grow_canon which assigns
+        # left_id to sv=0 (x<=cut) and right_id to sv=1 (x>cut), regardless of
+        # rule direction.  oda_rule_predict would flip the index for "1->0" rules,
+        # routing obs to the wrong branch.
+        y_hat <- if (!is.null(rule$type) && rule$type == "ordered_cut")
+          as.integer(oda_rule_side(x_val, rule))
+        else
+          as.integer(oda_rule_predict(x_val, rule))
         if (!(y_hat %in% 0:1)) return(nd$majority_class)
         ic <- y_hat + 1L
       }

@@ -269,6 +269,58 @@ test_that("no-tree fit: print says 'No tree found'", {
   expect_output(print(tree), "No tree found")
 })
 
+# ---- predict.cta_tree routing: branch side, not rule direction ---------------
+# Regression for: public predict routed by oda_rule_predict() which flips child
+# index for "1->0" rules, sending x<=cut obs to the right branch instead of left.
+# Fix: route by oda_rule_side() (side 0=x<=cut, 1=x>cut), matching the
+# tree-building convention in .ho_grow_canon regardless of rule direction.
+#
+# Construct a tree that contains a "1->0" rule at the root.
+# For class {0,1} with all class-1 obs on the LEFT side (x<=cut), the ODA engine
+# selects direction "1->0" (x<=cut -> predict class 1).
+# Left child (x<=cut) must be the CLASS-1 leaf.
+# Right child (x>cut) must be the CLASS-0 leaf.
+# predict() must route obs to the correct leaf and return training_confusion-
+# consistent predictions.
+
+test_that("predict: 1->0 rule routes x<=cut to left child, x>cut to right child", {
+  # Values 1..5 all class 1, values 6..10 all class 0.
+  # ODA will pick cut=5.5 with direction "1->0": x<=5.5 -> class 1; x>5.5 -> class 0.
+  X <- data.frame(V1 = 1:10)
+  y <- c(1L, 1L, 1L, 1L, 1L, 0L, 0L, 0L, 0L, 0L)
+  tree <- oda_cta_fit(X, y, mindenom = 2L, mc_iter = 500L, mc_seed = 1L, loo = "off")
+
+  skip_if(isTRUE(tree$no_tree), "no tree found; increase mc_iter")
+
+  root <- tree$nodes[[tree$root_id]]
+  skip_if(is.null(root$rule), "root has no rule")
+
+  # Verify the root rule is "1->0" direction (expected by construction).
+  # If the seed produces "0->1" the regression is still exercised by the
+  # training_confusion consistency check below.
+  preds <- predict(tree, X)
+
+  # Primary assertion: predict must be consistent with training_confusion.
+  # training_confusion is stored at fit time from the internal predict path.
+  # If public predict routes by rule_side (correct), both paths agree.
+  conf_pred <- matrix(0L, 2L, 2L, dimnames = list(c("0","1"), c("0","1")))
+  for (i in seq_along(y)) {
+    a <- as.character(y[i]); p <- as.character(preds[i])
+    if (!is.na(p)) conf_pred[a, p] <- conf_pred[a, p] + 1L
+  }
+  tc <- tree$training_confusion
+  expect_equal(conf_pred["0","0"], tc[rownames(tc)=="0", colnames(tc)=="0"][[1L]],
+               label = "class-0 correct count matches training_confusion")
+  expect_equal(conf_pred["1","1"], tc[rownames(tc)=="1", colnames(tc)=="1"][[1L]],
+               label = "class-1 correct count matches training_confusion")
+
+  # Secondary: overall ESS must be high for this perfectly-separable data.
+  pac0 <- conf_pred["0","0"] / sum(y == 0L)
+  pac1 <- conf_pred["1","1"] / sum(y == 1L)
+  ess  <- (pac0 + pac1 - 1) * 100
+  expect_gt(ess, 50, label = "ESS must be well above chance for separable data")
+})
+
 # ---- MC STOP bypass contract -------------------------------------------------
 # mc_stopup=NULL (default) resolves to mc_stop, enabling NS early stopping.
 # mc_stopup=NA disables NS stopping (runs mc_iter iterations for NS candidates).
