@@ -589,3 +589,103 @@ test_that("cta_ort_node_table: multi-level recursion visible — max depth >= 1 
   non_term <- tbl[!tbl$terminal, ]
   expect_true(nrow(non_term) >= 1L)
 })
+
+# ---------------------------------------------------------------------------
+# Canonical CTA node geometry in LORT local trees (T64, T65)
+#
+# Local trees from lort_local_tree() go through the same oda_cta_fit() code
+# path as standalone CTA fits and must obey Appendix C geometry:
+#   left child  = 2*nid  (x <= cut for ordered_cut rules)
+#   right child = 2*nid+1 (x >  cut for ordered_cut rules)
+#
+# T64 — structural invariants: child_ids and parent_id links.
+# T65 — branch-size invariants: for every ordered_cut split node, recompute
+#        sides from the fixture data (no assumed root attribute) and verify
+#        that n_obs of each child matches the computed side count.
+# ---------------------------------------------------------------------------
+test_that("lort_local_tree: every split node has canonical child_ids and parent_id (T64)", {
+  tr <- lort_local_tree(syn_ort, 1L)
+  expect_s3_class(tr, "cta_tree")
+  expect_false(isTRUE(tr$no_tree), label = "local tree is not no_tree")
+
+  nodes <- tr$nodes
+  expect_equal(tr$root_id, 1L, label = "root_id = 1")
+
+  .is_split <- function(nd) !is.null(nd) && !isTRUE(nd$leaf) && length(nd$child_ids) > 0L
+  split_ids <- which(vapply(nodes, .is_split, logical(1L)))
+  expect_gt(length(split_ids), 0L, label = "at least one split node exists")
+
+  for (nid in split_ids) {
+    nd       <- nodes[[nid]]
+    left_id  <- 2L * nid
+    right_id <- 2L * nid + 1L
+
+    expect_equal(sort(nd$child_ids), c(left_id, right_id),
+                 label = paste0("node ", nid, " child_ids = {", left_id, ",", right_id, "}"))
+
+    left_nd  <- nodes[[left_id]]
+    right_nd <- nodes[[right_id]]
+    expect_false(is.null(left_nd),
+                 label = paste0("node ", left_id, " exists (left child of ", nid, ")"))
+    expect_false(is.null(right_nd),
+                 label = paste0("node ", right_id, " exists (right child of ", nid, ")"))
+    expect_equal(left_nd$parent_id,  nid,
+                 label = paste0("node ", left_id,  " parent_id = ", nid))
+    expect_equal(right_nd$parent_id, nid,
+                 label = paste0("node ", right_id, " parent_id = ", nid))
+  }
+})
+
+test_that("lort_local_tree: ordered_cut left branch = x<=cut, verified from fixture data (T65)", {
+  # For every ordered_cut split node, determine which syn_X observations reach
+  # that node by traversing from root.  Then recompute left/right using
+  # oda_rule_side() and assert n_obs of each child matches the computed count.
+  # No assumption about which attribute is root or what the cut value is.
+  tr    <- lort_local_tree(syn_ort, 1L)
+  nodes <- tr$nodes
+
+  .is_split <- function(nd) !is.null(nd) && !isTRUE(nd$leaf) && length(nd$child_ids) > 0L
+
+  # obs_at[[nid]] = integer vector of syn_X row indices at node nid.
+  obs_at <- vector("list", length(nodes) + 1L)   # +1 for sparse safety
+  obs_at[[tr$root_id]] <- seq_len(nrow(syn_X))
+
+  split_ids <- sort(which(vapply(nodes, .is_split, logical(1L))))
+  checked   <- 0L
+
+  for (nid in split_ids) {
+    nd  <- nodes[[nid]]
+    idx <- obs_at[[nid]]
+    if (is.null(idx) || length(idx) == 0L) next
+
+    rule <- nd$rule
+    if (!identical(rule$type, "ordered_cut")) next   # only test ordered_cut splits
+
+    attr_nm  <- nd$attribute
+    left_id  <- 2L * nid
+    right_id <- 2L * nid + 1L
+
+    x_vals <- syn_X[[attr_nm]][idx]
+    sides  <- oda_rule_side(x_vals, rule)   # 0 = x<=cut, 1 = x>cut
+
+    n_left  <- sum(sides == 0L)
+    n_right <- sum(sides == 1L)
+
+    left_nd  <- nodes[[left_id]]
+    right_nd <- nodes[[right_id]]
+
+    expect_equal(left_nd$n_obs,  n_left,
+                 label = paste0("node ", left_id,  " n_obs = ", n_left,
+                                " (", attr_nm, "<=", rule$cut_value, " side, canonical left)"))
+    expect_equal(right_nd$n_obs, n_right,
+                 label = paste0("node ", right_id, " n_obs = ", n_right,
+                                " (", attr_nm, ">",  rule$cut_value, " side, canonical right)"))
+
+    # Propagate observation indices to children for subsequent nodes
+    obs_at[[left_id]]  <- idx[sides == 0L]
+    obs_at[[right_id]] <- idx[sides == 1L]
+    checked <- checked + 1L
+  }
+
+  expect_gt(checked, 0L, label = "at least one ordered_cut split was verified")
+})
