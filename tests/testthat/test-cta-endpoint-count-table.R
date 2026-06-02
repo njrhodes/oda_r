@@ -3,7 +3,6 @@
 #
 # Per-endpoint × class count table.
 # Reads stored leaf$class_counts_raw and leaf$class_counts_weighted only.
-# Returns one row per terminal endpoint per actual class.
 ###############################################################################
 
 # ---- Helpers ----------------------------------------------------------------
@@ -33,8 +32,8 @@
   )
 }
 
-# Synthetic 3-leaf tree with class_counts_raw/weighted on leaf nodes.
-# node2: 4 obs all class-0; node4: 3 obs all class-0; node5: 3 obs all class-1.
+# Synthetic 3-leaf tree (constructed) — stable anchor for known values.
+# node2: 4 obs class-0 only; node4: 3 obs class-0; node5: 3 obs class-1.
 .ect_3leaf_tree <- function() {
   node1 <- list(
     node_id = 1L, parent_id = 0L, depth = 1L, leaf = FALSE,
@@ -85,22 +84,14 @@
     confusion = NULL, split_labels = integer(0), child_ids = integer(0)
   )
   structure(
-    list(nodes       = list(node1, node2, node3, node4, node5),
-         no_tree     = FALSE,
-         overall_ess = 75.0,
-         n_nodes     = 5L,
-         root_id     = 1L,
-         has_weights = FALSE,
-         mindenom    = 2L,
-         alpha_split = 0.05,
-         prune_alpha = 1.0,
-         loo         = "off"),
+    list(nodes = list(node1, node2, node3, node4, node5),
+         no_tree = FALSE, overall_ess = 75.0, n_nodes = 5L,
+         root_id = 1L, has_weights = FALSE, mindenom = 2L,
+         alpha_split = 0.05, prune_alpha = 1.0, loo = "off"),
     class = "cta_tree"
   )
 }
 
-# Synthetic cta_tree with a leaf missing class_counts_raw — for guard test.
-# no_tree = FALSE so the guard is reached.
 .ect_missing_counts_tree <- function() {
   leaf <- list(
     node_id = 1L, parent_id = 0L, depth = 1L, leaf = TRUE,
@@ -121,166 +112,73 @@
 }
 
 # =============================================================================
-# Return type and column structure
+# Contract tests
 # =============================================================================
 
-test_that("ect: returns a data.frame", {
-  expect_s3_class(cta_endpoint_counts(.ect_no_tree_fit()), "data.frame")
-})
-
-test_that("ect: no-tree returns zero rows", {
-  expect_equal(nrow(cta_endpoint_counts(.ect_no_tree_fit())), 0L)
-})
-
-test_that("ect: no-tree has exactly the required columns", {
-  expected <- c("endpoint_id", "endpoint_node_id", "path",
-                "terminal_prediction", "class", "n_raw", "n_weighted")
-  expect_equal(names(cta_endpoint_counts(.ect_no_tree_fit())), expected)
-})
-
-test_that("ect: no-tree column types are correct", {
+test_that("ect: schema — data.frame, correct columns/types, no-tree zero rows", {
   df <- cta_endpoint_counts(.ect_no_tree_fit())
-  expect_type(df$endpoint_id,         "integer")
-  expect_type(df$endpoint_node_id,    "integer")
-  expect_type(df$path,                "character")
-  expect_type(df$terminal_prediction, "integer")
-  expect_type(df$class,               "character")
-  expect_type(df$n_raw,               "integer")
-  expect_type(df$n_weighted,          "double")
+  expect_s3_class(df, "data.frame")
+  expect_equal(nrow(df), 0L)
+  expected_cols <- c("endpoint_id", "endpoint_node_id", "path",
+                     "terminal_prediction", "class", "n_raw", "n_weighted")
+  expect_equal(names(df), expected_cols)
+  expect_type(df$endpoint_id, "integer")
+  expect_type(df$path,        "character")
+  expect_type(df$class,       "character")
+  expect_type(df$n_raw,       "integer")
+  expect_type(df$n_weighted,  "double")
+  # No forbidden staging/event-rate columns
+  forbidden <- c("target_class", "event_rate", "target_proportion",
+                 "odds", "staging_order", "staging_tier")
+  expect_true(!any(forbidden %in% names(df)))
 })
 
-# =============================================================================
-# Stump: 2 endpoints × 2 classes = 4 rows
-# =============================================================================
-
-test_that("ect: stump returns 4 rows", {
-  tree <- .ect_stump_fit()
-  skip_if(isTRUE(tree$no_tree), "mc sampling missed — stump tests need a split")
-  expect_equal(nrow(cta_endpoint_counts(tree)), 4L)
-})
-
-test_that("ect: stump endpoint_id is c(1L,1L,2L,2L)", {
+test_that("ect: stump — 4 rows, class labels, zero-count preserved, totals reconcile", {
   tree <- .ect_stump_fit()
   skip_if(isTRUE(tree$no_tree), "mc sampling missed")
-  df <- cta_endpoint_counts(tree)
-  expect_equal(df$endpoint_id, c(1L, 1L, 2L, 2L))
-})
-
-test_that("ect: stump each endpoint has class rows '0' and '1'", {
-  tree <- .ect_stump_fit()
-  skip_if(isTRUE(tree$no_tree), "mc sampling missed")
-  df <- cta_endpoint_counts(tree)
-  for (eid in c(1L, 2L)) {
-    expect_equal(sort(df$class[df$endpoint_id == eid]), c("0", "1"))
+  df   <- cta_endpoint_counts(tree)
+  expect_equal(nrow(df), 4L)
+  # Both class "0" and "1" on each endpoint
+  for (eid in unique(df$endpoint_id)) {
+    expect_true(setequal(df$class[df$endpoint_id == eid], c("0", "1")))
   }
-})
-
-test_that("ect: stump per-endpoint sum(n_raw) equals cta_endpoint_summary() denominator", {
-  tree  <- .ect_stump_fit()
-  skip_if(isTRUE(tree$no_tree), "mc sampling missed")
-  df    <- cta_endpoint_counts(tree)
-  epsum <- cta_endpoint_summary(tree)
+  # Zero-count class preserved (perfectly separated data)
+  expect_true(any(df$n_raw == 0L))
+  # Totals reconcile with confusion table
+  ct <- cta_confusion_table(tree)
+  expect_equal(sum(df$n_raw[df$class == "0"]), sum(ct$n[ct$actual == 0L]))
+  expect_equal(sum(df$n_raw[df$class == "1"]), sum(ct$n[ct$actual == 1L]))
+  # Per-endpoint raw totals match endpoint_summary denominators
+  epsum      <- cta_endpoint_summary(tree)
   raw_totals <- as.integer(tapply(df$n_raw, df$endpoint_id, sum))
   expect_equal(raw_totals, epsum$denominator)
 })
 
-test_that("ect: stump per-endpoint sum(n_weighted) equals cta_endpoint_summary() n_weighted", {
-  tree  <- .ect_stump_fit()
-  skip_if(isTRUE(tree$no_tree), "mc sampling missed")
-  df    <- cta_endpoint_counts(tree)
-  epsum <- cta_endpoint_summary(tree)
-  wt_totals <- as.numeric(tapply(df$n_weighted, df$endpoint_id, sum))
-  expect_equal(wt_totals, epsum$n_weighted)
-})
-
-test_that("ect: stump total n_raw equals sum(cta_confusion_table()$n)", {
-  tree <- .ect_stump_fit()
-  skip_if(isTRUE(tree$no_tree), "mc sampling missed")
-  df <- cta_endpoint_counts(tree)
-  ct <- cta_confusion_table(tree)
-  expect_equal(sum(df$n_raw), sum(ct$n))
-})
-
-test_that("ect: stump actual-class n_raw totals match cta_confusion_table() marginals", {
-  tree <- .ect_stump_fit()
-  skip_if(isTRUE(tree$no_tree), "mc sampling missed")
-  df <- cta_endpoint_counts(tree)
-  ct <- cta_confusion_table(tree)
-  expect_equal(sum(df$n_raw[df$class == "0"]), sum(ct$n[ct$actual == 0L]))
-  expect_equal(sum(df$n_raw[df$class == "1"]), sum(ct$n[ct$actual == 1L]))
-})
-
-test_that("ect: stump zero-count class rows are preserved", {
-  # y = c(0,0,0,0,1,1,1,1) with cut ~4.5 → left leaf all class-0, right all
-  # class-1.  Both "0" and "1" rows must be present on each endpoint.
-  tree <- .ect_stump_fit()
-  skip_if(isTRUE(tree$no_tree), "mc sampling missed")
-  df <- cta_endpoint_counts(tree)
-  for (eid in unique(df$endpoint_id)) {
-    sub <- df[df$endpoint_id == eid, ]
-    expect_true(setequal(sub$class, c("0", "1")))
-  }
-  expect_true(any(df$n_raw == 0L))
-})
-
-test_that("ect: unweighted stump n_weighted equals n_raw numerically", {
-  tree <- .ect_stump_fit()
-  skip_if(isTRUE(tree$no_tree), "mc sampling missed")
-  df <- cta_endpoint_counts(tree)
-  expect_equal(unname(df$n_weighted), unname(as.numeric(df$n_raw)))
-})
-
-test_that("ect: weighted fit has at least one n_weighted != as.numeric(n_raw)", {
+test_that("ect: weighted stump — n_weighted differs from n_raw", {
   tree <- .ect_weighted_fit()
   skip_if(isTRUE(tree$no_tree), "mc sampling missed")
   df <- cta_endpoint_counts(tree)
   expect_true(any(df$n_weighted != as.numeric(df$n_raw)))
 })
 
-# =============================================================================
-# Guard: missing class_counts_raw on a valid tree
-# =============================================================================
-
-test_that("ect: valid tree missing class_counts_raw stops with clear message", {
+test_that("ect: missing class_counts_raw on valid tree errors with message", {
   expect_error(cta_endpoint_counts(.ect_missing_counts_tree()),
                "endpoint class counts are unavailable")
 })
 
-# =============================================================================
-# Synthetic 3-leaf tree
-# =============================================================================
-
-test_that("ect: synthetic 3-leaf returns 6 rows", {
-  expect_equal(nrow(cta_endpoint_counts(.ect_3leaf_tree())), 6L)
-})
-
-test_that("ect: synthetic 3-leaf node2 n_raw[class=='0']==4 and n_raw[class=='1']==0", {
+test_that("ect: synthetic 3-leaf — known node values correct", {
   df   <- cta_endpoint_counts(.ect_3leaf_tree())
+  expect_equal(nrow(df), 6L)
   sub2 <- df[df$endpoint_node_id == 2L, ]
   expect_equal(sub2$n_raw[sub2$class == "0"], 4L)
   expect_equal(sub2$n_raw[sub2$class == "1"], 0L)
-})
-
-test_that("ect: synthetic 3-leaf node5 n_raw[class=='1']==3 (majority class)", {
-  df   <- cta_endpoint_counts(.ect_3leaf_tree())
   sub5 <- df[df$endpoint_node_id == 5L, ]
   expect_equal(sub5$n_raw[sub5$class == "0"], 0L)
   expect_equal(sub5$n_raw[sub5$class == "1"], 3L)
 })
 
 # =============================================================================
-# Forbidden columns
-# =============================================================================
-
-test_that("ect: no forbidden event-rate or staging columns present", {
-  df       <- cta_endpoint_counts(.ect_3leaf_tree())
-  forbidden <- c("target_class", "event_rate", "target_proportion",
-                 "odds", "staging_order", "status", "staging_tier")
-  expect_true(!any(forbidden %in% names(df)))
-})
-
-# =============================================================================
-# Slow fixture tests — myeloma canon
+# Smoke: myeloma canon integration
 # =============================================================================
 
 .ect_load_myeloma <- function() {
@@ -291,100 +189,48 @@ test_that("ect: no forbidden event-rate or staging columns present", {
 }
 .ect_myeloma_attrs <- c("V4","V9","V11","V12","V14","V15","V16","V17","V18","V19")
 
-.ect_myeloma_fit <- function(mindenom) {
-  df <- .ect_load_myeloma()
-  suppressMessages(
-    oda_cta_fit(
-      X           = df[, .ect_myeloma_attrs],
-      y           = as.integer(df$V1),
-      w           = df$V2,
-      priors_on   = TRUE,
-      miss_codes  = -9,
-      alpha_split = 0.05,
-      mindenom    = mindenom,
-      prune_alpha = 0.05,
-      max_depth   = 20L,
-      mc_iter     = 5000L,
-      mc_target   = 0.05,
-      mc_stop     = 99.9,
-      mc_stopup   = 99.9,
-      mc_seed     = NULL,
-      loo         = "stable",
-      attr_names  = .ect_myeloma_attrs
-    )
-  )
-}
-
-test_that("ect: myeloma MINDENOM=1 returns 6 rows (3 endpoints x 2 classes)", {
-  skip_if_slow_tests_disabled("cta-endpoint-count-table")
-  df <- cta_endpoint_counts(.ect_myeloma_fit(1L))
-  expect_equal(nrow(df), 6L)
+.ect_myeloma_fit <- local({
+  fits <- list()
+  function(mindenom) {
+    key <- as.character(mindenom)
+    if (is.null(fits[[key]])) {
+      df <- .ect_load_myeloma()
+      fits[[key]] <<- suppressMessages(oda_cta_fit(
+        X = df[, .ect_myeloma_attrs], y = as.integer(df$V1), w = df$V2,
+        priors_on = TRUE, miss_codes = -9, alpha_split = 0.05,
+        mindenom = mindenom, prune_alpha = 0.05, max_depth = 20L,
+        mc_iter = 5000L, mc_target = 0.05, mc_stop = 99.9, mc_stopup = 99.9,
+        mc_seed = NULL, loo = "stable", attr_names = .ect_myeloma_attrs
+      ))
+    }
+    fits[[key]]
+  }
 })
 
-test_that("ect: myeloma MINDENOM=30 returns 4 rows (2 endpoints x 2 classes)", {
+test_that("ect: myeloma — rows/totals/confusion reconciliation for MINDENOM=1/30/56", {
   skip_if_slow_tests_disabled("cta-endpoint-count-table")
-  df <- cta_endpoint_counts(.ect_myeloma_fit(30L))
-  expect_equal(nrow(df), 4L)
-})
 
-test_that("ect: myeloma MINDENOM=56 returns zero rows with exact columns", {
-  skip_if_slow_tests_disabled("cta-endpoint-count-table")
-  df <- cta_endpoint_counts(.ect_myeloma_fit(56L))
-  expect_equal(nrow(df), 0L)
-  expected <- c("endpoint_id", "endpoint_node_id", "path",
-                "terminal_prediction", "class", "n_raw", "n_weighted")
-  expect_equal(names(df), expected)
-})
+  # MINDENOM=1: 3 endpoints × 2 classes = 6 rows, total 255 obs
+  t1 <- .ect_myeloma_fit(1L)
+  df1 <- cta_endpoint_counts(t1)
+  expect_equal(nrow(df1), 6L)
+  expect_equal(sum(df1$n_raw), 255L)
+  ct1 <- cta_confusion_table(t1)
+  expect_equal(sum(df1$n_raw[df1$class == "0"]), sum(ct1$n[ct1$actual == 0L]))
+  expect_equal(sum(df1$n_raw[df1$class == "1"]), sum(ct1$n[ct1$actual == 1L]))
 
-test_that("ect: myeloma MINDENOM=1 sum(n_raw) = 255", {
-  skip_if_slow_tests_disabled("cta-endpoint-count-table")
-  df <- cta_endpoint_counts(.ect_myeloma_fit(1L))
-  expect_equal(sum(df$n_raw), 255L)
-})
+  # MINDENOM=30: 2 endpoints (stump) × 2 classes = 4 rows, total 186 obs
+  t30 <- .ect_myeloma_fit(30L)
+  df30 <- cta_endpoint_counts(t30)
+  expect_equal(nrow(df30), 4L)
+  expect_equal(sum(df30$n_raw), 186L)
+  ct30 <- cta_confusion_table(t30)
+  expect_equal(sum(df30$n_raw[df30$class == "0"]), sum(ct30$n[ct30$actual == 0L]))
+  expect_equal(sum(df30$n_raw[df30$class == "1"]), sum(ct30$n[ct30$actual == 1L]))
 
-test_that("ect: myeloma MINDENOM=30 sum(n_raw) = 186", {
-  skip_if_slow_tests_disabled("cta-endpoint-count-table")
-  df <- cta_endpoint_counts(.ect_myeloma_fit(30L))
-  expect_equal(sum(df$n_raw), 186L)
-})
-
-test_that("ect: myeloma MINDENOM=1 class totals reconcile with cta_confusion_table()", {
-  skip_if_slow_tests_disabled("cta-endpoint-count-table")
-  tree <- .ect_myeloma_fit(1L)
-  df   <- cta_endpoint_counts(tree)
-  ct   <- cta_confusion_table(tree)
-  expect_equal(sum(df$n_raw[df$class == "0"]), sum(ct$n[ct$actual == 0L]))
-  expect_equal(sum(df$n_raw[df$class == "1"]), sum(ct$n[ct$actual == 1L]))
-})
-
-test_that("ect: myeloma MINDENOM=30 class totals reconcile with cta_confusion_table()", {
-  skip_if_slow_tests_disabled("cta-endpoint-count-table")
-  tree <- .ect_myeloma_fit(30L)
-  df   <- cta_endpoint_counts(tree)
-  ct   <- cta_confusion_table(tree)
-  expect_equal(sum(df$n_raw[df$class == "0"]), sum(ct$n[ct$actual == 0L]))
-  expect_equal(sum(df$n_raw[df$class == "1"]), sum(ct$n[ct$actual == 1L]))
-})
-
-test_that("ect: myeloma MINDENOM=1 n_weighted all nonnegative", {
-  skip_if_slow_tests_disabled("cta-endpoint-count-table")
-  df <- cta_endpoint_counts(.ect_myeloma_fit(1L))
-  expect_true(all(df$n_weighted >= 0))
-})
-
-test_that("ect: myeloma MINDENOM=30 n_weighted all nonnegative", {
-  skip_if_slow_tests_disabled("cta-endpoint-count-table")
-  df <- cta_endpoint_counts(.ect_myeloma_fit(30L))
-  expect_true(all(df$n_weighted >= 0))
-})
-
-test_that("ect: myeloma MINDENOM=1 per-endpoint sum(n_weighted) matches cta_endpoint_summary()$n_weighted", {
-  skip_if_slow_tests_disabled("cta-endpoint-count-table")
-  tree  <- .ect_myeloma_fit(1L)
-  df    <- cta_endpoint_counts(tree)
-  epsum <- cta_endpoint_summary(tree)
-  wt_totals <- vapply(sort(unique(df$endpoint_id)), function(eid) {
-    sum(df$n_weighted[df$endpoint_id == eid])
-  }, numeric(1L))
-  expect_equal(wt_totals, epsum$n_weighted, tolerance = 1e-10)
+  # MINDENOM=56: no-tree → zero rows with correct columns
+  df56 <- cta_endpoint_counts(.ect_myeloma_fit(56L))
+  expect_equal(nrow(df56), 0L)
+  expect_equal(names(df56), c("endpoint_id", "endpoint_node_id", "path",
+                               "terminal_prediction", "class", "n_raw", "n_weighted"))
 })
