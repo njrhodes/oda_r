@@ -148,6 +148,118 @@
   if (r01$ess >= r10$ess) r01 else r10
 }
 
+# .cta_mc_precomp_ord()
+#
+# Precompute the fixed per-node/attribute structure used by .cta_fast_scan_perm().
+# Called once per (node, attribute) pair before the MC permutation loop.
+#
+# Returns a list with:
+#   keep       — logical mask: which raw observations survive miss_code removal
+#   w_clean    — case weights for kept observations (numeric)
+#   block_idx  — integer 1..m: unique-value block membership for each kept obs
+#   uvals      — sorted unique x values (length m)
+#   m          — number of unique values
+#   nv         — per-block observation counts (integer, length m)
+#   Nv         — cumsum(nv): left-side observation count at each cut (integer, length m)
+#   Nm         — total kept observations (integer)
+#   mindenom   — stored for use inside .cta_fast_scan_perm()
+.cta_mc_precomp_ord <- function(x_raw, w_raw, miss_codes, mindenom) {
+  miss_mask <- is.na(x_raw)
+  if (!is.null(miss_codes)) miss_mask <- miss_mask | (x_raw %in% miss_codes)
+  keep      <- !miss_mask
+  x_c       <- x_raw[keep]
+  w_c       <- as.numeric(w_raw[keep])
+  uvals     <- sort(unique(x_c))
+  m         <- length(uvals)
+  block_idx <- match(x_c, uvals)          # integer 1..m per kept obs
+  nv        <- tabulate(block_idx, nbins = m)
+  Nv        <- cumsum(nv)
+  list(keep      = keep,
+       w_clean   = w_c,
+       block_idx = block_idx,
+       uvals     = uvals,
+       m         = m,
+       nv        = as.integer(nv),
+       Nv        = as.integer(Nv),
+       Nm        = as.integer(sum(nv)),
+       mindenom  = as.integer(mindenom))
+}
+
+# .cta_fast_scan_perm()
+#
+# Fast per-permutation CTA ordered scan.  Equivalent to .cta_ordered_scan() called
+# with a permuted y, but uses precomputed block structure to eliminate the O(m)
+# R-level for-loop over unique x values.
+#
+# Replaces:
+#   scan_b <- .cta_ordered_scan(x, y_star, w, priors_on, miss_codes, mindenom)
+# with:
+#   scan_b <- .cta_fast_scan_perm(y_star, precomp, priors_on)
+# where precomp = .cta_mc_precomp_ord(x, w, miss_codes, mindenom) built once.
+#
+# Canonical rule preserved:
+#   "0->1": rightmost eligible j where sens_wa = 1 - C1a[j] > 0.5
+#   "1->0": leftmost  eligible j where sens_wa = C1a[j]     > 0.5
+#   direction ties -> "0->1" wins
+#   mindenom applied to both nL and nR
+#
+# Returns the same structure as .cta_ordered_scan(): list(rule, ess, sens_wa, spec_wa)
+# or NULL when no eligible cut exists.
+.cta_fast_scan_perm <- function(y_star, precomp, priors_on) {
+  if (precomp$m < 2L) return(NULL)              # no candidate cuts possible
+  y_c <- as.integer(y_star)[precomp$keep]
+  n0  <- sum(y_c == 0L); n1 <- sum(y_c == 1L)
+  if (n0 == 0L || n1 == 0L) return(NULL)
+
+  w_c <- precomp$w_clean
+  if (isTRUE(priors_on)) {
+    W0 <- sum(w_c[y_c == 0L]); W1 <- sum(w_c[y_c == 1L])
+    if (W0 <= 0 || W1 <= 0) return(NULL)
+    w0_adj <- w_c * (y_c == 0L) / W0
+    w1_adj <- w_c * (y_c == 1L) / W1
+  } else {
+    w0_adj <- w_c * (y_c == 0L)
+    w1_adj <- w_c * (y_c == 1L)
+  }
+
+  # Block aggregation via rowsum() (C-level) — replaces the O(m) R for-loop
+  z0a <- as.numeric(rowsum(w0_adj, precomp$block_idx, reorder = TRUE))
+  z1a <- as.numeric(rowsum(w1_adj, precomp$block_idx, reorder = TRUE))
+  C0a <- cumsum(z0a); C1a <- cumsum(z1a)
+
+  Nv       <- precomp$Nv; Nm <- precomp$Nm; m <- precomp$m
+  uvals    <- precomp$uvals; mindenom <- precomp$mindenom
+  j_seq    <- seq_len(m - 1L)
+  md_ok    <- Nv[j_seq] >= mindenom & (Nm - Nv[j_seq]) >= mindenom
+
+  # "0->1": rightmost eligible j with sens = 1 - C1a[j] > 0.5
+  elig01 <- j_seq[md_ok & C1a[j_seq] < 0.5]
+  r01 <- if (length(elig01) > 0L) {
+    j     <- elig01[length(elig01)]          # rightmost
+    sens  <- 1 - C1a[j]; spec <- C0a[j]
+    list(rule     = list(type = "ordered_cut", direction = "0->1",
+                         cut_value = (uvals[j] + uvals[j + 1L]) / 2),
+         ess      = (spec + sens - 1) * 100,
+         sens_wa  = sens, spec_wa  = spec)
+  } else NULL
+
+  # "1->0": leftmost eligible j with sens = C1a[j] > 0.5
+  elig10 <- j_seq[md_ok & C1a[j_seq] > 0.5]
+  r10 <- if (length(elig10) > 0L) {
+    j     <- elig10[1L]                      # leftmost
+    sens  <- C1a[j]; spec <- 1 - C0a[j]
+    list(rule     = list(type = "ordered_cut", direction = "1->0",
+                         cut_value = (uvals[j] + uvals[j + 1L]) / 2),
+         ess      = (spec + sens - 1) * 100,
+         sens_wa  = sens, spec_wa  = spec)
+  } else NULL
+
+  if (is.null(r01) && is.null(r10)) return(NULL)
+  if (is.null(r01)) return(r10)
+  if (is.null(r10)) return(r01)
+  if (r01$ess >= r10$ess) r01 else r10
+}
+
 # .cta_mc_ordered()
 #
 # CTA-specific Monte Carlo Fisher-randomization p-value for ordered attributes.
@@ -186,10 +298,13 @@
   stop_reason_code <- "max_iter"
   t0_mc            <- if (!is.null(diag_env)) proc.time()[["elapsed"]] else NULL
 
+  # Precompute fixed block structure once per (node, attribute) call
+  precomp <- .cta_mc_precomp_ord(x, w, miss_codes, mindenom)
+
   for (b in seq_len(mc_iter)) {
     iter_used <- b
     y_star    <- sample(y_coded, size = n, replace = FALSE)
-    scan_b    <- .cta_ordered_scan(x, y_star, w, priors_on, miss_codes, mindenom)
+    scan_b    <- .cta_fast_scan_perm(y_star, precomp, priors_on)
     ess_b     <- if (is.null(scan_b) || is.null(scan_b$ess)) 0 else scan_b$ess %||% 0
     if (ess_b >= obs_ess - 1e-12) ge_count <- ge_count + 1L
 
@@ -321,7 +436,7 @@ oda_cta_fit <- function(
     mc_iter     = 25000L,
     mc_target   = 0.05,
     mc_stop     = 99.9,
-    mc_stopup   = NA,
+    mc_stopup   = NULL,
     mc_seed     = NULL,
     loo         = "off",
     attr_names  = NULL,
@@ -330,6 +445,11 @@ oda_cta_fit <- function(
     diag_env    = NULL
 ) {
   # ---- Validate and prep ----------------------------------------------------
+  # CTA STOP policy: the single STOP value governs both tails (canon: CTA.exe
+  # has no separate STOPUP command).  NULL (omitted) -> mirror mc_stop.
+  # Explicit NA -> bypass nonsignificance stopping.  Numeric -> use as-is.
+  mc_stopup_eff <- if (is.null(mc_stopup)) mc_stop else mc_stopup
+
   if (!is.null(diag_env)) {
     if (!exists("mc_log",   envir = diag_env, inherits = FALSE)) diag_env$mc_log   <- list()
     if (!exists("loo_log",  envir = diag_env, inherits = FALSE)) diag_env$loo_log  <- list()
@@ -528,7 +648,7 @@ oda_cta_fit <- function(
       mc_iter    = as.integer(mc_iter),
       mc_target  = mc_target,
       mc_stop    = mc_stop,
-      mc_stopup  = mc_stopup,
+      mc_stopup  = mc_stopup_eff,
       mc_seed    = seed_j,
       diag_env   = diag_env,
       row_hash   = row_hash,
@@ -740,7 +860,7 @@ oda_cta_fit <- function(
               miss_codes = miss_codes, K_segments = K_segments,
               mcarlo = TRUE, mc_iter = as.integer(mc_iter),
               mc_target = mc_target, mc_stop = mc_stop,
-              mc_stopup = mc_stopup, mc_seed = seed_j,
+              mc_stopup = mc_stopup_eff, mc_seed = seed_j,
               loo = "off",
               mindenom = mindenom),
       error = function(e) list(ok = FALSE))
@@ -815,7 +935,7 @@ oda_cta_fit <- function(
           mc_iter    = as.integer(mc_iter),
           mc_target  = mc_target,
           mc_stop    = mc_stop,
-          mc_stopup  = mc_stopup,
+          mc_stopup  = mc_stopup_eff,
           mc_seed    = seed_loo
         ),
         error = function(e) NULL
