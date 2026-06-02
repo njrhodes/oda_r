@@ -406,8 +406,9 @@ test_that("cta_endpoint_table: myeloma MINDENOM=1 sum(n) equals classified n", {
   skip_if_slow_tests_disabled("cta-endpoint-fixture")
   tree <- .eptest_myeloma_fit(1L)
   df   <- cta_endpoint_table(tree)
-  # MINDENOM=1 pruned tree classifies 186 obs (V17 root; 69 missing excluded)
-  expect_equal(sum(df$n), 186L)
+  # EXE canon: enumerated tree is V14->V15 with n=255 classified (no missing V14).
+  # (V17-rooted pruned section in MODEL1.TXT classifies 186; not the selected tree.)
+  expect_equal(sum(df$n), 255L)
 })
 
 test_that("cta_endpoint_table: myeloma MINDENOM=56 returns zero-row df", {

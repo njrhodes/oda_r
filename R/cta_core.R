@@ -889,26 +889,26 @@ oda_cta_fit <- function(
   }
 
   # HO-CTA growth: greedy (highest fast-ESS passing full MC+LOO) at each node.
-  # Fills env$nodes (list indexed by integer node_id), increments env$counter.
-  # Returns the root node_id of the grown subtree.
+  # Fills env$nodes (list indexed by canonical integer node_id).
+  # node_id must follow Appendix C binary-tree geometry: left child of X = 2X,
+  # right child of X = 2X+1.  Children are computed from node_id, not a counter.
   # pred_class: class assigned by the parent ODA rule for the branch leading here.
-  .ho_grow <- function(idx, depth, parent_id, env, pred_class = NULL) {
-    env$counter <- env$counter + 1L
-    nid <- env$counter
-
-    nd     <- .leaf_nd(nid, parent_id, depth, idx, pred_class = pred_class)
+  .ho_grow_canon <- function(idx, depth, node_id, parent_id, env,
+                             pred_class = NULL) {
+    nid <- node_id
+    nd  <- .leaf_nd(nid, parent_id, depth, idx, pred_class = pred_class)
     y_node <- y[idx]
     n_obs  <- length(idx)
 
     if (length(unique(y_node)) < 2L || n_obs < mindenom || depth >= max_depth) {
       env$nodes[[nid]] <- nd
-      return(nid)
+      return(invisible(NULL))
     }
 
     fast <- .fast_screen(idx, pos_label = nid)
     if (length(fast) == 0L) {
       env$nodes[[nid]] <- nd
-      return(nid)
+      return(invisible(NULL))
     }
 
     # HO-CTA greedy: accept the first (highest fast-ESS) candidate passing full MC+LOO
@@ -920,25 +920,48 @@ oda_cta_fit <- function(
 
     if (is.null(best)) {
       env$nodes[[nid]] <- nd
-      return(nid)
+      return(invisible(NULL))
     }
 
     appl <- .apply_cand(best, idx)
-    sl   <- sort(unique(appl$y_pred[!is.na(appl$y_pred)]))
     nd   <- .split_nd(nid, parent_id, depth, idx, best, appl)
 
-    child_ids <- integer(length(sl))
-    for (k in seq_along(sl)) {
-      child_idx <- idx[!is.na(appl$y_pred) & appl$y_pred == sl[k]]
-      if (length(child_idx) == 0L) next
-      cid           <- .ho_grow(child_idx, depth + 1L, nid, env,
-                                pred_class = as.integer(sl[k]))
-      child_ids[k]  <- cid
+    # Canonical child IDs: left = 2*nid, right = 2*nid+1  (Appendix C, Figure C.1).
+    # For ordered_cut rules (including normalized binary_map 0/1):
+    #   left (2*nid) = x <= cut_value  (matches EXE INCLUDE x<=cut -> left-child).
+    #   right (2*nid+1) = x > cut_value.
+    # For other rule types: left = first class by sorted label, right = second.
+    left_id    <- 2L * nid
+    right_id   <- 2L * nid + 1L
+    valid_mask <- !is.na(appl$y_pred)
+    child_ids  <- integer(0L)
+
+    if (identical(appl$rule$type, "ordered_cut")) {
+      x_j_vals <- X[[best$j]][idx]
+      sides    <- oda_rule_side(x_j_vals, appl$rule)   # 0 = x<=cut, 1 = x>cut
+      for (sv in c(0L, 1L)) {
+        child_idx <- idx[valid_mask & sides == sv]
+        if (length(child_idx) == 0L) next
+        cid_k    <- if (sv == 0L) left_id else right_id
+        pred_cls <- appl$y_pred[valid_mask & sides == sv][1L]
+        .ho_grow_canon(child_idx, depth + 1L, cid_k, nid, env,
+                       pred_class = as.integer(pred_cls))
+        child_ids <- c(child_ids, cid_k)
+      }
+    } else {
+      sl <- sort(unique(appl$y_pred[valid_mask]))
+      for (k in seq_along(sl)) {
+        child_idx <- idx[valid_mask & appl$y_pred == sl[k]]
+        if (length(child_idx) == 0L) next
+        cid_k <- if (k == 1L) left_id else right_id
+        .ho_grow_canon(child_idx, depth + 1L, cid_k, nid, env,
+                       pred_class = as.integer(sl[k]))
+        child_ids <- c(child_ids, cid_k)
+      }
     }
-    nd$split_labels  <- as.integer(sl)
-    nd$child_ids     <- child_ids[child_ids > 0L]
+    nd$child_ids <- child_ids
     env$nodes[[nid]] <- nd
-    return(nid)
+    return(invisible(NULL))
   }
 
   # Predict all n observations through a nodes_list (root at root_id).
@@ -967,8 +990,13 @@ oda_cta_fit <- function(
           ic  <- which(sl == y_hat)
           if (length(ic) == 0L) return(nd$majority_class)
         } else {
-          # Binary: y_hat is rule-side 0/1; route by position (0->child 1, 1->child 2).
-          y_hat <- as.integer(oda_rule_predict(x_val, rule))
+          # Binary routing: for ordered_cut use rule_side (0=<=cut -> child 1,
+          # 1=>cut -> child 2), matching EXE's INCLUDE x<=cut -> left-child.
+          # For other rule types use oda_rule_predict (class-label order).
+          y_hat <- if (!is.null(rule$type) && rule$type == "ordered_cut")
+            as.integer(oda_rule_side(x_val, rule))
+          else
+            as.integer(oda_rule_predict(x_val, rule))
           if (!(y_hat %in% 0:1)) return(nd$majority_class)
           ic <- y_hat + 1L
         }
@@ -996,7 +1024,7 @@ oda_cta_fit <- function(
   # Reusable: operates only on a node list; does not depend on enumeration structure.
   # Returns: a (possibly modified) copy of nodes_list.
   .prune_tree <- function(nodes_list, root_id = 1L) {
-    if (prune_alpha >= 1.0) return(nodes_list)
+    if (prune_alpha >= 1.0) return(list(nodes = nodes_list, removed_ids = integer(0)))
 
     # BFS traversal - returns reachable node IDs in breadth-first (depth) order.
     .bfs_ids <- function(nlist, rid) {
@@ -1013,7 +1041,9 @@ oda_cta_fit <- function(
       visited
     }
 
-    current <- nodes_list
+    current       <- nodes_list
+    removed_ids   <- integer(0)
+    removed_attrs <- character(0)
 
     repeat {
       all_ids   <- .bfs_ids(current, root_id)
@@ -1059,13 +1089,32 @@ oda_cta_fit <- function(
 
       if (is.na(best_nid)) break   # no eligible collapse - stop
 
+      # Capture attribute BEFORE mutating the node to a leaf.
+      attr_before <- current[[best_nid]]$attribute %||% NA_character_
+
+      # BFS from best_nid to collect all descendant split IDs that will become
+      # unreachable after this collapse.  Includes best_nid itself as position [1].
+      all_under    <- .bfs_ids(current, best_nid)
+      desc_splits  <- all_under[vapply(all_under, function(did) {
+        did != best_nid && {
+          nd <- current[[did]]
+          !is.null(nd) && !isTRUE(nd$leaf) && length(nd$child_ids) > 0L
+        }
+      }, logical(1L))]
+
       current[[best_nid]]$leaf      <- TRUE
       current[[best_nid]]$child_ids <- integer(0)
-      .vmsg("[PRUNE] node ", best_nid, ": WESS ",
+
+      # Track: direct collapse root + any now-unreachable descendant splits.
+      removed_ids   <- c(removed_ids, best_nid, desc_splits)
+      removed_attrs <- c(removed_attrs, attr_before,
+                         rep(NA_character_, length(desc_splits)))
+
+      .vmsg("[PRUNE] node ", best_nid, " (", attr_before, "): WESS ",
             round(current_wess, 2), "% -> ", round(best_wess_p, 2), "%")
     }
 
-    current
+    list(nodes = current, removed_ids = removed_ids, removed_attrs = removed_attrs)
   }
 
   # ---- ENUMERATE: top-3-node enumeration ------------------------------------
@@ -1092,34 +1141,29 @@ oda_cta_fit <- function(
       class = "cta_tree"))
   }
 
-  # ---- ENUMERATE: full AxBxC top-3-node enumeration ---------------------------
-  # Canonical algorithm: evaluate every valid combination of:
-  #   A = root split (all valid root candidates, sorted by root ESS desc)
-  #   B = left-child option  (all valid split candidates + explicit leaf sentinel)
-  #   C = right-child option (all valid split candidates + explicit leaf sentinel)
+  # ---- ENUMERATE: EO-CTA top-3-node enumeration --------------------------------
+  # EO-CTA canonical (CTA.exe trace / MPE Ch.11):
+  #   For each root A, build exactly ONE expanded candidate:
+  #     B = best-ESS valid split on the left branch  (trace-selected node 2), or leaf
+  #     C = best-ESS valid split on the right branch (trace-selected node 3), or leaf
+  #   Grow HO-CTA below B and C.  Score the full pruned tree.
   #
-  # Leaf sentinel is included even when split candidates exist: a locally
-  # significant child split may still reduce full-tree WESS after pruning,
-  # missingness, or interaction with the other branch.
+  # Full A×B×C outer-product enumeration is NOT canonical.  The EXE trace for
+  # CTA_DEMO MODEL8 Tree 4 (A=V6) proves this: V4 (ESS=31.86%) is evaluated at
+  # node 2 but NOT selected; only V2 (ESS=48.65%) is used for the expanded
+  # candidate.  Evaluating B=V4 produces a 69.99% tree EXE never reports.
   #
-  # (B=leaf, C=leaf) is excluded from this expanded loop.  That configuration
-  # is handled by the root-only stump phase below under path-local scoring.
-  # Including it here under majority-fallback .predict_all() would duplicate
-  # it with different missingness behaviour and risk conflicting WESS values
-  # on datasets with missing root-attribute observations (Myeloma V17).
-  #
-  # B-subtree caching: B's sub-tree is grown once per (A, B) pair and reused
-  # across all C options for that (A, B).  C's sub-tree is re-grown per
-  # (A, B, C) triple; re-indexing optimisation deferred.
-  #
-  # Tie-breaking (FIRST IDENTIFIED): A sorted by root ESS desc; within each A,
-  # B split candidates sorted by left-branch ESS desc then leaf last; within
-  # each (A, B), C split candidates sorted by right-branch ESS desc then leaf last.
+  # (B=leaf, C=leaf) is excluded from this expanded loop; handled by the
+  # root-only stump phase below under path-local scoring.
 
-  best_wess       <- -Inf
-  best_nodes      <- NULL
-  best_n_nodes    <- 0L
-  best_confusion  <- NULL
+  best_wess                  <- -Inf
+  best_nodes                 <- NULL
+  best_n_nodes               <- 0L
+  best_confusion             <- NULL
+  best_prune_removed_ids     <- integer(0)
+  best_prune_removed_attrs   <- character(0)
+  best_unpruned_n_splits     <- 0L
+  best_unpruned_ess          <- -Inf
 
   .vmsg("[ENUMERATE] ", length(root_cands), " root candidates (A\u00d7B\u00d7C)")
 
@@ -1133,19 +1177,28 @@ oda_cta_fit <- function(
     sl_A    <- sort(unique(appl_A$y_pred[valid_A]))
     if (length(sl_A) < 2L) next
 
-    left_idx  <- which(valid_A & appl_A$y_pred == sl_A[1L])
-    right_idx <- which(valid_A & appl_A$y_pred == sl_A[2L])
+    # EXE canonical: for ordered_cut left = x<=cut, right = x>cut.
+    if (identical(appl_A$rule$type, "ordered_cut")) {
+      sides_A   <- oda_rule_side(X[[A_cand$j]], appl_A$rule)
+      left_idx  <- which(valid_A & sides_A == 0L)
+      right_idx <- which(valid_A & sides_A == 1L)
+    } else {
+      left_idx  <- which(valid_A & appl_A$y_pred == sl_A[1L])
+      right_idx <- which(valid_A & appl_A$y_pred == sl_A[2L])
+    }
 
     # All valid split candidates for B (left) and C (right) positions.
     B_cands <- .all_cands(left_idx,  pos_id = 2L)
     C_cands <- .all_cands(right_idx, pos_id = 3L)
 
-    # B/C options: split candidates (ESS desc) then leaf sentinel (NULL = leaf)
-    B_options <- c(B_cands, list(NULL))
-    C_options <- c(C_cands, list(NULL))
+    # EO-CTA: one expanded candidate per root A.
+    # B = best-ESS valid split on left branch, or leaf if none.
+    # C = best-ESS valid split on right branch, or leaf if none.
+    B_options <- if (length(B_cands) > 0L) list(B_cands[[1L]]) else list(NULL)
+    C_options <- if (length(C_cands) > 0L) list(C_cands[[1L]]) else list(NULL)
 
-    .vmsg("  B: ", length(B_cands), " split(s) + leaf")
-    .vmsg("  C: ", length(C_cands), " split(s) + leaf")
+    .vmsg("  B: ", if (length(B_cands) > 0L) B_cands[[1L]]$name else "leaf")
+    .vmsg("  C: ", if (length(C_cands) > 0L) C_cands[[1L]]$name else "leaf")
 
     for (bi in seq_along(B_options)) {
       B_opt     <- B_options[[bi]]
@@ -1153,8 +1206,7 @@ oda_cta_fit <- function(
 
       # ---- Build B sub-tree (cached for all C at this (A, B)) -----------------
       if (B_is_leaf) {
-        nd2   <- .leaf_nd(2L, 1L, 2L, left_idx, pred_class = as.integer(sl_A[1L]))
-        B_max <- 2L
+        nd2 <- .leaf_nd(2L, 1L, 2L, left_idx, pred_class = as.integer(sl_A[1L]))
       } else {
         B_cand <- B_opt
         appl_B <- .apply_cand(B_cand, left_idx)
@@ -1164,19 +1216,24 @@ oda_cta_fit <- function(
         nd2 <- .split_nd(2L, 1L, 2L, left_idx, B_cand, appl_B)
 
         # Grow HO-CTA below B's children (depth 3+); node 2 is already placed.
-        B_sub_env         <- new.env(parent = emptyenv())
-        B_sub_env$nodes   <- vector("list", n + 4L)
-        B_sub_env$counter <- 2L   # children start at 3
+        # Canonical: B is at node 2; left child = 4 (2×2), right child = 5 (2×2+1).
+        B_sub_env       <- new.env(parent = emptyenv())
+        B_sub_env$nodes <- list()
 
-        B_left_idx  <- left_idx[!is.na(appl_B$y_pred) & appl_B$y_pred == sl_B[1L]]
-        B_right_idx <- left_idx[!is.na(appl_B$y_pred) & appl_B$y_pred == sl_B[2L]]
+        if (identical(appl_B$rule$type, "ordered_cut")) {
+          sides_B     <- oda_rule_side(X[[B_cand$j]][left_idx], appl_B$rule)
+          B_left_idx  <- left_idx[!is.na(appl_B$y_pred) & sides_B == 0L]
+          B_right_idx <- left_idx[!is.na(appl_B$y_pred) & sides_B == 1L]
+        } else {
+          B_left_idx  <- left_idx[!is.na(appl_B$y_pred) & appl_B$y_pred == sl_B[1L]]
+          B_right_idx <- left_idx[!is.na(appl_B$y_pred) & appl_B$y_pred == sl_B[2L]]
+        }
 
-        cid_BL <- .ho_grow(B_left_idx,  3L, 2L, B_sub_env,
-                           pred_class = as.integer(sl_B[1L]))
-        cid_BR <- .ho_grow(B_right_idx, 3L, 2L, B_sub_env,
-                           pred_class = as.integer(sl_B[2L]))
-        B_max  <- B_sub_env$counter
-        nd2$child_ids <- c(cid_BL, cid_BR)
+        .ho_grow_canon(B_left_idx,  3L, 4L, 2L, B_sub_env,
+                       pred_class = as.integer(sl_B[1L]))
+        .ho_grow_canon(B_right_idx, 3L, 5L, 2L, B_sub_env,
+                       pred_class = as.integer(sl_B[2L]))
+        nd2$child_ids <- c(4L, 5L)
       }
 
       # ---- Inner C loop -------------------------------------------------------
@@ -1187,34 +1244,39 @@ oda_cta_fit <- function(
         # (B=leaf, C=leaf) handled by root-only stump phase - skip here
         if (B_is_leaf && C_is_leaf) next
 
-        c_root_id <- B_max + 1L
+        # Canonical: C is always the right child of the root (node 3 = 2×1+1).
+        c_root_id <- 3L
 
         if (C_is_leaf) {
-          nd_C  <- .leaf_nd(c_root_id, 1L, 2L, right_idx,
-                            pred_class = as.integer(sl_A[2L]))
-          C_max <- c_root_id
+          nd_C <- .leaf_nd(3L, 1L, 2L, right_idx,
+                           pred_class = as.integer(sl_A[2L]))
         } else {
           C_cand <- C_opt
           appl_C <- .apply_cand(C_cand, right_idx)
           sl_C   <- sort(unique(appl_C$y_pred[!is.na(appl_C$y_pred)]))
           if (length(sl_C) < 2L) next   # degenerate C split - skip
 
-          nd_C <- .split_nd(c_root_id, 1L, 2L, right_idx, C_cand, appl_C)
+          nd_C <- .split_nd(3L, 1L, 2L, right_idx, C_cand, appl_C)
 
-          # Grow HO-CTA below C's children (depth 3+); c_root_id is already placed.
-          C_sub_env         <- new.env(parent = emptyenv())
-          C_sub_env$nodes   <- vector("list", n + B_max + 4L)
-          C_sub_env$counter <- c_root_id   # children start at c_root_id + 1
+          # Grow HO-CTA below C's children; C is at node 3.
+          # Canonical: left child = 6 (2×3), right child = 7 (2×3+1).
+          C_sub_env       <- new.env(parent = emptyenv())
+          C_sub_env$nodes <- list()
 
-          C_left_idx  <- right_idx[!is.na(appl_C$y_pred) & appl_C$y_pred == sl_C[1L]]
-          C_right_idx <- right_idx[!is.na(appl_C$y_pred) & appl_C$y_pred == sl_C[2L]]
+          if (identical(appl_C$rule$type, "ordered_cut")) {
+            sides_C     <- oda_rule_side(X[[C_cand$j]][right_idx], appl_C$rule)
+            C_left_idx  <- right_idx[!is.na(appl_C$y_pred) & sides_C == 0L]
+            C_right_idx <- right_idx[!is.na(appl_C$y_pred) & sides_C == 1L]
+          } else {
+            C_left_idx  <- right_idx[!is.na(appl_C$y_pred) & appl_C$y_pred == sl_C[1L]]
+            C_right_idx <- right_idx[!is.na(appl_C$y_pred) & appl_C$y_pred == sl_C[2L]]
+          }
 
-          cid_CL <- .ho_grow(C_left_idx,  3L, c_root_id, C_sub_env,
-                             pred_class = as.integer(sl_C[1L]))
-          cid_CR <- .ho_grow(C_right_idx, 3L, c_root_id, C_sub_env,
-                             pred_class = as.integer(sl_C[2L]))
-          C_max <- C_sub_env$counter
-          nd_C$child_ids <- c(cid_CL, cid_CR)
+          .ho_grow_canon(C_left_idx,  3L, 6L, 3L, C_sub_env,
+                         pred_class = as.integer(sl_C[1L]))
+          .ho_grow_canon(C_right_idx, 3L, 7L, 3L, C_sub_env,
+                         pred_class = as.integer(sl_C[2L]))
+          nd_C$child_ids <- c(6L, 7L)
         }
 
         B_label <- if (B_is_leaf) "leaf" else B_opt$name
@@ -1222,32 +1284,41 @@ oda_cta_fit <- function(
         .vmsg("  [B=", B_label, " C=", C_label, "]")
 
         # ---- Assemble full candidate node list --------------------------------
-        cand_nodes <- vector("list", C_max)
+        # Sparse list indexed by canonical node ID (Appendix C geometry).
+        # root=1, B=2, C=3, B-subtree={4,5,8,9,...}, C-subtree={6,7,12,13,...}
+        cand_nodes <- list()
 
         nd1 <- .split_nd(1L, 0L, 1L, seq_len(n), A_cand, appl_A)
         nd1$split_labels <- as.integer(sl_A)
-        nd1$child_ids    <- c(2L, c_root_id)
+        nd1$child_ids    <- c(2L, 3L)   # canonical: left=2, right=3
         cand_nodes[[1L]] <- nd1
         cand_nodes[[2L]] <- nd2
+        cand_nodes[[3L]] <- nd_C
 
         if (!B_is_leaf) {
-          for (bid in seq(3L, B_max)) {
+          for (bid in seq_along(B_sub_env$nodes)) {
             nb <- B_sub_env$nodes[[bid]]
             if (!is.null(nb)) cand_nodes[[bid]] <- nb
           }
         }
 
-        cand_nodes[[c_root_id]] <- nd_C
-
         if (!C_is_leaf) {
-          for (cid_v in seq(c_root_id + 1L, C_max)) {
-            nc <- C_sub_env$nodes[[cid_v]]
-            if (!is.null(nc)) cand_nodes[[cid_v]] <- nc
+          for (cv in seq_along(C_sub_env$nodes)) {
+            nc <- C_sub_env$nodes[[cv]]
+            if (!is.null(nc)) cand_nodes[[cv]] <- nc
           }
         }
 
         # ---- Prune, score, compare -------------------------------------------
-        pruned_nodes <- .prune_tree(cand_nodes)
+        # Capture actual split count from cand_nodes BEFORE pruning.
+        unpruned_splits_cand <- sum(vapply(cand_nodes, function(nd)
+          !is.null(nd) && !isTRUE(nd$leaf) && length(nd$child_ids) > 0L,
+          logical(1L)))
+
+        prune_result        <- .prune_tree(cand_nodes)
+        pruned_nodes        <- prune_result$nodes
+        removed_cand        <- prune_result$removed_ids
+        removed_attrs_cand  <- prune_result$removed_attrs
 
         preds     <- NULL
         wess_cand <- tryCatch({
@@ -1276,6 +1347,14 @@ oda_cta_fit <- function(
             ok_exp         <- !is.na(preds)
             best_confusion <- .make_training_conf(y[ok_exp], preds[ok_exp])
           }
+          # Capture PRUNE provenance for the winning candidate.
+          best_prune_removed_ids   <- removed_cand
+          best_prune_removed_attrs <- removed_attrs_cand
+          best_unpruned_n_splits   <- unpruned_splits_cand
+          best_unpruned_ess <- tryCatch({
+            p_before <- .predict_all(cand_nodes, root_id = 1L)
+            .wess_classes(y, p_before, w)
+          }, error = function(e) wess_cand)
         }
       }  # end C loop
     }  # end B loop
@@ -1303,8 +1382,15 @@ oda_cta_fit <- function(
     # appl_A$y_pred already carries NA_integer_ for obs whose root attribute is
     # missing (value in miss_codes).  Scoring over ok=!is.na(stump_preds) is
     # therefore path-local: missing-root obs are excluded from WESS computation.
-    left_idx  <- which(valid_A & appl_A$y_pred == sl_A[1L])
-    right_idx <- which(valid_A & appl_A$y_pred == sl_A[2L])
+    # EXE canonical: for ordered_cut left = x<=cut, right = x>cut.
+    if (identical(appl_A$rule$type, "ordered_cut")) {
+      sides_A   <- oda_rule_side(X[[A_cand$j]], appl_A$rule)
+      left_idx  <- which(valid_A & sides_A == 0L)
+      right_idx <- which(valid_A & sides_A == 1L)
+    } else {
+      left_idx  <- which(valid_A & appl_A$y_pred == sl_A[1L])
+      right_idx <- which(valid_A & appl_A$y_pred == sl_A[2L])
+    }
     if (length(left_idx) < mindenom || length(right_idx) < mindenom) {
       .vmsg("  [root-only] ", A_cand$name,
             " skipped: child sizes ", length(left_idx), "/", length(right_idx),
@@ -1336,17 +1422,27 @@ oda_cta_fit <- function(
       nd1$split_labels  <- as.integer(sl_A)
       nd1$child_ids     <- c(2L, 3L)
       stump_nodes[[1L]] <- nd1
+      # pred_class for each leaf: actual majority class on that side.
+      # For ordered_cut, left = x<=cut and right = x>cut (canonical); the
+      # predicted class for each side comes from the ODA rule applied to that idx.
+      left_pred  <- appl_A$y_pred[left_idx[1L]]
+      right_pred <- appl_A$y_pred[right_idx[1L]]
       stump_nodes[[2L]] <- .leaf_nd(2L, 1L, 2L, left_idx,
-                                    pred_class = as.integer(sl_A[1L]))
+                                    pred_class = as.integer(left_pred))
       stump_nodes[[3L]] <- .leaf_nd(3L, 1L, 2L, right_idx,
-                                    pred_class = as.integer(sl_A[2L]))
+                                    pred_class = as.integer(right_pred))
 
       best_wess    <- wess_stump
       best_nodes   <- stump_nodes
       best_n_nodes <- 3L
       # Capture final-tree confusion at the moment of selection.
       # stump_preds[ok] is path-local: missing-root obs already excluded.
-      best_confusion <- .make_training_conf(y[ok], stump_preds[ok])
+      best_confusion             <- .make_training_conf(y[ok], stump_preds[ok])
+      # Stumps are not pruned: unpruned == pruned; no removed nodes.
+      best_prune_removed_ids     <- integer(0)
+      best_prune_removed_attrs   <- character(0)
+      best_unpruned_n_splits     <- 1L   # stump has exactly one split: the root
+      best_unpruned_ess          <- wess_stump
     }
   }  # end root-only phase
 
@@ -1392,7 +1488,35 @@ oda_cta_fit <- function(
       # Final selected tree training confusion (rows=actual, cols=predicted).
       # Captured at the exact moment the winning candidate is selected, using
       # the same scoring predictions.  NULL for no-tree fits.
-      training_confusion = if (no_tree) NULL else best_confusion
+      training_confusion = if (no_tree) NULL else best_confusion,
+      # PRUNE provenance: what pruning did (or did not do) to the winning
+      # candidate.  NULL for no-tree fits.  Fields:
+      #   unpruned_n_splits  -- split-node count before pruning
+      #   pruned_n_splits    -- split-node count after pruning (final tree)
+      #   removed_node_ids   -- node IDs collapsed to leaves by PRUNE
+      #   removed_attrs      -- attribute name at each removed node
+      #   unpruned_ess       -- ESS/WESS of winning candidate before pruning
+      #   pruned_ess         -- ESS/WESS of winning candidate after pruning
+      #                         (equals overall_ess)
+      prune_info = if (no_tree) NULL else {
+        pruned_n_splits <- sum(vapply(best_nodes, function(nd)
+          !is.null(nd) && !isTRUE(nd$leaf) && length(nd$child_ids) > 0L,
+          logical(1L)))
+        list(
+          # unpruned_n_splits: actual split count captured from cand_nodes BEFORE
+          # .prune_tree() ran.  For stumps this equals 1L.
+          unpruned_n_splits = as.integer(best_unpruned_n_splits),
+          pruned_n_splits   = as.integer(pruned_n_splits),
+          # removed_node_ids: directly collapsed node IDs plus any descendant split
+          # IDs that became unreachable (whole-subtree collapse).
+          removed_node_ids  = best_prune_removed_ids,
+          # removed_attrs: attribute names captured BEFORE mutation; NA for
+          # descendant splits whose root was collapsed.
+          removed_attrs     = best_prune_removed_attrs,
+          unpruned_ess      = best_unpruned_ess,
+          pruned_ess        = best_wess
+        )
+      }
     ),
     class = "cta_tree"
   )
