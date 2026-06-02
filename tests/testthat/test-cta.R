@@ -147,7 +147,6 @@ test_that("case weights accepted without error", {
   mc_iter     = 5000L,
   mc_target   = 0.05,
   mc_stop     = 99.9,
-  mc_stopup   = 99.9,
   mc_seed     = NULL,
   loo         = "stable"
 )
@@ -268,6 +267,28 @@ test_that("no-tree fit: predict returns NA_integer_ for every observation", {
 test_that("no-tree fit: print says 'No tree found'", {
   tree <- .no_tree_fit()
   expect_output(print(tree), "No tree found")
+})
+
+# ---- MC STOP bypass contract -------------------------------------------------
+# mc_stopup=NULL (default) resolves to mc_stop, enabling NS early stopping.
+# mc_stopup=NA disables NS stopping (runs mc_iter iterations for NS candidates).
+# Both settings must produce identical tree structure — stopup policy is an
+# efficiency knob, not a model-selection knob.
+
+test_that("mc_stopup=NA bypass: same root and ESS as default (mc_stopup=NULL)", {
+  d    <- bin_data()
+  args <- list(X = d$X, y = d$y, mindenom = 2L, mc_iter = 500L,
+               mc_stop = 99.9, mc_seed = 1L, loo = "off")
+  t_default <- do.call(oda_cta_fit, c(args, list(mc_stopup = NULL)))
+  t_bypass  <- do.call(oda_cta_fit, c(args, list(mc_stopup = NA)))
+  expect_s3_class(t_default, "cta_tree")
+  expect_s3_class(t_bypass,  "cta_tree")
+  r_def <- t_default$nodes[[t_default$root_id]]
+  r_byp <- t_bypass$nodes[[t_bypass$root_id]]
+  expect_equal(isTRUE(r_def$leaf),   isTRUE(r_byp$leaf),   label = "leaf status matches")
+  expect_equal(r_def$attribute,      r_byp$attribute,       label = "root attribute matches")
+  expect_equal(r_def$rule$cut_value, r_byp$rule$cut_value,  label = "cut value matches")
+  expect_equal(t_default$overall_ess, t_bypass$overall_ess, label = "ESS unchanged")
 })
 
 # ---- Phase 2C: read-only CTA endpoint accessor tests ------------------------

@@ -38,7 +38,7 @@
 #      Verifies the fixture file records the active-PRUNE event.
 #   2. R end-to-end MODEL8 — fits with mc_iter=25000 and asserts
 #      prune_info and tree structure against EXE canon.
-#      Gated: full tier (mc_iter=25000; EXE-grade parity test).
+#      Gated: smoke tier (mc_iter=25000; fast with MC STOP policy).
 #
 # Never rewrite these expected values from R output.  They derive solely
 # from MODEL8.TXT (EXE-produced).
@@ -124,7 +124,6 @@ test_that("MODEL8 static canon: pruned confusion = [[104,20],[12,64]], n=200", {
         mc_iter     = 25000L,
         mc_target   = 0.05,
         mc_stop     = 99.9,
-        mc_stopup   = 99.9,
         mc_seed     = 42L,    # fixed seed: deterministic pruning for canon tests
         loo         = "stable",
         attr_names  = c("V2", "V3", "V4", "V5", "V6")
@@ -135,7 +134,7 @@ test_that("MODEL8 static canon: pruned confusion = [[104,20],[12,64]], n=200", {
 })
 
 test_that("MODEL8 R e2e: prune_info is non-NULL and records V5 removal", {
-  skip_if_not_full("fixture-cta-demo-model8")
+  skip_if_not_smoke("fixture-cta-demo-model8")
   tree <- .cta_demo_model8_fit()
 
   expect_false(isTRUE(tree$no_tree), label = "tree found")
@@ -156,7 +155,7 @@ test_that("MODEL8 R e2e: prune_info is non-NULL and records V5 removal", {
 })
 
 test_that("MODEL8 R e2e: unpruned ESS ≈ 60.65, pruned ESS ≈ 68.08", {
-  skip_if_not_full("fixture-cta-demo-model8")
+  skip_if_not_smoke("fixture-cta-demo-model8")
   tree <- .cta_demo_model8_fit()
   pi   <- tree$prune_info
 
@@ -173,7 +172,7 @@ test_that("MODEL8 R e2e: pruned tree has EXE-canonical node_id:attr (V2 V6 V2 V3
   #   node 1=V2, node 2=V6, node 3=V2, node 4=V3, node 6=V6, node 13=V4
   #   node 5 removed (was V5); all other positions are leaves.
   # Canonical geometry (MPE Appendix C, Figure C.1): left child = 2x, right = 2x+1.
-  skip_if_not_full("fixture-cta-demo-model8")
+  skip_if_not_smoke("fixture-cta-demo-model8")
   tree  <- .cta_demo_model8_fit()
   nodes <- tree$nodes
 
@@ -203,7 +202,7 @@ test_that("MODEL8 R e2e: pruned tree has EXE-canonical node_id:attr (V2 V6 V2 V3
 })
 
 test_that("MODEL8 R e2e: overall ESS ≈ 68.08% (tolerance 0.5pp)", {
-  skip_if_not_full("fixture-cta-demo-model8")
+  skip_if_not_smoke("fixture-cta-demo-model8")
   tree <- .cta_demo_model8_fit()
 
   expect_equal(round(tree$overall_ess, 2), 68.08, tolerance = 0.5,
@@ -211,7 +210,7 @@ test_that("MODEL8 R e2e: overall ESS ≈ 68.08% (tolerance 0.5pp)", {
 })
 
 test_that("MODEL8 R e2e: pruned confusion = [[104,20],[12,64]] (tolerance 2)", {
-  skip_if_not_full("fixture-cta-demo-model8")
+  skip_if_not_smoke("fixture-cta-demo-model8")
   tree <- .cta_demo_model8_fit()
 
   conf <- tree$training_confusion
@@ -225,7 +224,7 @@ test_that("MODEL8 R e2e: pruned confusion = [[104,20],[12,64]] (tolerance 2)", {
 test_that("MODEL8 R e2e: prune_info removed_attrs is exactly 'V5' (exact equality, parallel to removed_node_ids)", {
   # Existing test checks "V5" %in% pi$removed_attrs but not exact equality.
   # This test locks: removed_attrs == c("V5"), length == 1, parallel to removed_node_ids.
-  skip_if_not_full("fixture-cta-demo-model8")
+  skip_if_not_smoke("fixture-cta-demo-model8")
   tree <- .cta_demo_model8_fit()
   pi   <- tree$prune_info
 
@@ -251,7 +250,7 @@ test_that("MODEL8 R e2e: prune_info removed_attrs is exactly 'V5' (exact equalit
 #   Node 13  V4 <=0.5 : left(node 26) n= 19, right(node 27) n= 18
 
 test_that("MODEL8 R e2e: every split node has child_ids = c(2*nid, 2*nid+1) and correct parent_id", {
-  skip_if_not_full("fixture-cta-demo-model8")
+  skip_if_not_smoke("fixture-cta-demo-model8")
   tree  <- .cta_demo_model8_fit()
   nodes <- tree$nodes
 
@@ -281,7 +280,7 @@ test_that("MODEL8 R e2e: ordered_cut left branch = x<=cut_value (EXE canonical o
   # Branch sizes are exact obs counts from MODEL8.TXT — no tolerance.
   # left child  = x <= cut_value (Appendix C left = 2*nid).
   # right child = x >  cut_value (Appendix C right = 2*nid+1).
-  skip_if_not_full("fixture-cta-demo-model8")
+  skip_if_not_smoke("fixture-cta-demo-model8")
   tree  <- .cta_demo_model8_fit()
   nodes <- tree$nodes
 

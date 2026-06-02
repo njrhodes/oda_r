@@ -74,7 +74,6 @@
         mc_iter     = 5000L,
         mc_target   = 0.05,
         mc_stop     = 99.9,
-        mc_stopup   = 99.9,
         mc_seed     = NULL,
         loo         = "stable",
         attr_names  = .myeloma_attr_names
@@ -237,7 +236,6 @@ test_that("myeloma gold: full-tree training confusion matches [[146,40],[36,33]]
         mc_iter     = 5000L,
         mc_target   = 0.05,
         mc_stop     = 99.9,
-        mc_stopup   = 99.9,
         mc_seed     = NULL,
         loo         = "stable",
         attr_names  = .myeloma_attr_names
@@ -351,7 +349,6 @@ test_that("myeloma CTA: MINDENOM=56 returns no tree", {
     mc_iter     = 5000L,
     mc_target   = 0.05,
     mc_stop     = 99.9,
-    mc_stopup   = 99.9,
     mc_seed     = NULL,
     loo         = "stable",
     attr_names  = .myeloma_attr_names
