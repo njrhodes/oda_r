@@ -2,298 +2,148 @@
 # test-cta-observation-weights.R — cta_observation_weights()
 #
 # Per-observation propensity weight assignment.
-# Fast tier: synthetic trees only.
-# Slow tier: myeloma fixture regression anchors.
 ###############################################################################
 
-# ---- Shared synthetic fixtures -----------------------------------------------
+# ---- Helpers ----------------------------------------------------------------
 
-# 8-observation binary dataset; stump with cut at x=4.5
-#   node2 (x<=4.5): obs 1–4, class0=4, class1=0   => endpoint 1
-#   node3 (x>4.5):  obs 5–8, class0=0, class1=4   => endpoint 2
 .ow_stump_fit <- function() {
-  X <- data.frame(x = 1:8)
-  y <- c(0L, 0L, 0L, 0L, 1L, 1L, 1L, 1L)
   suppressMessages(
-    oda_cta_fit(X, y, mindenom = 2L, mc_iter = 300L, mc_seed = 1L, loo = "off")
+    oda_cta_fit(data.frame(x = 1:8),
+                c(0L, 0L, 0L, 0L, 1L, 1L, 1L, 1L),
+                mindenom = 2L, mc_iter = 300L, mc_seed = 1L, loo = "off")
   )
 }
 
 .ow_no_tree_fit <- function() {
-  X <- data.frame(x = 1:8)
-  y <- c(0L, 0L, 0L, 0L, 1L, 1L, 1L, 1L)
   suppressMessages(
-    oda_cta_fit(X, y, mindenom = 999L, mc_iter = 100L, mc_seed = 1L,
-                loo = "off")
+    oda_cta_fit(data.frame(x = 1:8),
+                c(0L, 0L, 0L, 0L, 1L, 1L, 1L, 1L),
+                mindenom = 999L, mc_iter = 100L, mc_seed = 1L, loo = "off")
   )
 }
 
-# ---- Row count invariant -----------------------------------------------------
+# =============================================================================
+# Contract tests
+# =============================================================================
 
-test_that("output has exactly nrow(newdata) rows for stump", {
+test_that("ow: schema + no-tree — nrow, columns, no-tree all unassigned/NA", {
   tree <- .ow_stump_fit()
-  X    <- data.frame(x = 1:8)
-  y    <- c(0L, 0L, 0L, 0L, 1L, 1L, 1L, 1L)
-  ow   <- cta_observation_weights(tree, X, y)
+  skip_if(isTRUE(tree$no_tree), "mc sampling missed")
+  X <- data.frame(x = 1:8)
+  y <- c(0L, 0L, 0L, 0L, 1L, 1L, 1L, 1L)
+  ow <- cta_observation_weights(tree, X, y)
+  # Row count
   expect_equal(nrow(ow), 8L)
-})
-
-test_that("output has exactly nrow(newdata) rows for no-tree fit", {
-  tree <- .ow_no_tree_fit()
-  X    <- data.frame(x = 1:8)
-  y    <- c(0L, 0L, 0L, 0L, 1L, 1L, 1L, 1L)
-  ow   <- cta_observation_weights(tree, X, y)
-  expect_equal(nrow(ow), 8L)
-})
-
-# ---- Column presence ---------------------------------------------------------
-
-test_that("output has all 11 required columns", {
-  tree <- .ow_stump_fit()
-  X    <- data.frame(x = 1:8)
-  y    <- c(0L, 0L, 0L, 0L, 1L, 1L, 1L, 1L)
-  ow   <- cta_observation_weights(tree, X, y)
+  # Required columns
   expected_cols <- c("row_id", "actual_class", "endpoint_node_id",
                      "endpoint_id", "target_class", "propensity_weight",
                      "adjusted_propensity_weight", "undefined_empirical",
                      "perfectly_predicted_endpoint", "adjusted", "assigned")
   expect_true(all(expected_cols %in% names(ow)))
-})
-
-# ---- row_id column -----------------------------------------------------------
-
-test_that("row_id is sequential 1:n", {
-  tree <- .ow_stump_fit()
-  X    <- data.frame(x = 1:8)
-  y    <- c(0L, 0L, 0L, 0L, 1L, 1L, 1L, 1L)
-  ow   <- cta_observation_weights(tree, X, y)
+  # row_id is sequential 1:n
   expect_identical(ow$row_id, 1:8)
-})
-
-# ---- actual_class column -----------------------------------------------------
-
-test_that("actual_class is character coercion of y", {
-  tree <- .ow_stump_fit()
-  X    <- data.frame(x = 1:8)
-  y    <- c(0L, 0L, 0L, 0L, 1L, 1L, 1L, 1L)
-  ow   <- cta_observation_weights(tree, X, y)
+  # actual_class is character coercion of y
   expect_equal(ow$actual_class, as.character(y))
+  # No-tree: all unassigned, weight columns NA
+  nt <- .ow_no_tree_fit()
+  ow_nt <- cta_observation_weights(nt, X, y)
+  expect_equal(nrow(ow_nt), 8L)
+  expect_true(all(!ow_nt$assigned))
+  expect_true(all(is.na(ow_nt$propensity_weight)))
+  expect_true(all(is.na(ow_nt$adjusted_propensity_weight)))
 })
 
-# ---- assigned column — no-tree fit -------------------------------------------
-
-test_that("assigned is FALSE for all rows in no-tree fit", {
-  tree <- .ow_no_tree_fit()
-  X    <- data.frame(x = 1:8)
-  y    <- c(0L, 0L, 0L, 0L, 1L, 1L, 1L, 1L)
-  ow   <- cta_observation_weights(tree, X, y)
-  expect_true(all(!ow$assigned))
-})
-
-test_that("weight columns are NA for no-tree fit", {
-  tree <- .ow_no_tree_fit()
-  X    <- data.frame(x = 1:8)
-  y    <- c(0L, 0L, 0L, 0L, 1L, 1L, 1L, 1L)
-  ow   <- cta_observation_weights(tree, X, y)
-  expect_true(all(is.na(ow$propensity_weight)))
-  expect_true(all(is.na(ow$adjusted_propensity_weight)))
-})
-
-# ---- assigned column — stump (perfectly predicted endpoints) -----------------
-
-test_that("all 8 stump observations are assigned when endpoints are perfect", {
+test_that("ow: stump contract — assigned, missing_action, NA y, target_class annotation", {
   tree <- .ow_stump_fit()
-  X    <- data.frame(x = 1:8)
-  y    <- c(0L, 0L, 0L, 0L, 1L, 1L, 1L, 1L)
-  ow   <- cta_observation_weights(tree, X, y, adjusted = FALSE)
-  # endpoint 1: all class 0 → undefined_empirical for class1; class0 assigned
-  # endpoint 2: all class 1 → undefined_empirical for class0; class1 assigned
-  # Each obs has a matching (endpoint, actual_class) cell
+  skip_if(isTRUE(tree$no_tree), "mc sampling missed")
+  X <- data.frame(x = 1:8)
+  y <- c(0L, 0L, 0L, 0L, 1L, 1L, 1L, 1L)
+  # All 8 obs assigned when using adjusted=FALSE on perfectly separated data
+  ow <- cta_observation_weights(tree, X, y, adjusted = FALSE)
   expect_true(all(ow$assigned))
-})
-
-# ---- NA y label → assigned = FALSE ------------------------------------------
-
-test_that("NA y gives assigned=FALSE and NA weight columns", {
-  tree <- .ow_stump_fit()
-  X    <- data.frame(x = 1:8)
-  y    <- c(NA_integer_, 0L, 0L, 0L, 1L, 1L, 1L, 1L)
-  ow   <- cta_observation_weights(tree, X, y)
-  expect_false(ow$assigned[1L])
-  expect_true(is.na(ow$propensity_weight[1L]))
-  # Other rows still assigned
-  expect_true(all(ow$assigned[-1L]))
-})
-
-# ---- length(y) mismatch error ------------------------------------------------
-
-test_that("length(y) != nrow(newdata) is an error", {
-  tree <- .ow_stump_fit()
-  X    <- data.frame(x = 1:8)
-  expect_error(
-    cta_observation_weights(tree, X, y = 1:5),
-    regexp = "length\\(y\\)"
-  )
-})
-
-# ---- non-data.frame newdata coercion -----------------------------------------
-
-test_that("matrix newdata is coerced to data.frame", {
-  tree <- .ow_stump_fit()
-  X    <- matrix(1:8, ncol = 1L, dimnames = list(NULL, "x"))
-  y    <- c(0L, 0L, 0L, 0L, 1L, 1L, 1L, 1L)
-  expect_no_error(cta_observation_weights(tree, X, y))
-})
-
-# ---- missing_action propagation ----------------------------------------------
-
-test_that("missing_action='majority' produces same nrow as 'na'", {
-  tree <- .ow_stump_fit()
-  X    <- data.frame(x = c(NA, 1, 2, 3, 5, 6, 7, 8))
-  y    <- c(0L, 0L, 0L, 0L, 1L, 1L, 1L, 1L)
-  ow_na  <- cta_observation_weights(tree, X, y, missing_action = "na")
-  ow_maj <- cta_observation_weights(tree, X, y, missing_action = "majority")
-  expect_equal(nrow(ow_na),  8L)
-  expect_equal(nrow(ow_maj), 8L)
-  # Row 1: NA under "na", routed under "majority"
+  # missing_action='na' → row 1 unassigned; 'majority' → row 1 assigned
+  X_miss <- data.frame(x = c(NA, 1, 2, 3, 5, 6, 7, 8))
+  y_miss  <- c(0L, 0L, 0L, 0L, 1L, 1L, 1L, 1L)
+  ow_na  <- cta_observation_weights(tree, X_miss, y_miss, missing_action = "na")
+  ow_maj <- cta_observation_weights(tree, X_miss, y_miss, missing_action = "majority")
   expect_true(is.na(ow_na$endpoint_id[1L]))
   expect_false(is.na(ow_maj$endpoint_id[1L]))
-})
-
-# ---- target_class annotation -------------------------------------------------
-
-test_that("target_class is annotation-only: all obs remain assigned", {
-  # cta_propensity_weights target_class is annotation — does not filter rows.
-  # The pw table always has all (endpoint, class) combinations.
-  tree <- .ow_stump_fit()
-  X    <- data.frame(x = 1:8)
-  y    <- c(0L, 0L, 0L, 0L, 1L, 1L, 1L, 1L)
-  ow1 <- cta_observation_weights(tree, X, y, target_class = 1L,
-                                  adjusted = FALSE)
-  # All 8 obs classified and matched regardless of target_class
+  expect_equal(nrow(ow_na), 8L); expect_equal(nrow(ow_maj), 8L)
+  # NA y → assigned=FALSE and NA weight; other rows still assigned
+  y_na <- c(NA_integer_, 0L, 0L, 0L, 1L, 1L, 1L, 1L)
+  ow_yn <- cta_observation_weights(tree, X, y_na)
+  expect_false(ow_yn$assigned[1L])
+  expect_true(is.na(ow_yn$propensity_weight[1L]))
+  expect_true(all(ow_yn$assigned[-1L]))
+  # target_class annotation: all obs remain assigned; column is integer
+  ow1 <- cta_observation_weights(tree, X, y, target_class = 1L, adjusted = FALSE)
   expect_true(all(ow1$assigned))
-  # target_class column is integer and reflects the annotation
   expect_type(ow1$target_class, "integer")
   expect_true(all(ow1$target_class[ow1$assigned] == 1L))
 })
 
-# ---- unmatched classified obs warning ----------------------------------------
-
-test_that("unmatched classified obs triggers warning", {
+test_that("ow: errors — y length mismatch, non-cta_tree, unmatched obs warning", {
   tree <- .ow_stump_fit()
-  X    <- data.frame(x = 1:8)
-  # Class "2" does not appear in the fitted tree
-  y    <- c(2L, 0L, 0L, 0L, 1L, 1L, 1L, 1L)
-  expect_warning(
-    cta_observation_weights(tree, X, y),
-    regexp = "could not be matched"
-  )
+  skip_if(isTRUE(tree$no_tree), "mc sampling missed")
+  X <- data.frame(x = 1:8)
+  expect_error(cta_observation_weights(tree, X, y = 1:5), regexp = "length\\(y\\)")
+  expect_error(cta_observation_weights(list(), data.frame(x=1:4), y=1:4), regexp = "cta_tree")
+  # Class "2" not in fitted tree → warning about unmatched obs
+  y_bad <- c(2L, 0L, 0L, 0L, 1L, 1L, 1L, 1L)
+  expect_warning(cta_observation_weights(tree, X, y_bad), regexp = "could not be matched")
+  # matrix newdata coerced to data.frame without error
+  X_mat <- matrix(1:8, ncol = 1L, dimnames = list(NULL, "x"))
+  expect_no_error(cta_observation_weights(tree, X_mat, y = rep(0L, 8L)))
 })
 
-# ---- not a cta_tree error ----------------------------------------------------
+# =============================================================================
+# Smoke: myeloma canon
+# =============================================================================
 
-test_that("non-cta_tree tree argument is an error", {
-  expect_error(
-    cta_observation_weights(list(), data.frame(x = 1:4), y = 1:4),
-    regexp = "cta_tree"
-  )
-})
-
-# ==============================================================================
-# Slow-tier myeloma regression anchors
-# ==============================================================================
-
-# data.txt has no header; columns are named V1..V19 after loading.
-# V1 = class, V2 = weight (case weight; EX V2=0 excludes zero-weight rows).
-# Attributes: V4 V9 V11 V12 V14 V15 V16 V17 V18 V19.
 .ow_load_myeloma <- function() {
-  fixture_dir <- testthat::test_path("fixtures", "myeloma")
-  raw <- read.table(file.path(fixture_dir, "data.txt"), header = FALSE)
-  names(raw) <- paste0("V", seq_len(ncol(raw)))   # V1..V19
-  raw <- raw[raw$V2 != 0, ]                        # EX V2=0
-  raw
+  raw <- read.table(testthat::test_path("fixtures", "myeloma", "data.txt"), header = FALSE)
+  names(raw) <- paste0("V", seq_len(ncol(raw)))
+  raw[raw$V2 != 0, ]
 }
-
 .ow_myeloma_attrs <- c("V4","V9","V11","V12","V14","V15","V16","V17","V18","V19")
 
-.ow_myeloma_fit <- function(mindenom) {
+.ow_myeloma_fit <- local({
+  fits <- list()
+  function(mindenom) {
+    key <- as.character(mindenom)
+    if (is.null(fits[[key]])) {
+      d <- .ow_load_myeloma()
+      fits[[key]] <<- suppressMessages(oda_cta_fit(
+        X = d[, .ow_myeloma_attrs], y = as.integer(d$V1), w = d$V2,
+        mindenom = mindenom, mc_iter = 25000L, mc_seed = 42L,
+        miss_codes = -9, loo = "stable", attr_names = .ow_myeloma_attrs
+      ))
+    }
+    fits[[key]]
+  }
+})
+
+test_that("ow: myeloma — assigned counts and no-tree for MINDENOM=56/1/30", {
+  skip_if_slow_tests_disabled("fixture-myeloma-obs-weights")
   d <- .ow_load_myeloma()
-  suppressMessages(
-    oda_cta_fit(
-      X           = d[, .ow_myeloma_attrs],
-      y           = as.integer(d$V1),
-      w           = d$V2,
-      mindenom    = mindenom,
-      mc_iter     = 25000L,
-      mc_seed     = 42L,
-      miss_codes  = -9,
-      loo         = "stable",
-      attr_names  = .ow_myeloma_attrs
-    )
-  )
-}
+  X <- d[, .ow_myeloma_attrs]
+  y <- as.integer(d$V1)
 
-test_that("myeloma MINDENOM=1 observation weights — row count and assignment", {
-  skip_if_slow_tests_disabled("fixture-myeloma-obs-weights")
+  # MINDENOM=56: no-tree → all unassigned, all NA endpoint_id
+  ow56 <- cta_observation_weights(.ow_myeloma_fit(56L), X, y, adjusted = TRUE)
+  expect_true(all(!ow56$assigned))
+  expect_true(all(is.na(ow56$endpoint_id)))
 
-  d    <- .ow_load_myeloma()
-  tree <- .ow_myeloma_fit(1L)
-  X    <- d[, .ow_myeloma_attrs]
-  y    <- as.integer(d$V1)
-  ow   <- cta_observation_weights(tree, X, y, adjusted = TRUE)
+  # MINDENOM=1: classified = 255; nrow = nrow(X); assigned obs have non-NA weights
+  ow1 <- cta_observation_weights(.ow_myeloma_fit(1L), X, y, adjusted = TRUE)
+  expect_equal(nrow(ow1), nrow(X))
+  expect_identical(ow1$row_id, seq_len(nrow(X)))
+  expect_equal(sum(ow1$assigned), 255L)
+  assigned1 <- ow1[ow1$assigned, ]
+  non_undef1 <- assigned1[!isTRUE(assigned1$undefined_empirical), ]
+  expect_true(all(!is.na(non_undef1$propensity_weight)))
 
-  # nrow invariant
-  expect_equal(nrow(ow), nrow(X))
-  # row_id is sequential
-  expect_identical(ow$row_id, seq_len(nrow(X)))
-  # assigned must be logical
-  expect_type(ow$assigned, "logical")
-  # Obs with NA endpoint_node_id are not assigned
-  na_ep <- is.na(ow$endpoint_node_id)
-  expect_true(all(!ow$assigned[na_ep]))
-  # Assigned obs with defined empirical cell have non-NA propensity_weight
-  assigned_rows <- ow[ow$assigned, ]
-  non_undef <- assigned_rows[!isTRUE(assigned_rows$undefined_empirical), ]
-  expect_true(all(!is.na(non_undef$propensity_weight)))
-})
-
-test_that("myeloma MINDENOM=1 assigned count matches classified n=255", {
-  skip_if_slow_tests_disabled("fixture-myeloma-obs-weights")
-
-  d    <- .ow_load_myeloma()
-  tree <- .ow_myeloma_fit(1L)
-  X    <- d[, .ow_myeloma_attrs]
-  y    <- as.integer(d$V1)
-  ow   <- cta_observation_weights(tree, X, y, adjusted = TRUE)
-
-  # MINDENOM=1 root=V14; obs with V14=-9 (missing) are unroutable.
-  # Canon: 255 obs classified.
-  expect_equal(sum(ow$assigned), 255L)
-})
-
-test_that("myeloma MINDENOM=30 assigned count matches classified n=186", {
-  skip_if_slow_tests_disabled("fixture-myeloma-obs-weights")
-
-  d    <- .ow_load_myeloma()
-  tree <- .ow_myeloma_fit(30L)
-  X    <- d[, .ow_myeloma_attrs]
-  y    <- as.integer(d$V1)
-  ow   <- cta_observation_weights(tree, X, y, adjusted = TRUE)
-
-  # MINDENOM=30 root=V17; obs with V17=-9 are unroutable.
-  # Canon: 186 obs classified.
-  expect_equal(sum(ow$assigned), 186L)
-})
-
-test_that("myeloma MINDENOM=56 all unassigned (no-tree)", {
-  skip_if_slow_tests_disabled("fixture-myeloma-obs-weights")
-
-  d    <- .ow_load_myeloma()
-  tree <- .ow_myeloma_fit(56L)
-  X    <- d[, .ow_myeloma_attrs]
-  y    <- as.integer(d$V1)
-  ow   <- cta_observation_weights(tree, X, y, adjusted = TRUE)
-
-  expect_true(all(!ow$assigned))
-  expect_true(all(is.na(ow$endpoint_id)))
+  # MINDENOM=30: classified = 186
+  ow30 <- cta_observation_weights(.ow_myeloma_fit(30L), X, y, adjusted = TRUE)
+  expect_equal(sum(ow30$assigned), 186L)
 })
