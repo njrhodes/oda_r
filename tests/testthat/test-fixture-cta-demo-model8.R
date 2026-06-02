@@ -221,3 +221,82 @@ test_that("MODEL8 R e2e: pruned confusion = [[104,20],[12,64]] (tolerance 2)", {
   expect_equal(conf[2, 1],  12L, tolerance = 2L, label = "FP class 2")
   expect_equal(conf[2, 2],  64L, tolerance = 2L, label = "TP class 2")
 })
+
+# ---- Canonical node geometry invariant tests ---------------------------------
+# These tests lock down the Appendix C node-ID geometry and ordered-cut branch
+# direction (LEFT = x<=cut) introduced in the fix.  All expected values are
+# derived directly from MODEL8.TXT (EXE-produced); do not update from R output.
+#
+# Split nodes and their EXE-canonical branch sizes (MODEL8.TXT Pruned section):
+#   Node  1  V2 <=4.5 : left(node  2) n=110, right(node  3) n= 90
+#   Node  2  V6 <=7.5 : left(node  4) n= 29, right(node  5) n= 81
+#   Node  3  V2 <=6.5 : left(node  6) n= 47, right(node  7) n= 43
+#   Node  4  V3 <=4.5 : left(node  8) n= 16, right(node  9) n= 13
+#   Node  6  V6 <=5.5 : left(node 12) n= 10, right(node 13) n= 37
+#   Node 13  V4 <=0.5 : left(node 26) n= 19, right(node 27) n= 18
+
+test_that("MODEL8 R e2e: every split node has child_ids = c(2*nid, 2*nid+1) and correct parent_id", {
+  skip_if_not_full("fixture-cta-demo-model8")
+  tree  <- .cta_demo_model8_fit()
+  nodes <- tree$nodes
+
+  .is_split <- function(nd) !is.null(nd) && !isTRUE(nd$leaf) && length(nd$child_ids) > 0L
+
+  split_ids <- which(vapply(nodes, .is_split, logical(1L)))
+  for (nid in split_ids) {
+    nd        <- nodes[[nid]]
+    left_id   <- 2L * nid
+    right_id  <- 2L * nid + 1L
+    expected  <- c(left_id, right_id)
+    actual    <- sort(nd$child_ids)
+    expect_equal(actual, sort(expected),
+                 label = paste0("node ", nid, " child_ids = {", left_id, ",", right_id, "}"))
+
+    for (cid in nd$child_ids) {
+      child_nd <- nodes[[cid]]
+      expect_false(is.null(child_nd),
+                   label = paste0("node ", cid, " exists (child of ", nid, ")"))
+      expect_equal(child_nd$parent_id, nid,
+                   label = paste0("node ", cid, " parent_id = ", nid))
+    }
+  }
+})
+
+test_that("MODEL8 R e2e: ordered_cut left branch = x<=cut_value (EXE canonical obs counts)", {
+  # Branch sizes are exact obs counts from MODEL8.TXT — no tolerance.
+  # left child  = x <= cut_value (Appendix C left = 2*nid).
+  # right child = x >  cut_value (Appendix C right = 2*nid+1).
+  skip_if_not_full("fixture-cta-demo-model8")
+  tree  <- .cta_demo_model8_fit()
+  nodes <- tree$nodes
+
+  .n_obs <- function(nid) {
+    nd <- nodes[[nid]]
+    if (is.null(nd)) return(NA_integer_)
+    nd$n_obs
+  }
+
+  # Node 1 (V2 <=4.5): left=node2, right=node3
+  expect_equal(.n_obs(2L),  110L, label = "node 2 n_obs = 110 (V2<=4.5 side)")
+  expect_equal(.n_obs(3L),   90L, label = "node 3 n_obs = 90  (V2>4.5 side)")
+
+  # Node 2 (V6 <=7.5): left=node4, right=node5
+  expect_equal(.n_obs(4L),   29L, label = "node 4 n_obs = 29  (V6<=7.5 side)")
+  expect_equal(.n_obs(5L),   81L, label = "node 5 n_obs = 81  (V6>7.5 side)")
+
+  # Node 3 (V2 <=6.5): left=node6, right=node7
+  expect_equal(.n_obs(6L),   47L, label = "node 6 n_obs = 47  (V2<=6.5 side)")
+  expect_equal(.n_obs(7L),   43L, label = "node 7 n_obs = 43  (V2>6.5 side)")
+
+  # Node 4 (V3 <=4.5): left=node8, right=node9
+  expect_equal(.n_obs(8L),   16L, label = "node 8 n_obs = 16  (V3<=4.5 side)")
+  expect_equal(.n_obs(9L),   13L, label = "node 9 n_obs = 13  (V3>4.5 side)")
+
+  # Node 6 (V6 <=5.5): left=node12, right=node13
+  expect_equal(.n_obs(12L),  10L, label = "node 12 n_obs = 10 (V6<=5.5 side)")
+  expect_equal(.n_obs(13L),  37L, label = "node 13 n_obs = 37 (V6>5.5 side)")
+
+  # Node 13 (V4 <=0.5): left=node26, right=node27
+  expect_equal(.n_obs(26L),  19L, label = "node 26 n_obs = 19 (V4<=0.5 side)")
+  expect_equal(.n_obs(27L),  18L, label = "node 27 n_obs = 18 (V4>0.5 side)")
+})
