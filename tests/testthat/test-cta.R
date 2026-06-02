@@ -484,14 +484,21 @@ test_that("cta_d_stat: two leaves, overall_ess = 50 returns D = 2", {
 #
 # Fixture: myeloma data (tests/testthat/fixtures/myeloma/data.txt), mc_seed=800.
 #
-# With mc_seed=800 and prune_alpha=0.05, the HO-CTA candidate for the V14 root
-# grows V14 -> V15 -> V11 (3 split nodes). V11 has p_mc=0.04:
-#   K=3, alpha_3 = 1-(0.95)^(1/3) ~ 0.017 < 0.04 → V11 is Sidak-flagged.
-# Pruning V11 improves WESS from 25.40% to 27.69% → maximum-accuracy accepts.
-# Result: V14 -> V15 (2 split nodes), overall_ess ~ 27.69%.
+# Under EO-canonical geometry (post EO-fix), the HO-CTA candidate grown below
+# the V14 root terminates at V14 -> V15 (2 split nodes). V11 does not pass the
+# node gate at the EO-corrected partition.
 #
-# With prune_alpha=1.0 (no-op), V11 is never flagged: V14->V15->V11 survives,
-# scoring 25.40% over all n observations.
+# prune_alpha=0.05: HO candidate = V14->V15; .prune_tree() finds no Sidak-flagged
+#   nodes; ENUMERATE selects V14->V15 as winner, WESS=27.69%.
+#
+# prune_alpha=1.0: .prune_tree() early-exits (cta_core.R:1027, prune_alpha>=1.0);
+#   HO candidate V14->V15 is returned unchanged; ENUMERATE selects V14->V15,
+#   WESS=27.69%. The "no-op" label refers to the pruning function being disabled,
+#   NOT to the expectation that more nodes survive.
+#
+# NOTE: pre-EO-fix code produced V14->V15->V11 under this mc_seed, with V11
+# getting Sidak-pruned (p=0.04 > alpha_3~0.017) under prune_alpha=0.05. Those
+# 3-split / 25.40% values are stale and do not reflect correct EO geometry.
 #
 # External validation anchor (not tracked as fixture):
 #   tests/testthat/myeloma/MODEL1.TXT: Unpruned HO V17->V15->V14 WESS=23.61%,
@@ -528,14 +535,15 @@ test_that("cta_d_stat: two leaves, overall_ess = 50 returns D = 2", {
              logical(1L)))
 }
 
-test_that("PRUNE no-op: prune_alpha=1.0 retains all grown split nodes", {
+test_that("PRUNE no-op: prune_alpha=1.0 retains selected enumerated tree unchanged", {
   skip_if_slow_tests_disabled("cta-myeloma-prune")
   tree <- .myeloma_prune_tree(1.0)
-  # With no pruning, HO candidate V14->V15->V11 survives (3 splits).
-  expect_equal(.n_split_nodes(tree), 3L,
-               label = "prune_alpha=1.0: 3 split nodes (V11 not pruned)")
-  expect_equal(round(tree[["overall_ess"]], 2), 25.40,
-               label = "prune_alpha=1.0: WESS=25.40% (unpruned)")
+  # prune_alpha=1.0: no Sidak threshold can be exceeded; enumerated winner V14->V15
+  # (MODEL1.TXT Enumerated, WESS=27.69%) is returned unchanged.
+  expect_equal(.n_split_nodes(tree), 2L,
+               label = "prune_alpha=1.0: 2 split nodes (V14->V15 enumerated, no pruning)")
+  expect_equal(round(tree[["overall_ess"]], 2), 27.69,
+               label = "prune_alpha=1.0: WESS=27.69% (enumerated winner, unpruned)")
 })
 
 test_that("PRUNE active: Sidak-flagged V11 pruned, WESS improves", {
