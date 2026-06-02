@@ -226,29 +226,6 @@ oda_apply_primary_secondary <- function(cand_df, primary, secondary, y, w,
 
 # ---- Monte Carlo p-value (Fisher randomization) --------------------------- #
 
-#' Monte Carlo Fisher-randomization p-value with Clopper-Pearson early stopping.
-#'
-#' @param x,y,w  Data for the current attribute (already cleaned).
-#' @param attr_type  "ordered", "categorical", or "binary".
-#' @param priors_on  Logical.
-#' @param primary,secondary  Tie-break heuristic strings.
-#' @param miss_codes  Optional numeric vector of additional missing codes.
-#' @param chance_model  "class" (1/2) or "attribute" (1/k_attr).
-#' @param mc_iter  Maximum iterations.
-#' @param mc_target  Significance threshold (e.g. 0.05).
-#' @param mc_stop  Confidence level for lower-tail stop (e.g. 99.9).
-#' @param mc_stopup  Confidence level for upper-tail stop (e.g. 20 -> 0.20). Default NA (disabled).
-#' @param mc_adjust  Kept for API compatibility; not used.
-#' @param seed  Optional RNG seed.
-#' @param ess_obs  Observed ESS (must be supplied).
-#' @param direction  Directional constraint forwarded from oda_univariate_core():
-#'   "both" (canonical non-directional default), "off" (synonym for "both"),
-#'   "greater", or "less". Each permutation refit uses the same constraint.
-#' @param direction_map  Named integer vector for categorical fixed-partition
-#'   DIRECTIONAL. When supplied, each permutation evaluates the SAME fixed
-#'   mapping on permuted y labels. Default NULL.
-#' @return List with p_mc, ge_count, iter_used, ess_obs.
-
 # --------------------------------------------------------------------------- #
 # Fast MC permutation ESS helpers (internal)                                  #
 # --------------------------------------------------------------------------- #
@@ -303,6 +280,28 @@ oda_apply_primary_secondary <- function(cand_df, primary, secondary, y, w,
   else max(-ess_01)   # "1->0"
 }
 
+#' Monte Carlo Fisher-randomization p-value with Clopper-Pearson early stopping.
+#'
+#' @param x,y,w  Data for the current attribute (already cleaned).
+#' @param attr_type  "ordered", "categorical", or "binary".
+#' @param priors_on  Logical.
+#' @param primary,secondary  Tie-break heuristic strings.
+#' @param miss_codes  Optional numeric vector of additional missing codes.
+#' @param chance_model  "class" (1/2) or "attribute" (1/k_attr).
+#' @param mc_iter  Maximum iterations.
+#' @param mc_target  Significance threshold (e.g. 0.05).
+#' @param mc_stop  Confidence level for lower-tail stop (e.g. 99.9).
+#' @param mc_stopup  Confidence level for upper-tail stop (e.g. 20 -> 0.20). Default NA (disabled).
+#' @param mc_adjust  Kept for API compatibility; not used.
+#' @param seed  Optional RNG seed.
+#' @param ess_obs  Observed ESS (must be supplied).
+#' @param direction  Directional constraint forwarded from oda_univariate_core():
+#'   "both" (canonical non-directional default), "off" (synonym for "both"),
+#'   "greater", or "less". Each permutation refit uses the same constraint.
+#' @param direction_map  Named integer vector for categorical fixed-partition
+#'   DIRECTIONAL. When supplied, each permutation evaluates the SAME fixed
+#'   mapping on permuted y labels. Default NULL.
+#' @return List with p_mc, ge_count, iter_used, ess_obs.
 oda_mc_p_value <- function(
     x, y,
     w            = NULL,
