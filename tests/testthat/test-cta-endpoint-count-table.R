@@ -199,7 +199,7 @@ test_that("ect: synthetic 3-leaf — known node values correct", {
         X = df[, .ect_myeloma_attrs], y = as.integer(df$V1), w = df$V2,
         priors_on = TRUE, miss_codes = -9, alpha_split = 0.05,
         mindenom = mindenom, prune_alpha = 0.05, max_depth = 20L,
-        mc_iter = 5000L, mc_target = 0.05, mc_stop = 99.9, mc_stopup = 99.9,
+        mc_iter = 5000L, mc_target = 0.05, mc_stop = 99.9,
         mc_seed = NULL, loo = "stable", attr_names = .ect_myeloma_attrs
       ))
     }

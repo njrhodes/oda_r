@@ -118,7 +118,7 @@ test_that("counts: weighted leaves — raw counts are integer raw obs; differ fr
         X = df[, .counts_myeloma_attrs], y = as.integer(df$V1), w = df$V2,
         priors_on = TRUE, miss_codes = -9, alpha_split = 0.05, mindenom = 1L,
         prune_alpha = 0.05, max_depth = 20L, mc_iter = 5000L,
-        mc_target = 0.05, mc_stop = 99.9, mc_stopup = 99.9, mc_seed = NULL,
+        mc_target = 0.05, mc_stop = 99.9, mc_seed = NULL,
         loo = "stable", attr_names = .counts_myeloma_attrs
       ))
     }
