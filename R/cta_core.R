@@ -460,13 +460,24 @@ oda_cta_fit <- function(
   n <- nrow(X)
   stopifnot(length(y) == n)
   y <- as.integer(y)
+  # Guard: CTA requires exactly two distinct class levels.
+  y_levels <- sort(unique(y))
+  if (length(y_levels) != 2L)
+    stop(sprintf(
+      "CTA currently supports exactly two class levels; got %d.",
+      length(y_levels)), call. = FALSE)
+  # Recode to canonical {0,1}: lower label -> 0, upper label -> 1.
+  # Internal routines (e.g. .cta_ordered_scan, .cta_fast_scan_perm) assume
+  # y in {0,1}.  y_levels stores the original mapping so predict.cta_tree()
+  # can translate results back to user-facing labels.
+  y <- ifelse(y == y_levels[1L], 0L, 1L)
   .validate_case_weights(w, n)
   if (is.null(w)) w <- rep(1.0, n) else w <- as.numeric(w)
   if (is.null(attr_names))
     attr_names <- colnames(X) %||% paste0("V", seq_len(ncol(X)))
-  n_attrs <- ncol(X)
-  C            <- length(unique(y))
-  class_levels <- sort(unique(as.integer(y)))   # fit-level class universe
+  n_attrs      <- ncol(X)
+  C            <- 2L
+  class_levels <- c(0L, 1L)
   loo_arg <- if (is.numeric(loo)) "pvalue" else as.character(loo)
 
   .vmsg <- if (isTRUE(verbose)) function(...) message(...) else function(...) invisible(NULL)
@@ -1255,9 +1266,13 @@ oda_cta_fit <- function(
            # Final tree objective on the ESS/WESS scale: WESS when weights are
            # active, ESS otherwise.  NA for no-tree fits.  Retained for the
            # cta_d_stat() contract; do not rename without updating accessors.
-           overall_ess       = NA_real_,
-           has_weights       = any(w != 1),
-           training_confusion = NULL),
+           overall_ess        = NA_real_,
+           has_weights        = any(w != 1),
+           training_confusion = NULL,
+           # Original class labels (sorted): y_levels[1] maps to internal 0,
+           # y_levels[2] maps to internal 1.  Used by predict.cta_tree() to
+           # translate internal {0,1} predictions back to user-facing labels.
+           y_levels           = y_levels),
       class = "cta_tree"))
   }
 
@@ -1636,7 +1651,11 @@ oda_cta_fit <- function(
           unpruned_ess      = best_unpruned_ess,
           pruned_ess        = best_wess
         )
-      }
+      },
+      # Original class labels (sorted): y_levels[1] maps to internal 0,
+      # y_levels[2] maps to internal 1.  Used by predict.cta_tree() to
+      # translate internal {0,1} predictions back to user-facing labels.
+      y_levels = y_levels
     ),
     class = "cta_tree"
   )
@@ -1707,7 +1726,17 @@ predict.cta_tree <- function(object, newdata,
     }
   }
 
-  vapply(seq_len(n_new), predict_one, integer(1L))
+  result <- vapply(seq_len(n_new), predict_one, integer(1L))
+  # Map internal {0,1} back to original class labels.
+  # For y = {0,1} this is a no-op (identity).  For non-canonical labels
+  # (e.g. {1,2}) this restores the user-facing values.
+  # NA (path-local missing) is preserved.
+  yl <- object$y_levels
+  if (!is.null(yl) && length(yl) == 2L) {
+    result <- ifelse(is.na(result), NA_integer_,
+                     ifelse(result == 0L, yl[1L], yl[2L]))
+  }
+  result
 }
 
 # ---- Print ------------------------------------------------------------------

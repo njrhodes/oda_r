@@ -343,6 +343,61 @@ test_that("mc_stopup=NA bypass: same root and ESS as default (mc_stopup=NULL)", 
   expect_equal(t_default$overall_ess, t_bypass$overall_ess, label = "ESS unchanged")
 })
 
+# ---- Class-domain guard and canonical recoding -------------------------------
+# CTA internally requires y in {0,1}.  oda_cta_fit() must:
+#   (a) reject inputs with != 2 class levels at entry (C guard),
+#   (b) recode non-canonical labels (e.g. {1,2}) to {0,1} before fitting,
+#   (c) store the original labels as y_levels for inverse translation,
+#   (d) return original labels from predict.cta_tree().
+
+test_that("cta class-domain guard: 3-class y errors at entry, not silently no-tree", {
+  X <- data.frame(x = 1:9)
+  y <- c(0L, 0L, 0L, 1L, 1L, 1L, 2L, 2L, 2L)
+  expect_error(
+    oda_cta_fit(X, y, mindenom = 2L, mc_iter = 100L, mc_seed = 1L, loo = "off"),
+    "CTA currently supports exactly two class levels; got 3"
+  )
+})
+
+test_that("cta class-domain guard: non-canonical y={1,2} — fit succeeds, predict returns {1,2}", {
+  X <- data.frame(V1 = 1:8)
+  y <- c(1L, 1L, 1L, 1L, 2L, 2L, 2L, 2L)
+  tree <- suppressMessages(
+    oda_cta_fit(X, y, mindenom = 2L, mc_iter = 500L, mc_seed = 1L, loo = "off"))
+  skip_if(isTRUE(tree$no_tree), "no tree found; increase mc_iter")
+
+  # y_levels stores original labels
+  expect_equal(tree$y_levels, c(1L, 2L),
+               label = "y_levels is c(1L,2L) for y={1,2} input")
+
+  # predict returns original labels, not internal {0,1}
+  preds <- predict(tree, X)
+  expect_true(all(preds %in% c(1L, 2L)),
+              label = "predict returns original labels {1,2}, not internal {0,1}")
+})
+
+test_that("cta class-domain guard: canonical y={0,1} — y_levels is c(0L,1L), predict unchanged", {
+  d    <- bin_data()
+  tree <- suppressMessages(
+    oda_cta_fit(d$X, d$y, mindenom = 2L, mc_iter = 300L, mc_seed = 1L, loo = "off"))
+  expect_equal(tree$y_levels, c(0L, 1L),
+               label = "y_levels is c(0L,1L) for canonical input")
+  skip_if(isTRUE(tree$no_tree), "no tree found")
+  preds <- predict(tree, d$X)
+  expect_true(all(preds %in% c(0L, 1L)),
+              label = "predict still returns {0,1} for canonical input")
+})
+
+test_that("cta class-domain guard: no-tree fit with y={1,2} stores y_levels", {
+  X <- data.frame(V1 = 1:8)
+  y <- c(1L, 1L, 1L, 1L, 2L, 2L, 2L, 2L)
+  tree <- suppressMessages(
+    oda_cta_fit(X, y, mindenom = 999L, mc_iter = 100L, mc_seed = 1L, loo = "off"))
+  expect_true(isTRUE(tree$no_tree))
+  expect_equal(tree$y_levels, c(1L, 2L),
+               label = "y_levels stored even for no-tree fit")
+})
+
 # ---- Phase 2C: read-only CTA endpoint accessor tests ------------------------
 
 # cta_strata -------------------------------------------------------------------
