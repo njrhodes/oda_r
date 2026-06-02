@@ -222,6 +222,21 @@ test_that("MODEL8 R e2e: pruned confusion = [[104,20],[12,64]] (tolerance 2)", {
   expect_equal(conf[2, 2],  64L, tolerance = 2L, label = "TP class 2")
 })
 
+test_that("MODEL8 R e2e: prune_info removed_attrs is exactly 'V5' (exact equality, parallel to removed_node_ids)", {
+  # Existing test checks "V5" %in% pi$removed_attrs but not exact equality.
+  # This test locks: removed_attrs == c("V5"), length == 1, parallel to removed_node_ids.
+  skip_if_not_full("fixture-cta-demo-model8")
+  tree <- .cta_demo_model8_fit()
+  pi   <- tree$prune_info
+
+  expect_equal(length(pi$removed_attrs), 1L,
+               label = "exactly one removed_attrs entry")
+  expect_equal(pi$removed_attrs, "V5",
+               label = "removed_attrs is exactly 'V5'")
+  expect_equal(length(pi$removed_attrs), length(pi$removed_node_ids),
+               label = "removed_attrs and removed_node_ids are parallel (same length)")
+})
+
 # ---- Canonical node geometry invariant tests ---------------------------------
 # These tests lock down the Appendix C node-ID geometry and ordered-cut branch
 # direction (LEFT = x<=cut) introduced in the fix.  All expected values are
