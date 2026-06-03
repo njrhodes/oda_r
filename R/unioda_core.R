@@ -530,6 +530,98 @@ oda_loo_ordered_cut_counts <- function(x, y, w, priors_on, rule) {
   y_pred_loo
 }
 
+# ---- Algebraic delete-one LOO for binary_map rules ------------------------ #
+#
+# MPE Chapter 2 (pp. 32-33) canonical LOO contract:
+#   For each observation i: hold out i, obtain the ODA model from all
+#   observations except i, classify i with that model, store the result.
+#
+# This function implements that contract for binary_map rules using a fast
+# algebraic approach: build a weighted 2x2 table (x-side x class), subtract
+# the held-out observation's weight from its cell, and recompute the optimal
+# binary direction from the adjusted table.  Results match explicit delete-one
+# oda_univariate_core(mcarlo=FALSE) refits for all tested configurations,
+# including non-uniform case weights.
+#
+# Tie-breaking when ESS("0->1") == ESS("1->0") within tol=1e-10:
+#   1. Primary MAXSENS: higher class-1 sensitivity wins (c11a/tc1a).
+#   2. SAMPLEREP is symmetric for binary (both directions predict the same
+#      side-weight totals); SAMPLEREP always ties here.
+#   3. First-identified: "0->1" (matches oda_univariate_core enumeration order).
+#
+# Weighted binary LOO is canonical.  Weighted categorical LOO is out of scope
+# and is separately guarded elsewhere.
+#
+# Returns integer vector y_pred_loo of length n, or NULL if not applicable
+# (rule type mismatch or pure-node training data).
+oda_loo_binary_map_counts <- function(x, y, w, priors_on, rule) {
+
+  if (!identical(rule$type, "binary_map")) return(NULL)
+
+  y <- as.integer(y)
+  n <- length(y)
+  if (is.null(w)) w <- rep(1.0, n) else w <- as.numeric(w)
+
+  obs    <- !is.na(x)
+  x_chr  <- as.character(x)
+  left   <- obs & (x_chr %in% as.character(rule$left_levels))
+
+  tc0_w  <- sum(w[obs & y == 0L])
+  tc1_w  <- sum(w[obs & y == 1L])
+  if (tc0_w <= 0 || tc1_w <= 0) return(NULL)   # pure node; no split possible
+
+  c00_w  <- sum(w[left         & y == 0L])   # left side, class 0
+  c01_w  <- sum(w[left         & y == 1L])   # left side, class 1
+  c10_w  <- sum(w[obs & !left  & y == 0L])   # right side, class 0
+  c11_w  <- sum(w[obs & !left  & y == 1L])   # right side, class 1
+
+  # Choose direction from adjusted 2x2 table.
+  # ESS("0->1") = c00a/tc0a + c11a/tc1a - 1
+  # ESS("1->0") = c10a/tc0a + c01a/tc1a - 1
+  .best_dir <- function(c00a, c10a, tc0a, c01a, c11a, tc1a) {
+    if (tc0a <= 0 || tc1a <= 0) return(rule$direction)   # degenerate fold
+    e01  <- c00a / tc0a + c11a / tc1a
+    e10  <- c10a / tc0a + c01a / tc1a
+    tol  <- 1e-10
+    if (e01 > e10 + tol)                    return("0->1")
+    if (e10 > e01 + tol)                    return("1->0")
+    # ESS tie: primary MAXSENS (class-1 sensitivity)
+    s01  <- c11a / tc1a
+    s10  <- c01a / tc1a
+    tol2 <- 1e-12
+    if (s01 > s10 + tol2)                   return("0->1")
+    if (s10 > s01 + tol2)                   return("1->0")
+    # SAMPLEREP symmetric for binary; first-identified wins
+    "0->1"
+  }
+
+  y_pred_loo <- integer(n)
+
+  for (i in seq_len(n)) {
+    if (!obs[i]) { y_pred_loo[i] <- NA_integer_; next }
+
+    wi  <- w[i]; yi <- y[i]; li <- left[i]
+
+    c00a <- if ( li && yi == 0L) c00_w - wi else c00_w
+    c01a <- if ( li && yi == 1L) c01_w - wi else c01_w
+    c10a <- if (!li && yi == 0L) c10_w - wi else c10_w
+    c11a <- if (!li && yi == 1L) c11_w - wi else c11_w
+    tc0a <- if (yi == 0L) tc0_w - wi else tc0_w
+    tc1a <- if (yi == 1L) tc1_w - wi else tc1_w
+
+    dir              <- .best_dir(c00a, c10a, tc0a, c01a, c11a, tc1a)
+    y_pred_loo[i]    <- if (dir == "0->1") {
+      if (li) 0L else 1L
+    } else {
+      if (li) 1L else 0L
+    }
+  }
+
+  if (any(!obs)) y_pred_loo[!obs] <- NA_integer_
+
+  y_pred_loo
+}
+
 # ---- LOO for a fixed UniODA rule ------------------------------------------ #
 
 #' True leave-one-out cross-validation for a UniODA rule.
@@ -609,19 +701,24 @@ oda_loo_for_rule <- function(
 
   y_pred_loo <- integer(n)
 
-  # For ordered_cut, try the algebraic count-table LOO first.  It reproduces
-  # full-refit results without n oda_univariate_core calls, and correctly
-  # detects tie-boundary instability that the former admissibility shortcut
-  # masked.  Falls back to full refits when algebraic path returns NULL.
-  #
-  # For binary_map: only one possible split; the training rule is always
-  # optimal as long as both values remain in the n-1 data.  Apply directly.
+  # Algebraic paths (fast, exact, no per-fold oda_univariate_core calls):
+  #   binary_map: oda_loo_binary_map_counts() -- weighted 2x2 table adjustment.
+  #   ordered_cut (uniform w): oda_loo_ordered_cut_counts() -- bin count adjustment.
+  # Both return NULL when not applicable; fall through to explicit per-fold refits.
   #
   # All other rule types: full per-row refit via oda_univariate_core().
 
   .loo_done <- FALSE
 
-  if (identical(rule$type, "ordered_cut")) {
+  if (identical(rule$type, "binary_map")) {
+    .alg <- oda_loo_binary_map_counts(x, y, w, priors_on, rule)
+    if (!is.null(.alg)) {
+      y_pred_loo <- .alg
+      .loo_done  <- TRUE
+    }
+  }
+
+  if (!.loo_done && identical(rule$type, "ordered_cut")) {
     .alg <- oda_loo_ordered_cut_counts(x, y, w, priors_on, rule)
     if (!is.null(.alg)) {
       y_pred_loo <- .alg
@@ -632,15 +729,6 @@ oda_loo_for_rule <- function(
   if (!.loo_done) {
     for (i in seq_len(n)) {
       keep <- seq_len(n) != i
-
-      if (identical(rule$type, "binary_map")) {
-        # Binary attribute: only one possible split.  Apply the training rule
-        # directly as long as obs i has a non-missing value.
-        if (!is.na(x[i])) {
-          y_pred_loo[i] <- oda_rule_predict(x[i], rule)
-          next
-        }
-      }
 
       # Fixed categorical rule (direction_map supplied): predictions are
       # determined entirely by x, not training data.  Apply training rule.
