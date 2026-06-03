@@ -432,34 +432,48 @@ oda_loo_ordered_cut_counts <- function(x, y, w, priors_on, rule) {
   y <- as.integer(y)
   n <- length(y)
 
-  # Non-uniform raw weights: algebraic path requires uniform within-bin weights.
-  # With unit (or all-equal) w, every obs in a (val, class) bin is identical
-  # under the priors-adjusted ESS formula, so removing any one is equivalent.
-  if (length(unique(w)) > 1L) return(NULL)
+  # Extended to handle non-uniform case weights via per-bin class weight sums.
+  # The ESS formula (cum0/tc0 + right1/tc1 - 1)*100 is equivalent to
+  # (specificity + sensitivity - 1)*100 when cum0 and right1 are class weight
+  # sums and tc0, tc1 are class weight totals.  For binary class, priors_on=TRUE
+  # and FALSE produce the same sensitivity/specificity ratios (the priors scaling
+  # cancels), so the same formula works for both settings.
+  # For uniform weights, the per-obs loop gives the same result as the former
+  # per-(bin, class) loop because every obs in the same (val, class) cell has
+  # the same weight and thus the same adjusted table.
 
   obs  <- !is.na(x)
-  tc0  <- sum(y[obs] == 0L)
-  tc1  <- sum(y[obs] == 1L)
-  if (tc0 == 0L || tc1 == 0L) return(NULL)   # pure node; no split possible
+
+  # Class weight totals over observed rows.
+  tc0_w <- sum(w[obs & y == 0L])
+  tc1_w <- sum(w[obs & y == 1L])
+  if (tc0_w <= 0 || tc1_w <= 0) return(NULL)   # pure node; no split possible
 
   vals <- sort(unique(x[obs]))
   k    <- length(vals)
-  if (k < 2L) return(NULL)                   # no candidate cut exists
+  if (k < 2L) return(NULL)                      # no candidate cut exists
 
-  # Build count table: c0v[i], c1v[i] = raw class counts at vals[i]
-  c0v <- integer(k)
-  c1v <- integer(k)
-  for (i in seq_len(k)) {
-    m      <- obs & (x == vals[i])
-    c0v[i] <- sum(y[m] == 0L)
-    c1v[i] <- sum(y[m] == 1L)
+  # Precompute bin index for each observation.
+  # bin_id[i] is NA when x[i] is NA (obs[i]=FALSE); those rows are skipped below.
+  bin_id <- match(x, vals)
+
+  # Build per-bin class weight sums: z0v[j], z1v[j] = sum of w at vals[j]
+  # for class 0 and class 1 respectively.
+  z0v <- numeric(k)
+  z1v <- numeric(k)
+  for (vi in seq_len(k)) {
+    m      <- obs & (bin_id == vi)
+    z0v[vi] <- sum(w[m & y == 0L])
+    z1v[vi] <- sum(w[m & y == 1L])
   }
 
-  # Scan helper: find best cut/direction on an adjusted count table.
-  # Uses the priors-adjusted PAC formula (uniform raw w):
+  # Scan helper: find best cut/direction on a (possibly adjusted) bin table.
+  # ESS formula (works for both integer counts and float weight sums):
   #   ESS("0->1") = (cum0/tc0a + right1/tc1a - 1) * 100
   #   ESS("1->0") = (right0/tc0a + cum1/tc1a  - 1) * 100
   # Strict > keeps first-identified cut/direction when ESS ties.
+  # SAMPLEREP secondary is not implemented here; first-identified is the
+  # tiebreaker.  This matches the uniform-weight algebraic path (A1-A3).
   .find_best <- function(c0a, c1a, tc0a, tc1a, vls) {
     ka     <- length(vls)
     best_e <- -Inf
@@ -482,45 +496,42 @@ oda_loo_ordered_cut_counts <- function(x, y, w, priors_on, rule) {
     if (is.na(best_c)) NULL else list(cut = best_c, dir = best_d)
   }
 
-  # Output vector: 0L by default; NA-x obs set at end.
+  eps        <- 1e-12
   y_pred_loo <- integer(n)
 
-  # LOO over unique (x value, class) bins.
-  for (vi in seq_len(k)) {
-    val <- vals[vi]
-    for (cls in c(0L, 1L)) {
-      bin_n <- if (cls == 0L) c0v[vi] else c1v[vi]
-      if (bin_n == 0L) next
+  # Per-observation LOO: subtract each obs's weight from its bin/class cell and
+  # refit the best cut on the adjusted n-1 weight-sum table.
+  # For uniform weights every obs in the same (val, class) cell has the same wi,
+  # producing the same adjusted table -- identical to the former per-(bin, class)
+  # loop behavior that proved A1-A3.
+  for (i in seq_len(n)) {
+    if (!obs[i]) { y_pred_loo[i] <- NA_integer_; next }
 
-      # Remove one obs of `cls` at vals[vi].
-      c0a      <- c0v
-      c1a      <- c1v
-      if (cls == 0L) c0a[vi] <- c0a[vi] - 1L else c1a[vi] <- c1a[vi] - 1L
-      tc0a     <- tc0 - (cls == 0L)
-      tc1a     <- tc1 - (cls == 1L)
+    vi  <- bin_id[i]; wi <- w[i]; ci <- y[i]; val <- x[i]
 
-      # Drop values now at zero total obs (cut topology may change).
-      keep_v   <- (c0a + c1a) > 0L
-      vls_a    <- vals[keep_v]
-      c0a_k    <- c0a[keep_v]
-      c1a_k    <- c1a[keep_v]
+    z0a <- z0v; z1a <- z1v
+    if (ci == 0L) z0a[vi] <- z0a[vi] - wi else z1a[vi] <- z1a[vi] - wi
+    tc0a <- tc0_w - wi * (ci == 0L)
+    tc1a <- tc1_w - wi * (ci == 1L)
 
-      # Edge: one class eliminated or fewer than 2 distinct values remain.
-      if (tc0a == 0L || tc1a == 0L || length(vls_a) < 2L) {
-        loo_pred <- oda_rule_predict(val, rule)
+    keep_v <- (z0a + z1a) > eps
+    vls_a  <- vals[keep_v]
+    z0a_k  <- z0a[keep_v]
+    z1a_k  <- z1a[keep_v]
+
+    # Degenerate fold: one class eliminated or fewer than 2 values remain.
+    # Fall back to the training rule for this observation.
+    if (tc0a <= eps || tc1a <= eps || length(vls_a) < 2L) {
+      y_pred_loo[i] <- oda_rule_predict(val, rule)
+    } else {
+      best <- .find_best(z0a_k, z1a_k, tc0a, tc1a, vls_a)
+      if (is.null(best)) {
+        y_pred_loo[i] <- oda_rule_predict(val, rule)
+      } else if (identical(best$dir, "0->1")) {
+        y_pred_loo[i] <- if (val <= best$cut) 0L else 1L
       } else {
-        best <- .find_best(c0a_k, c1a_k, tc0a, tc1a, vls_a)
-        if (is.null(best)) {
-          loo_pred <- oda_rule_predict(val, rule)
-        } else if (identical(best$dir, "0->1")) {
-          loo_pred <- if (val <= best$cut) 0L else 1L
-        } else {
-          loo_pred <- if (val <= best$cut) 1L else 0L
-        }
+        y_pred_loo[i] <- if (val <= best$cut) 1L else 0L
       }
-
-      bin_mask             <- obs & (x == val) & (y == cls)
-      y_pred_loo[bin_mask] <- as.integer(loo_pred)
     }
   }
 

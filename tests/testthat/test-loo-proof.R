@@ -497,3 +497,372 @@ test_that("A3: algebraic ordered_cut tie-forcing -- LOO ESS matches explicit", {
     )
   )
 })
+
+
+###############################################################################
+# Weighted ordered-cut algebraic LOO probes (W-A series)
+#
+# Tests the extension of oda_loo_ordered_cut_counts() to non-uniform case
+# weights (L2 implementation).  The algebraic path now uses per-bin class
+# weight sums (z0v, z1v) and a per-observation deletion loop instead of the
+# former per-(bin, class) loop that required uniform weights.
+#
+# All tests are CRAN-safe, small synthetic data, no skip gates.
+# Prediction vectors are compared obs-by-obs for W-A2 and W-A3 (not just ESS).
+###############################################################################
+
+# Helper: explicit delete-one LOO returning both prediction vector and ESS.
+# Extends .explicit_loo_ess() by also returning per-obs predictions.
+# For degenerate folds (oda_univariate_core ok=FALSE), pred[i] is set to
+# NA_integer_ and those obs are excluded from the ESS calculation.
+#
+# Returns list(pred = integer(n), ess_loo = numeric(1)).
+.explicit_loo_predictions_and_ess <- function(x, y, w = NULL, priors_on,
+                                               attr_type) {
+  n   <- length(y)
+  y   <- as.integer(y)
+  if (is.null(w)) w <- rep(1.0, n) else w <- as.numeric(w)
+  tw0 <- sum(w[y == 0L])
+  tw1 <- sum(w[y == 1L])
+  pred <- integer(n)
+
+  for (i in seq_len(n)) {
+    keep <- seq_len(n) != i
+    fi <- oda_univariate_core(
+      x         = x[keep],
+      y         = y[keep],
+      w         = w[keep],
+      attr_type = attr_type,
+      priors_on = priors_on,
+      mcarlo    = FALSE,
+      loo       = "off"
+    )
+    if (!isTRUE(fi$ok)) {
+      pred[i] <- NA_integer_
+    } else {
+      pred[i] <- oda_rule_predict(x[i], fi$rule)
+    }
+  }
+
+  ok   <- !is.na(pred)
+  spec <- sum(w[ok & y == 0L] * (pred[ok & y == 0L] == 0L)) / tw0
+  sens <- sum(w[ok & y == 1L] * (pred[ok & y == 1L] == 1L)) / tw1
+  list(pred = pred, ess_loo = (sens + spec - 1) * 100)
+}
+
+
+# =============================================================================
+# Probe W-A1: weighted ordered_cut algebraic LOO -- stable case, priors_on=TRUE
+#
+# Non-uniform weights; clear class separation so no deletion changes cut or
+# direction.  Verifies that the weighted bin-sum path reproduces the explicit
+# delete-one result for every fold.
+#
+# Dataset: n=12, x=1..12, y=[0*6, 1*6] (clean split at 6.5).
+# w=[2*6, 1*6] (class-0 obs weight=2, class-1 obs weight=1).
+# tc0_w=12, tc1_w=6.  Training: cut=6.5, "0->1", WESS=100%.
+# LOO: every fold retains clear separation; cut and direction unchanged.
+# =============================================================================
+
+test_that("W-A1: weighted ordered_cut algebraic LOO matches explicit (stable, priors_on=TRUE)", {
+  x_wa1 <- 1L:12L
+  y_wa1 <- c(rep(0L, 6L), rep(1L, 6L))
+  w_wa1 <- c(rep(2.0, 6L), rep(1.0, 6L))
+
+  fit_wa1 <- oda_univariate_core(
+    x = x_wa1, y = y_wa1, w = w_wa1,
+    attr_type = "ordered", priors_on = TRUE, mcarlo = FALSE, loo = "off"
+  )
+  expect_true(isTRUE(fit_wa1$ok),
+    label = "W-A1: training fit must succeed on clean-separation weighted data")
+  expect_equal(fit_wa1$rule$type, "ordered_cut",
+    label = "W-A1: ordered attribute must produce ordered_cut rule type")
+
+  loo_alg_wa1 <- odacore:::oda_loo_for_rule(
+    x         = x_wa1,
+    y         = y_wa1,
+    w         = w_wa1,
+    rule      = fit_wa1$rule,
+    attr_type = "ordered",
+    priors_on = TRUE
+  )
+  expect_true(isTRUE(loo_alg_wa1$allowed),
+    label = "W-A1: oda_loo_for_rule must be allowed for weighted ordered data")
+
+  oracle_wa1 <- .explicit_loo_predictions_and_ess(
+    x_wa1, y_wa1, w = w_wa1, priors_on = TRUE, attr_type = "ordered"
+  )
+  expect_false(is.na(oracle_wa1$ess_loo),
+    label = "W-A1: explicit LOO must not fail for stable data")
+
+  # Algebraic ESS must match explicit oracle.
+  expect_equal(loo_alg_wa1$ess_loo, oracle_wa1$ess_loo, tolerance = 1e-8,
+    label = paste0(
+      "W-A1: weighted algebraic WESSL (", round(loo_alg_wa1$ess_loo, 4), "%) ",
+      "must match explicit oracle (", round(oracle_wa1$ess_loo, 4), "%) ",
+      "for stable weighted ordered data"
+    )
+  )
+})
+
+
+# =============================================================================
+# Probe W-A2: weighted ordered_cut algebraic LOO -- direction-flip case
+#
+# Deleting the high-weight obs (x=1, y=0, w=3) changes the optimal direction
+# from "0->1" to "1->0" for that fold.  The algebraic path must detect this
+# flip and produce the correct per-fold prediction, not just the correct ESS.
+#
+# Dataset: n=4, x=[1,2,3,4], y=[0,1,0,1], w=[3,1,1,1].
+# tc0_w=4, tc1_w=2.
+# Training: bins x=1: z0=3; x=2: z1=1; x=3: z0=1; x=4: z1=1.
+#   Cut=1.5, "0->1", WESS=75%.
+# Fold i=1 (x=1, y=0, w=3): tc0a=1; after deletion best is cut=2.5, "1->0".
+#   Algebraic pred for x=1: x<=2.5 -> "1->0" -> pred=1.  Changes from 0.
+# =============================================================================
+
+test_that("W-A2: weighted ordered_cut algebraic LOO matches oracle pred-by-pred (direction-flip)", {
+  x_wa2 <- c(1L, 2L, 3L, 4L)
+  y_wa2 <- c(0L, 1L, 0L, 1L)
+  w_wa2 <- c(3.0, 1.0, 1.0, 1.0)
+
+  fit_wa2 <- oda_univariate_core(
+    x = x_wa2, y = y_wa2, w = w_wa2,
+    attr_type = "ordered", priors_on = TRUE, mcarlo = FALSE, loo = "off"
+  )
+  expect_true(isTRUE(fit_wa2$ok),
+    label = "W-A2: training fit must succeed")
+  expect_equal(fit_wa2$rule$type, "ordered_cut",
+    label = "W-A2: must produce ordered_cut rule")
+  expect_equal(fit_wa2$rule$cut_value, 1.5, tolerance = 1e-9,
+    label = "W-A2: training cut must be 1.5 (WESS=75%)")
+  expect_equal(fit_wa2$rule$direction, "0->1",
+    label = "W-A2: training direction must be '0->1'")
+
+  loo_alg_wa2 <- odacore:::oda_loo_for_rule(
+    x         = x_wa2,
+    y         = y_wa2,
+    w         = w_wa2,
+    rule      = fit_wa2$rule,
+    attr_type = "ordered",
+    priors_on = TRUE
+  )
+  expect_true(isTRUE(loo_alg_wa2$allowed),
+    label = "W-A2: oda_loo_for_rule must be allowed")
+
+  oracle_wa2 <- .explicit_loo_predictions_and_ess(
+    x_wa2, y_wa2, w = w_wa2, priors_on = TRUE, attr_type = "ordered"
+  )
+
+  # Fold i=1: direction must flip.  Training pred=0; delete-one pred=1.
+  expect_equal(oracle_wa2$pred[1L], 1L,
+    label = "W-A2: explicit oracle must predict 1 for obs 1 after direction flip")
+
+  # Compare algebraic prediction vector to explicit oracle, obs-by-obs.
+  # Obtain algebraic predictions by running oda_loo_ordered_cut_counts directly.
+  alg_pred_wa2 <- odacore:::oda_loo_ordered_cut_counts(
+    x = x_wa2, y = y_wa2, w = w_wa2, priors_on = TRUE, rule = fit_wa2$rule
+  )
+  expect_false(is.null(alg_pred_wa2),
+    label = "W-A2: weighted algebraic path must not return NULL for non-uniform w")
+  expect_identical(alg_pred_wa2, oracle_wa2$pred,
+    label = paste0(
+      "W-A2: algebraic pred vector ", paste(alg_pred_wa2, collapse = ","),
+      " must match explicit oracle ", paste(oracle_wa2$pred, collapse = ","),
+      " for all 4 folds (direction-flip at obs 1)"
+    )
+  )
+
+  # ESS must also match.
+  expect_equal(loo_alg_wa2$ess_loo, oracle_wa2$ess_loo, tolerance = 1e-8,
+    label = "W-A2: algebraic WESSL must match oracle ESS (direction-flip case)")
+})
+
+
+# =============================================================================
+# Probe W-A3: weighted ordered_cut algebraic LOO -- cut-shift case
+#
+# Deleting the high-weight obs (x=4, y=0, w=4) shifts the best cut from 4.5
+# to 2.5 for that fold.  Training predicts 0 for x=4 (x<=4.5, "0->1");
+# delete-one predicts 1 (x>2.5, "0->1" with new cut).
+#
+# Dataset: n=6, x=[1,2,3,4,5,6], y=[0,0,1,0,1,1], w=[1,1,1,4,1,1].
+# tc0_w=6, tc1_w=3.
+# Training: cut=4.5, "0->1", WESS=66.7%.
+# Fold i=4 (x=4, y=0, w=4): tc0a=2; remaining bins give cut=2.5, ESS=100%.
+#   Algebraic pred for x=4: x>2.5 -> "0->1" -> pred=1.  Changes from 0.
+# =============================================================================
+
+test_that("W-A3: weighted ordered_cut algebraic LOO matches oracle pred-by-pred (cut-shift)", {
+  x_wa3 <- c(1L, 2L, 3L, 4L, 5L, 6L)
+  y_wa3 <- c(0L, 0L, 1L, 0L, 1L, 1L)
+  w_wa3 <- c(1.0, 1.0, 1.0, 4.0, 1.0, 1.0)
+
+  fit_wa3 <- oda_univariate_core(
+    x = x_wa3, y = y_wa3, w = w_wa3,
+    attr_type = "ordered", priors_on = TRUE, mcarlo = FALSE, loo = "off"
+  )
+  expect_true(isTRUE(fit_wa3$ok),
+    label = "W-A3: training fit must succeed")
+  expect_equal(fit_wa3$rule$type, "ordered_cut",
+    label = "W-A3: must produce ordered_cut rule")
+  expect_equal(fit_wa3$rule$cut_value, 4.5, tolerance = 1e-9,
+    label = "W-A3: training cut must be 4.5 (WESS=66.7%)")
+  expect_equal(fit_wa3$rule$direction, "0->1",
+    label = "W-A3: training direction must be '0->1'")
+
+  loo_alg_wa3 <- odacore:::oda_loo_for_rule(
+    x         = x_wa3,
+    y         = y_wa3,
+    w         = w_wa3,
+    rule      = fit_wa3$rule,
+    attr_type = "ordered",
+    priors_on = TRUE
+  )
+  expect_true(isTRUE(loo_alg_wa3$allowed),
+    label = "W-A3: oda_loo_for_rule must be allowed")
+
+  oracle_wa3 <- .explicit_loo_predictions_and_ess(
+    x_wa3, y_wa3, w = w_wa3, priors_on = TRUE, attr_type = "ordered"
+  )
+
+  # Fold i=4: cut must shift.  Training pred=0; delete-one pred=1.
+  expect_equal(oracle_wa3$pred[4L], 1L,
+    label = "W-A3: explicit oracle must predict 1 for obs 4 after cut shift")
+
+  alg_pred_wa3 <- odacore:::oda_loo_ordered_cut_counts(
+    x = x_wa3, y = y_wa3, w = w_wa3, priors_on = TRUE, rule = fit_wa3$rule
+  )
+  expect_false(is.null(alg_pred_wa3),
+    label = "W-A3: weighted algebraic path must not return NULL for non-uniform w")
+  expect_identical(alg_pred_wa3, oracle_wa3$pred,
+    label = paste0(
+      "W-A3: algebraic pred vector ", paste(alg_pred_wa3, collapse = ","),
+      " must match explicit oracle ", paste(oracle_wa3$pred, collapse = ","),
+      " for all 6 folds (cut shift at obs 4)"
+    )
+  )
+
+  expect_equal(loo_alg_wa3$ess_loo, oracle_wa3$ess_loo, tolerance = 1e-8,
+    label = "W-A3: algebraic WESSL must match oracle ESS (cut-shift case)")
+})
+
+
+# =============================================================================
+# Probe W-A4: weighted ordered_cut algebraic LOO -- priors_on=FALSE
+#
+# Same data as W-A2 (direction-flip dataset) with priors_on=FALSE.
+# For binary class, sensitivity and specificity ratios are identical for
+# priors_on=TRUE and FALSE (the priors scaling cancels in the ratio).
+# This probe confirms the weighted algebraic path is called and returns a
+# valid result when priors_on=FALSE.
+# =============================================================================
+
+test_that("W-A4: weighted ordered_cut algebraic LOO matches explicit (priors_on=FALSE)", {
+  x_wa4 <- c(1L, 2L, 3L, 4L)
+  y_wa4 <- c(0L, 1L, 0L, 1L)
+  w_wa4 <- c(3.0, 1.0, 1.0, 1.0)
+
+  fit_wa4 <- oda_univariate_core(
+    x = x_wa4, y = y_wa4, w = w_wa4,
+    attr_type = "ordered", priors_on = FALSE, mcarlo = FALSE, loo = "off"
+  )
+  expect_true(isTRUE(fit_wa4$ok),
+    label = "W-A4: training fit must succeed (priors_on=FALSE)")
+  expect_equal(fit_wa4$rule$type, "ordered_cut",
+    label = "W-A4: must produce ordered_cut rule")
+
+  loo_alg_wa4 <- odacore:::oda_loo_for_rule(
+    x         = x_wa4,
+    y         = y_wa4,
+    w         = w_wa4,
+    rule      = fit_wa4$rule,
+    attr_type = "ordered",
+    priors_on = FALSE
+  )
+  expect_true(isTRUE(loo_alg_wa4$allowed),
+    label = "W-A4: oda_loo_for_rule must be allowed for priors_on=FALSE")
+
+  alg_pred_wa4 <- odacore:::oda_loo_ordered_cut_counts(
+    x = x_wa4, y = y_wa4, w = w_wa4, priors_on = FALSE, rule = fit_wa4$rule
+  )
+  expect_false(is.null(alg_pred_wa4),
+    label = "W-A4: algebraic path must not return NULL for non-uniform w, priors_on=FALSE")
+
+  oracle_wa4 <- .explicit_loo_predictions_and_ess(
+    x_wa4, y_wa4, w = w_wa4, priors_on = FALSE, attr_type = "ordered"
+  )
+  expect_false(is.na(oracle_wa4$ess_loo),
+    label = "W-A4: explicit oracle must not fail")
+
+  expect_identical(alg_pred_wa4, oracle_wa4$pred,
+    label = "W-A4: algebraic pred vector must match explicit oracle (priors_on=FALSE)")
+  expect_equal(loo_alg_wa4$ess_loo, oracle_wa4$ess_loo, tolerance = 1e-8,
+    label = "W-A4: algebraic WESSL must match oracle ESS (priors_on=FALSE)")
+})
+
+
+# =============================================================================
+# Probe W-A5: weighted ordered_cut algebraic LOO -- near-degenerate fold guard
+#
+# One class-0 observation has high weight; deleting it drives tc0a to zero,
+# triggering the degenerate-fold fallback to the training rule.
+# The explicit oracle fails for that fold (pure class-1 node -> ok=FALSE).
+# The documented fallback: algebraic path uses oda_rule_predict(x[i], rule).
+#
+# Dataset: n=4, x=[1,2,3,4], y=[0,1,1,1], w=[5,1,1,1].
+# tc0_w=5, tc1_w=3.  Training: cut=1.5, "0->1", WESS=100%.
+# Fold i=1 (x=1, y=0, w=5): tc0a=0 -> degenerate -> training rule pred=0.
+# Folds i=2,3,4: oracle succeeds; algebraic must match oracle.
+# =============================================================================
+
+test_that("W-A5: near-degenerate fold falls back to training rule without error", {
+  x_wa5 <- c(1L, 2L, 3L, 4L)
+  y_wa5 <- c(0L, 1L, 1L, 1L)
+  w_wa5 <- c(5.0, 1.0, 1.0, 1.0)
+
+  fit_wa5 <- oda_univariate_core(
+    x = x_wa5, y = y_wa5, w = w_wa5,
+    attr_type = "ordered", priors_on = TRUE, mcarlo = FALSE, loo = "off"
+  )
+  expect_true(isTRUE(fit_wa5$ok),
+    label = "W-A5: training fit must succeed")
+  expect_equal(fit_wa5$rule$type, "ordered_cut",
+    label = "W-A5: must produce ordered_cut rule")
+  expect_equal(fit_wa5$rule$cut_value, 1.5, tolerance = 1e-9,
+    label = "W-A5: training cut must be 1.5")
+
+  # Algebraic path must return without error.
+  alg_pred_wa5 <- odacore:::oda_loo_ordered_cut_counts(
+    x = x_wa5, y = y_wa5, w = w_wa5, priors_on = TRUE, rule = fit_wa5$rule
+  )
+  expect_false(is.null(alg_pred_wa5),
+    label = "W-A5: algebraic path must not return NULL")
+  expect_equal(length(alg_pred_wa5), 4L,
+    label = "W-A5: algebraic path must return a prediction for every obs")
+
+  # Fold i=1 is degenerate (tc0a=0 after deleting w=5 class-0 obs).
+  # Documented fallback: oda_rule_predict(x=1, training rule) = 0
+  # (x=1 <= 1.5 => left side; "0->1" => pred=0).
+  expect_equal(alg_pred_wa5[1L], 0L,
+    label = paste0(
+      "W-A5: degenerate fold i=1 (tc0a=0) must fall back to training rule: ",
+      "pred=0 (x=1 <= cut=1.5, direction='0->1')"
+    )
+  )
+
+  # For non-degenerate folds i=2,3,4, compare to explicit oracle.
+  oracle_wa5 <- .explicit_loo_predictions_and_ess(
+    x_wa5, y_wa5, w = w_wa5, priors_on = TRUE, attr_type = "ordered"
+  )
+  # Oracle fold i=1 returns NA (pure class-1 node fails).
+  expect_true(is.na(oracle_wa5$pred[1L]),
+    label = "W-A5: explicit oracle must return NA for degenerate fold i=1")
+
+  # Non-degenerate folds must match oracle.
+  for (i in c(2L, 3L, 4L)) {
+    expect_equal(alg_pred_wa5[i], oracle_wa5$pred[i],
+      label = paste0("W-A5: algebraic pred must match oracle for non-degenerate fold i=", i)
+    )
+  }
+})
