@@ -130,61 +130,7 @@ test_that("ctbl: stump — 4 rows, n=8, zero off-diagonal, canonical row order",
   expect_equal(df$predicted, c(0L, 1L, 0L, 1L))
 })
 
-# =============================================================================
-# Smoke: myeloma canon
-# =============================================================================
-
-.ctbl_load_myeloma <- function() {
-  f <- testthat::test_path("fixtures/myeloma/data.txt")
-  d <- read.table(f, header = FALSE)
-  names(d) <- paste0("V", seq_len(ncol(d)))
-  d[d$V2 != 0, ]
-}
-.ctbl_myeloma_attrs <- c("V4","V9","V11","V12","V14","V15","V16","V17","V18","V19")
-
-.ctbl_myeloma_fit <- local({
-  fits <- list()
-  function(mindenom) {
-    key <- as.character(mindenom)
-    if (is.null(fits[[key]])) {
-      df <- .ctbl_load_myeloma()
-      fits[[key]] <<- suppressMessages(oda_cta_fit(
-        X = df[, .ctbl_myeloma_attrs], y = as.integer(df$V1), w = df$V2,
-        priors_on = TRUE, miss_codes = -9, alpha_split = 0.05,
-        mindenom = mindenom, prune_alpha = 0.05, max_depth = 20L,
-        mc_iter = 5000L, mc_target = 0.05, mc_stop = 99.9,
-        mc_seed = NULL, loo = "stable", attr_names = .ctbl_myeloma_attrs
-      ))
-    }
-    fits[[key]]
-  }
-})
-
-test_that("ctbl: myeloma — exact confusion values for MINDENOM=56/30/1", {
-  skip_if_slow_tests_disabled("cta-confusion-fixture")
-
-  # MINDENOM=56: no-tree → zero rows
-  df56 <- cta_confusion_table(.ctbl_myeloma_fit(56L))
-  expect_equal(nrow(df56), 0L)
-  expect_equal(names(df56), c("actual", "predicted", "n"))
-
-  # MINDENOM=30: V17 stump → [[101,34],[30,21]], n=186
-  t30 <- .ctbl_myeloma_fit(30L)
-  expect_equal(cta_strata(t30), 2L)
-  df30 <- cta_confusion_table(t30)
-  expect_equal(sum(df30$n), 186L)
-  expect_equal(df30$n[df30$actual == 0L & df30$predicted == 0L], 101L)
-  expect_equal(df30$n[df30$actual == 0L & df30$predicted == 1L],  34L)
-  expect_equal(df30$n[df30$actual == 1L & df30$predicted == 0L],  30L)
-  expect_equal(df30$n[df30$actual == 1L & df30$predicted == 1L],  21L)
-
-  # MINDENOM=1: V14→V15 tree → [[146,40],[36,33]], n=255
-  t1 <- .ctbl_myeloma_fit(1L)
-  expect_equal(cta_strata(t1), 3L)
-  df1 <- cta_confusion_table(t1)
-  expect_equal(sum(df1$n), 255L)
-  expect_equal(df1$n[df1$actual == 0L & df1$predicted == 0L], 146L)
-  expect_equal(df1$n[df1$actual == 0L & df1$predicted == 1L],  40L)
-  expect_equal(df1$n[df1$actual == 1L & df1$predicted == 0L],  36L)
-  expect_equal(df1$n[df1$actual == 1L & df1$predicted == 1L],  33L)
-})
+# (myeloma smoke block removed: cta_confusion_table() function-level assertions
+# with exact myeloma values absorbed into test-fixture-myeloma-cta.R B24/B25/B26,
+# which reuse the cached .myeloma_fit1()/.myeloma_fit30()/md=56 inline fits.
+# CRAN-safe schema coverage above is retained.)

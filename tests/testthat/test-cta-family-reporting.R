@@ -234,9 +234,10 @@ test_that("print.cta_family and print.cta_family_summary: output contract and in
 # 5. Myeloma slow smoke — cta_family_table values
 # =============================================================================
 
-test_that("myeloma family table: 3 rows, mindenoms {1,30,56}, chain, terminal, selected_min_d, has_weights", {
+test_that("myeloma family table: 3 rows, mindenoms {1,30,56}, chain, terminal, selected_min_d, has_weights; summary shape", {
   skip_if_slow_tests_disabled("cta-family-reporting")
-  df <- cta_family_table(.report_myeloma_family())
+  fam <- .report_myeloma_family()
+  df  <- cta_family_table(fam)
 
   expect_equal(nrow(df), 3L)
   expect_equal(df$mindenom, c(1L, 30L, 56L))
@@ -249,6 +250,17 @@ test_that("myeloma family table: 3 rows, mindenoms {1,30,56}, chain, terminal, s
   expect_false(df$selected_min_d[2L])
   expect_false(df$selected_min_d[3L])
   expect_true(all(df$has_weights))
+
+  # member D-values: md=1 and md=30 finite; md=56 no_tree -> NA
+  expect_true(is.finite(fam$members[[1L]]$d))
+  expect_true(is.finite(fam$members[[2L]]$d))
+  expect_true(is.na(fam$members[[3L]]$d))
+
+  # summary shape (absorbed from cta-family block in test-cta.R)
+  required <- c("mindenom","status","strata","min_terminal_denom",
+                "overall_ess","d","no_tree")
+  expect_true(all(required %in% names(fam$summary)))
+  expect_equal(nrow(fam$summary), 3L)
 })
 
 # =============================================================================

@@ -160,6 +160,16 @@ test_that("myeloma MINDENOM=1: confusion [[146,40],[36,33]] and WEIGHTED ESS ≈
   wpac1 <- sum(w[m1 & preds == 1L]) / sum(w[m1])
   wess  <- 2 * ((wpac0 + wpac1) / 2 - 0.5) * 100
   expect_equal(wess, 27.69, tolerance = 0.5, label = "weighted ESS")
+
+  # cta_confusion_table() API: column names, row count, exact values
+  # (absorbed from test-cta-confusion-table.R smoke block)
+  ct1 <- cta_confusion_table(tree)
+  expect_equal(names(ct1), c("actual", "predicted", "n"))
+  expect_equal(sum(ct1$n), 255L)
+  expect_equal(ct1$n[ct1$actual == 0L & ct1$predicted == 0L], 146L)
+  expect_equal(ct1$n[ct1$actual == 0L & ct1$predicted == 1L],  40L)
+  expect_equal(ct1$n[ct1$actual == 1L & ct1$predicted == 0L],  36L)
+  expect_equal(ct1$n[ct1$actual == 1L & ct1$predicted == 1L],  33L)
 })
 
 # =============================================================================
@@ -211,6 +221,17 @@ test_that("myeloma MINDENOM=30: V17 stump, n=186, confusion [[101,34],[30,21]], 
   wpac1 <- sum(w[m1 & preds == 1L]) / sum(w[m1])
   wess  <- (wpac0 + wpac1 - 1) * 100
   expect_equal(wess, 16.51, tolerance = 0.1, label = "WEIGHTED ESS")
+
+  # cta_confusion_table() API: column names, row count, exact values
+  # (absorbed from test-cta-confusion-table.R smoke block)
+  ct30 <- cta_confusion_table(tree)
+  expect_equal(names(ct30), c("actual", "predicted", "n"))
+  expect_equal(sum(ct30$n), 186L)
+  expect_equal(cta_strata(tree), 2L)
+  expect_equal(ct30$n[ct30$actual == 0L & ct30$predicted == 0L], 101L)
+  expect_equal(ct30$n[ct30$actual == 0L & ct30$predicted == 1L],  34L)
+  expect_equal(ct30$n[ct30$actual == 1L & ct30$predicted == 0L],  30L)
+  expect_equal(ct30$n[ct30$actual == 1L & ct30$predicted == 1L],  21L)
 })
 
 # =============================================================================
@@ -241,4 +262,10 @@ test_that("myeloma MINDENOM=56: all candidates fail MINDENOM gate → no tree", 
   )
   tbl <- cta_node_table(fit)
   expect_equal(sum(!tbl$leaf), 0L, label = "no split nodes when MINDENOM=56")
+
+  # cta_confusion_table() API: no-tree -> zero rows with correct column names
+  # (absorbed from test-cta-confusion-table.R smoke block)
+  ct56 <- cta_confusion_table(fit)
+  expect_equal(nrow(ct56), 0L)
+  expect_equal(names(ct56), c("actual", "predicted", "n"))
 })

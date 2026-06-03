@@ -192,50 +192,13 @@ test_that("node-selection: Node 2 V4+V15 → V4 rejected; root is V15 (STABLE)",
 })
 
 # =============================================================================
-# Test 4: cta_demo regression — uniform weights bypass CTA path
+# Test 4: uniform weights bypass CTA path - observable contract in fixture file
 #
-# No WEIGHT command → w defaults to all-1 → any(w != w[1]) is FALSE →
-# CTA dispatch guard fails → generic ODA path → root=V2, cut=4.5, ESS=52.63%.
+# any(w != w[1]) is FALSE for uniform w -> CTA dispatch guard skips the
+# CTA-specific ordered scan -> generic ODA path -> root=V2, cut=4.5, ESS=52.63%.
+# Duplicate full CTA_DEMO fit removed; bypass is explicitly asserted in
+# test-fixture-cta-demo.R B20 (line 54): root=V2 label "uniform weights bypass".
 # =============================================================================
-
-test_that("cta-demo regression: uniform weights bypass CTA path; root=V2 ESS=52.63%", {
-  skip_if_slow_tests_disabled("cta-node-selection")
-  f <- tryCatch(testthat::test_path("fixtures/cta_demo/CTA_DEMO.CSV"),
-                error = function(e) "")
-  if (!nzchar(f) || !file.exists(f)) skip("CTA_DEMO.CSV not found")
-
-  d <- read.csv(f, header = FALSE,
-                col.names = c("V1", "V2", "V3", "V4", "V5", "V6"))
-  X <- d[, c("V2", "V3", "V4", "V5", "V6")]
-  y <- d$V1
-
-  tree <- oda_cta_fit(
-    X           = X,
-    y           = y,
-    priors_on   = TRUE,
-    alpha_split = 0.05,
-    mindenom    = 1L,
-    prune_alpha = 0.05,
-    max_depth   = 20L,
-    ess_min     = 0,
-    mc_iter     = 5000L,
-    mc_target   = 0.05,
-    mc_stop     = 99.9,
-    mc_stopup   = 99.9,
-    mc_seed     = NULL,
-    loo         = "stable",
-    attr_names  = c("V2", "V3", "V4", "V5", "V6")
-  )
-
-  root <- tree$nodes[[tree$root_id]]
-  expect_false(isTRUE(root$leaf), label = "cta_demo: root is a split node")
-  expect_equal(root$attribute, "V2",
-    label = "cta_demo root must be V2 (CTA path bypassed by uniform weights)")
-  expect_equal(root$rule$cut_value, 4.5,
-    label = "V2 canonical cut = 4.5")
-  expect_equal(root$ess, 52.63, tolerance = 0.5,
-    label = "V2 root ESS ≈ 52.63% (CTA.exe fixture)")
-})
 
 # =============================================================================
 # Test 5: split-node MC metadata preservation (CRAN-safe, synthetic data)

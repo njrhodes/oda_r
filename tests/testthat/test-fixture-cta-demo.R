@@ -51,12 +51,16 @@ load_cta_demo <- function() {
 # 1. Root node contract
 # =============================================================================
 
-test_that("cta-demo gold: root attr=V2, cut=4.5, n=200, LOO=STABLE, ESS>=50%", {
+test_that("cta-demo gold: root attr=V2, cut=4.5, n=200, LOO=STABLE, ESS>=50% (uniform-weight bypass confirmed)", {
+  # No WEIGHT command -> w defaults to all-1 -> any(w != w[1]) is FALSE ->
+  # CTA ordered-scan path is bypassed; generic ODA path used throughout.
+  # Observable bypass contract: root=V2, cut=4.5, ESS=52.63% matches CTA.exe.
   skip_if_not_smoke("fixture-cta-demo")
   tree <- .cta_demo_fit()
   root <- tree$nodes[[tree$root_id]]
   expect_false(isTRUE(root$leaf))
-  expect_equal(root$attribute,      "V2")
+  expect_equal(root$attribute,      "V2",
+    label = "root=V2 confirms uniform-weight CTA path bypass")
   expect_equal(root$rule$cut_value,  4.5)
   expect_equal(root$n_obs,          200L)
   expect_equal(root$loo_status,    "STABLE")

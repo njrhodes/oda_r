@@ -572,46 +572,5 @@ test_that("degeneracy: non-no_tree CTA predicts both classes; aggressive pruning
   }
 })
 
-# =============================================================================
-# 19. cta_descendant_family myeloma chain (SLOW)
-# =============================================================================
-
-.myeloma_family <- local({
-  fam <- NULL
-  function() {
-    if (is.null(fam)) {
-      fpath <- testthat::test_path("fixtures/myeloma/data.txt")
-      skip_if_not(file.exists(fpath), "myeloma fixture not available")
-      d <- read.table(fpath); colnames(d) <- paste0("V", seq_len(ncol(d)))
-      d  <- d[d[["V2"]] > 0, ]
-      ac <- c("V4","V9","V11","V12","V14","V15","V16","V17","V18","V19")
-      fam <<- suppressMessages(cta_descendant_family(
-        X = d[, ac, drop = FALSE], y = as.integer(d[["V1"]]),
-        w = as.numeric(d[["V2"]]), miss_codes = -9, loo = "stable",
-        alpha_split = 0.05, prune_alpha = 0.05, mc_iter = 5000L,
-        mc_seed = 12345L, verbose = FALSE, start_mindenom = 1L
-      ))
-    }
-    fam
-  }
-})
-
-test_that("cta_descendant_family myeloma: chain {1,30,56}, terminated no_tree, min_d_idx=1, summary shape (SLOW)", {
-  skip_if_slow_tests_disabled("cta-family")
-  fam <- .myeloma_family()
-
-  expect_equal(length(fam$members),   3L)
-  expect_equal(fam$mindenoms,         c(1L, 30L, 56L))
-  expect_true(fam$terminated)
-  expect_equal(fam$termination_reason, "no_tree")
-  expect_true(fam$members[[3L]]$no_tree)
-  expect_true(is.finite(fam$members[[1L]]$d))
-  expect_true(is.finite(fam$members[[2L]]$d))
-  expect_true(is.na(fam$members[[3L]]$d))
-  expect_equal(fam$min_d_idx, 1L,
-               label = "MINDENOM=1 has lower D than MINDENOM=30")
-
-  required <- c("mindenom","status","strata","min_terminal_denom","overall_ess","d","no_tree")
-  expect_true(all(required %in% names(fam$summary)))
-  expect_equal(nrow(fam$summary), 3L)
-})
+# (cta_descendant_family myeloma family block removed: unique assertions absorbed
+# into test-cta-family-reporting.R B7. Independent family fit eliminated ~15s.)
