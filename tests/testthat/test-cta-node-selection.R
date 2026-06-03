@@ -86,7 +86,6 @@ test_that("node-selection: Node 4 V4-only is always rejected → leaf-only tree"
     mc_iter     = 5000L,
     mc_target   = 0.05,
     mc_stop     = 99.9,
-    mc_stopup   = 99.9,
     mc_seed     = NULL,
     loo         = "stable",
     attr_names  = "V4"
@@ -127,7 +126,6 @@ test_that("node-selection: Node 2 V4-only always LOO UNSTABLE → leaf-only tree
     mc_iter     = 5000L,
     mc_target   = 0.05,
     mc_stop     = 99.9,
-    mc_stopup   = 99.9,
     mc_seed     = NULL,
     loo         = "stable",
     attr_names  = "V4"
@@ -168,7 +166,6 @@ test_that("node-selection: Node 2 V4+V15 → V4 rejected; root is V15 (STABLE)",
     mc_iter     = 5000L,
     mc_target   = 0.05,
     mc_stop     = 99.9,
-    mc_stopup   = 99.9,
     mc_seed     = NULL,
     loo         = "stable",
     attr_names  = c("V4", "V15")
