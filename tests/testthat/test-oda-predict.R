@@ -400,7 +400,7 @@ test_that("binary LOO with NA p_value reports not_computed, not computed", {
 })
 
 test_that("multiclass LOO summary p_status is not_computed", {
-  skip_if_slow_tests_disabled("iris LOO API contract")
+  testthat::skip_on_cran()
   fit <- .multi_fit(loo = "on")
   s   <- summary(fit)
   if (isTRUE(s$loo$allowed)) {
@@ -414,7 +414,7 @@ test_that("multiclass LOO summary p_status is not_computed", {
 })
 
 test_that("multiclass LOO metrics p_status is not_computed", {
-  skip_if_slow_tests_disabled("iris LOO API contract")
+  testthat::skip_on_cran()
   fit <- .multi_fit(loo = "on")
   m   <- oda_metrics(fit, "loo")
   if (!is.null(m)) {

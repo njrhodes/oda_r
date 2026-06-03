@@ -282,7 +282,6 @@ test_that("print output contains observed ESS and Mean PAC lines", {
 # ---- myeloma anchor (slow) ---------------------------------------------------
 
 test_that("myeloma MINDENOM=1 anchor: structure, observed, and significance", {
-  skip_if_slow_tests_disabled("myeloma-novo-boot")
   conf <- matrix(c(146, 40,
                     36, 33), nrow = 2L, byrow = TRUE)
   ci <- novo_boot_ci(conf, nboot = 5000L, seed = 2024L)

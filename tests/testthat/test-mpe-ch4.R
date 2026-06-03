@@ -270,19 +270,6 @@ test_that("Pinckney Table 4.4: residual categorical training ESS approx 40.9", {
   expect_lt(fit$p_mc, 0.0003)
 })
 
-# ---- Political affiliation (MPE Chapter 4) ----------------------------------
-
-test_that("Political affiliation: categorical multiclass DIRECTIONAL p < 0.0001 [data unavailable]", {
-  # MPE Chapter 4: political affiliation, categorical multiclass.
-  # MegaODA commands: CATEGORICAL ON; TABLE 7; CLASS ROW;
-  #   DIRECTIONAL < 1 2 3 4 5 6 7; MCARLO ITER 10000; GO;
-  # Directional hypothesis: student and parent have same political affiliation.
-  # Anchors (when data available): ESS = 19.4, ESP = 17.9, p < 0.0001.
-  # LOO is superfluous when class categories equal attribute categories (k = C)
-  # and a directional hypothesis is specified; LOO off / not applicable.
-  # Implementation: direction = "ascending" with L == C auto-creates identity map.
-  skip("data unavailable: the 7x7 political affiliation table is not in the package data. direction='ascending' for categorical k=C DIRECTIONAL is implemented (Phase 6C).")
-})
 
 # ---- Bray-Curtis (MPE Table 4.2) --------------------------------------------
 

@@ -355,7 +355,7 @@ novo_boot_ci.cta_tree <- function(x,
   if (!is.null(node_id)) {
     # ---- Terminal-node path (path D) ----------------------------------------
     node_id <- as.integer(node_id[1L])
-    nd <- x$nodes[[as.character(node_id)]]
+    nd <- x$nodes[[node_id]]
     if (is.null(nd))
       stop("novo_boot_ci.cta_tree: node_id ", node_id,
            " not found in tree.", call. = FALSE)

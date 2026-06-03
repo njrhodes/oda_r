@@ -52,7 +52,6 @@
 # =============================================================================
 
 test_that(".cta_ordered_scan: myeloma Node 4 V4 returns cut 359.80 ESS ~34.90%", {
-  skip_if_not_smoke("cta-ordered-scan")
   dat <- .myeloma_cta_dat()
   if (is.null(dat)) skip("myeloma fixture missing")
 
@@ -78,7 +77,6 @@ test_that(".cta_ordered_scan: myeloma Node 4 V4 returns cut 359.80 ESS ~34.90%",
 })
 
 test_that(".cta_ordered_scan: myeloma Node 2 V4 returns cut 371.20 ESS ~34.89%", {
-  skip_if_not_smoke("cta-ordered-scan")
   dat <- .myeloma_cta_dat()
   if (is.null(dat)) skip("myeloma fixture missing")
 
@@ -105,7 +103,6 @@ test_that(".cta_ordered_scan: myeloma Node 2 V4 returns cut 371.20 ESS ~34.89%",
 # =============================================================================
 
 test_that("generic oda_univariate_core: myeloma Node 4 V4 still finds cut ~85.70", {
-  skip_if_not_smoke("cta-ordered-scan")
   dat <- .myeloma_cta_dat()
   if (is.null(dat)) skip("myeloma fixture missing")
 
@@ -136,7 +133,6 @@ test_that("generic oda_univariate_core: myeloma Node 4 V4 still finds cut ~85.70
 # =============================================================================
 
 test_that(".cta_ordered_scan: returns NULL for pure node", {
-  skip_if_not_smoke("cta-ordered-scan")
   x <- 1:6
   y <- rep(0L, 6)
   w <- rep(1, 6)
@@ -144,7 +140,6 @@ test_that(".cta_ordered_scan: returns NULL for pure node", {
 })
 
 test_that(".cta_ordered_scan: returns NULL when all obs missing", {
-  skip_if_not_smoke("cta-ordered-scan")
   x <- rep(-9, 6)
   y <- c(0L, 0L, 0L, 1L, 1L, 1L)
   w <- rep(1, 6)
@@ -152,7 +147,6 @@ test_that(".cta_ordered_scan: returns NULL when all obs missing", {
 })
 
 test_that(".cta_ordered_scan: does not error under varying mindenom", {
-  skip_if_not_smoke("cta-ordered-scan")
   set.seed(1)
   x <- 1:8; y <- c(0L,0L,0L,0L,1L,1L,1L,1L); w <- rep(1, 8)
   r1 <- odacore:::.cta_ordered_scan(x, y, w, TRUE, NULL, 1L)

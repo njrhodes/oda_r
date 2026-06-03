@@ -45,7 +45,7 @@
         mc_iter     = 5000L,
         mc_target   = 0.05,
         mc_stop     = 99.9,
-        mc_seed     = NULL,
+        mc_seed     = 42L,
         loo         = "stable",
         attr_names  = c("Trap", "Stable")
       )
@@ -63,7 +63,7 @@
 # =============================================================================
 
 test_that("loo-gate: root is Stable/cut=0.5/ESS~42.86%/STABLE; no further splits", {
-  skip_if_not_smoke("cta-loo-gate")
+  testthat::skip_on_cran()
   tree <- .loo_gate_fit()
   root <- tree$nodes[[tree$root_id]]
   # Root selection

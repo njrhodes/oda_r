@@ -436,20 +436,20 @@ test_that("E8-4: cta_tree node_id path uses leaf class_counts and carries metada
   y <- c(rep(0L, 40), rep(1L, 20))
   tree <- cta_fit(X, y, mc_iter = 500L, mc_seed = 1L, loo = "off",
                   mindenom = 5L)
-  if (isTRUE(tree$no_tree)) skip("no_tree")
-  # Find a terminal node id
-  leaf_ids <- Filter(function(k) isTRUE(tree$nodes[[k]]$leaf),
-                     names(tree$nodes))
-  if (length(leaf_ids) == 0L) skip("no leaf nodes")
-  nid <- as.integer(leaf_ids[[1L]])
+  expect_false(isTRUE(tree$no_tree), label = "mc_seed=1 fixture must produce a tree")
+  # Find a terminal node id — nodes is unnamed; iterate by position
+  leaf_positions <- which(vapply(tree$nodes,
+    function(nd) !is.null(nd) && isTRUE(nd$leaf), logical(1L)))
+  expect_true(length(leaf_positions) > 0L, label = "mc_seed=1 fixture must have leaf nodes")
+  nid <- tree$nodes[[leaf_positions[[1L]]]]$node_id
   ci <- novo_boot_ci(tree, node_id = nid, nboot = 50L, seed = 42L)
   expect_s3_class(ci, "novo_boot_ci")
   expect_equal(ci$source_type, "cta_tree_node")
   expect_equal(ci$source_id, nid)
   expect_false(ci$weighted)
   # Confusion column sums should be 0 on the non-predicted side
-  nd  <- tree$nodes[[as.character(nid)]]
-  mc  <- nd$majority_class  # 0 or 1
+  nd       <- tree$nodes[[leaf_positions[[1L]]]]
+  mc       <- nd$majority_class  # 0 or 1
   pred_col <- mc + 1L
   other_col <- 3L - pred_col
   expect_equal(sum(ci$confusion[, other_col]), 0L)
@@ -465,12 +465,10 @@ test_that("E8-5: cta_tree node_id errors on non-leaf node", {
   y <- c(rep(0L, 40), rep(1L, 20))
   tree <- cta_fit(X, y, mc_iter = 500L, mc_seed = 1L, loo = "off",
                   mindenom = 5L)
-  if (isTRUE(tree$no_tree)) skip("no_tree")
-  # Root node should be non-leaf if tree has >1 node
-  internal_ids <- Filter(function(k) !isTRUE(tree$nodes[[k]]$leaf),
-                         names(tree$nodes))
-  if (length(internal_ids) == 0L) skip("no internal nodes")
-  nid <- as.integer(internal_ids[[1L]])
+  expect_false(isTRUE(tree$no_tree), label = "mc_seed=1 fixture must produce a tree")
+  # Root is the canonical non-leaf node — use root_id directly
+  nid <- tree$root_id
+  expect_false(isTRUE(tree$nodes[[nid]]$leaf), label = "root must be a split node")
   expect_error(novo_boot_ci(tree, node_id = nid, nboot = 50L),
                regexp = "not a terminal")
 })
