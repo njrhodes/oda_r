@@ -15,7 +15,7 @@ and WEIGHT parameters.
 oda_cta_fit(X, y, w = NULL, priors_on = TRUE, miss_codes = NULL,
   alpha_split = 0.05, mindenom = 5L, prune_alpha = 1.0,
   max_depth = 10L, ess_min = 0,
-  mc_iter = 25000L, mc_target = 0.05, mc_stop = 99.9, mc_stopup = NA,
+  mc_iter = 25000L, mc_target = 0.05, mc_stop = 99.9, mc_stopup = NULL,
   mc_seed = NULL, loo = "off", attr_names = NULL, K_segments = NULL,
   verbose = FALSE, diag_env = NULL)
 }
