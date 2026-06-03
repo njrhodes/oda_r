@@ -236,3 +236,206 @@ test_that("C-8: LORT LOO gate — local CTA recursion inherits MC-before-LOO", {
     expect_false("V_noise" %in% loo_v)
   }
 })
+
+# =============================================================================
+# CRAN-safe: binary predictor LOO wiring through CTA generic ODA path
+# =============================================================================
+
+test_that("C-9: binary predictor LOO routes through oda_loo_binary_map_counts() via CTA generic path", {
+  # B1-structure binary data: n00=8, n01=1, n10=1, n11=8 (ESS ~77.78%).
+  # V_noise: alternating 0/1 balanced equally across classes (ESS = 0, Signif F).
+  # Uniform weights -> CTA-specific ordered path bypassed; generic ODA path used.
+  # Binary attribute (<=2 unique values) -> oda_fit() produces binary_map rule ->
+  # oda_loo_for_rule() dispatches to oda_loo_binary_map_counts().
+  # loo=0.99: permissive p-value gate; V_binary passes, loo_status="PVALUE".
+  x_bin <- c(rep(0L, 9L), rep(1L, 9L))
+  y_c9  <- c(rep(0L, 8L), 1L, 0L, rep(1L, 8L))   # n00=8, n01=1, n10=1, n11=8
+  x_nz  <- rep(c(0L, 1L, 0L), 6L)                 # balanced noise: 0 ESS
+
+  de <- new.env(parent = emptyenv())
+
+  cta_fit(
+    X           = data.frame(V_binary = x_bin, V_noise = x_nz),
+    y           = y_c9,
+    mindenom    = 1L, priors_on = TRUE, alpha_split = 0.05, ess_min = 0,
+    loo         = 0.99,
+    mc_iter     = 1000L, mc_seed = 1L, mc_stop = 99.9,
+    prune_alpha = 1.0,
+    diag_env    = de
+  )
+
+  # Step 1: LOO must have run for V_binary (it must pass MC gate)
+  bin_loo <- Filter(function(z) z$attr_name == "V_binary", de$loo_log)
+  expect_gt(length(bin_loo), 0L,
+    label = "C-9: loo_log must have an entry for V_binary")
+  bl <- bin_loo[[1L]]
+  expect_identical(bl$loo_mode, "n_fold_or_algebraic",
+    label = "C-9: binary LOO mode must be n_fold_or_algebraic (not failed)")
+  expect_false(is.na(bl$ess_loo),
+    label = "C-9: binary ess_loo must not be NA")
+
+  # Step 2: oracle -- direct oda_loo_for_rule() on the same x/y
+  fit_ref <- oda_fit(x = x_bin, y = y_c9, priors_on = TRUE,
+                     mcarlo = FALSE, loo = "off")
+  expect_true(isTRUE(fit_ref$ok),   label = "C-9: oracle oda_fit must succeed")
+  expect_equal(fit_ref$rule$type, "binary_map",
+    label = "C-9: binary attribute must produce binary_map rule")
+
+  loo_ref <- odacore:::oda_loo_for_rule(
+    x         = x_bin,
+    y         = y_c9,
+    rule      = fit_ref$rule,
+    attr_type = "binary",
+    priors_on = TRUE
+  )
+  expect_true(isTRUE(loo_ref$allowed), label = "C-9: oracle loo_for_rule must be allowed")
+
+  # Step 3: CTA internal ess_loo must equal oracle ess_loo.
+  # Proves oda_loo_binary_map_counts() is exercised through the CTA generic path,
+  # not only through the direct oda_loo_for_rule() proof tests (B1-B4).
+  expect_equal(bl$ess_loo, loo_ref$ess_loo, tolerance = 1e-6,
+    label = paste0(
+      "C-9: CTA binary ess_loo (", round(bl$ess_loo, 4), "%) ",
+      "must match oracle oda_loo_for_rule ess_loo (", round(loo_ref$ess_loo, 4), "%)"
+    )
+  )
+})
+
+# =============================================================================
+# CRAN-safe: weighted binary predictor LOO wiring through CTA generic ODA path
+# =============================================================================
+
+test_that("C-10: weighted binary predictor LOO routes through oda_loo_binary_map_counts() via CTA generic path", {
+  # B3-structure weighted data: same x/y as B3 (n00=8,n01=1,n10=1,n11=8),
+  # w_c10: x=0 obs weight=2, x=1 obs weight=1 (WESS ~74.12%).
+  # Non-uniform weights with binary predictor (<=2 unique x values):
+  # CTA-specific ordered path requires >2 unique x values; binary falls through
+  # to generic ODA path -> oda_loo_binary_map_counts() handles weighted case.
+  # V_noise: balanced noise, expected Signif F.
+  x_bin  <- c(rep(0L, 9L), rep(1L, 9L))
+  y_c10  <- c(rep(0L, 8L), 1L, 0L, rep(1L, 8L))   # n00=8, n01=1, n10=1, n11=8
+  w_c10  <- c(rep(2, 9L), rep(1, 9L))               # non-uniform: x=0 obs weight=2
+  x_nz   <- rep(c(0L, 1L, 0L), 6L)                 # balanced noise: 0 ESS
+
+  de <- new.env(parent = emptyenv())
+
+  cta_fit(
+    X           = data.frame(V_binary = x_bin, V_noise = x_nz),
+    y           = y_c10,
+    w           = w_c10,
+    mindenom    = 1L, priors_on = TRUE, alpha_split = 0.05, ess_min = 0,
+    loo         = 0.99,
+    mc_iter     = 1000L, mc_seed = 1L, mc_stop = 99.9,
+    prune_alpha = 1.0,
+    diag_env    = de
+  )
+
+  # Step 1: LOO must have run for V_binary
+  bin_loo <- Filter(function(z) z$attr_name == "V_binary", de$loo_log)
+  expect_gt(length(bin_loo), 0L,
+    label = "C-10: loo_log must have an entry for V_binary (weighted)")
+  bl <- bin_loo[[1L]]
+  expect_identical(bl$loo_mode, "n_fold_or_algebraic",
+    label = "C-10: weighted binary LOO mode must be n_fold_or_algebraic (not failed)")
+  expect_false(is.na(bl$ess_loo),
+    label = "C-10: weighted binary ess_loo must not be NA")
+
+  # Step 2: oracle -- direct oda_loo_for_rule() with same x/y/w
+  fit_ref <- oda_fit(x = x_bin, y = y_c10, w = w_c10, priors_on = TRUE,
+                     mcarlo = FALSE, loo = "off")
+  expect_true(isTRUE(fit_ref$ok),   label = "C-10: oracle oda_fit must succeed")
+  expect_equal(fit_ref$rule$type, "binary_map",
+    label = "C-10: binary attribute must produce binary_map rule")
+
+  loo_ref <- odacore:::oda_loo_for_rule(
+    x         = x_bin,
+    y         = y_c10,
+    w         = w_c10,
+    rule      = fit_ref$rule,
+    attr_type = "binary",
+    priors_on = TRUE
+  )
+  expect_true(isTRUE(loo_ref$allowed), label = "C-10: oracle loo_for_rule must be allowed")
+
+  # Step 3: CTA internal ess_loo must equal oracle ess_loo.
+  # Proves oda_loo_binary_map_counts() handles case weights correctly through
+  # the CTA generic path (not only through direct B3/B4 proof tests).
+  expect_equal(bl$ess_loo, loo_ref$ess_loo, tolerance = 1e-6,
+    label = paste0(
+      "C-10: weighted CTA binary ess_loo (", round(bl$ess_loo, 4), "%) ",
+      "must match oracle oda_loo_for_rule ess_loo (", round(loo_ref$ess_loo, 4), "%)"
+    )
+  )
+})
+
+# =============================================================================
+# CRAN-safe: LORT recursive=TRUE binary LOO forwarding
+# =============================================================================
+
+test_that("C-11: LORT recursive=TRUE forwards binary LOO to oda_loo_binary_map_counts()", {
+  # B1-structure binary data: n00=8, n01=1, n10=1, n11=8 (ESS ~77.78%).
+  # V_noise: balanced, expected Signif F.
+  # cta_fit(recursive=TRUE) -> .cta_ort_fit() -> .cta_ort_fit_internal() ->
+  # cta_descendant_family() -> oda_cta_fit() -> .full_fit_one() (generic ODA path
+  # for binary predictor) -> oda_loo_for_rule() -> oda_loo_binary_map_counts().
+  # diag_env is forwarded intact through the full LORT chain.
+  # Root-level entry (n_obs == 18) is the relevant one; after V_binary split each
+  # child has only one unique V_binary value so V_binary is not re-evaluated.
+  x_bin   <- c(rep(0L, 9L), rep(1L, 9L))
+  y_c11   <- c(rep(0L, 8L), 1L, 0L, rep(1L, 8L))   # n00=8, n01=1, n10=1, n11=8
+  x_nz    <- rep(c(0L, 1L, 0L), 6L)                 # balanced noise
+  n_c11   <- length(y_c11)
+
+  de <- new.env(parent = emptyenv())
+
+  cta_fit(
+    X                = data.frame(V_binary = x_bin, V_noise = x_nz),
+    y                = y_c11,
+    recursive        = TRUE,
+    min_n            = 5L, max_depth = 3L, max_nodes = 15L,
+    family_max_steps = 5L,
+    priors_on = TRUE, alpha_split = 0.05, ess_min = 0,
+    loo              = 0.99,
+    mc_iter          = 1000L, mc_seed = 1L, mc_stop = 99.9,
+    prune_alpha      = 1.0,
+    diag_env         = de
+  )
+
+  # Root-level binary LOO entry (n_obs == n_c11 confirms root node evaluation)
+  bin_loo <- Filter(
+    function(z) z$attr_name == "V_binary" && isTRUE(z$n_obs == n_c11),
+    de$loo_log
+  )
+  expect_gt(length(bin_loo), 0L,
+    label = "C-11: LORT loo_log must contain a root-level V_binary entry")
+  bl <- bin_loo[[1L]]
+  expect_identical(bl$loo_mode, "n_fold_or_algebraic",
+    label = "C-11: LORT binary LOO mode must be n_fold_or_algebraic (not failed)")
+  expect_false(is.na(bl$ess_loo),
+    label = "C-11: LORT binary ess_loo must not be NA")
+
+  # Oracle -- same x/y, no weights
+  fit_ref <- oda_fit(x = x_bin, y = y_c11, priors_on = TRUE,
+                     mcarlo = FALSE, loo = "off")
+  expect_true(isTRUE(fit_ref$ok), label = "C-11: oracle oda_fit must succeed")
+  expect_equal(fit_ref$rule$type, "binary_map",
+    label = "C-11: binary attribute must produce binary_map rule")
+
+  loo_ref <- odacore:::oda_loo_for_rule(
+    x         = x_bin,
+    y         = y_c11,
+    rule      = fit_ref$rule,
+    attr_type = "binary",
+    priors_on = TRUE
+  )
+  expect_true(isTRUE(loo_ref$allowed), label = "C-11: oracle loo_for_rule must be allowed")
+
+  # CTA-internal ess_loo (via LORT -> cta_descendant_family -> oda_cta_fit chain)
+  # must equal oracle ess_loo, proving the algebraic path is not bypassed by LORT.
+  expect_equal(bl$ess_loo, loo_ref$ess_loo, tolerance = 1e-6,
+    label = paste0(
+      "C-11: LORT binary ess_loo (", round(bl$ess_loo, 4), "%) ",
+      "must match oracle oda_loo_for_rule ess_loo (", round(loo_ref$ess_loo, 4), "%)"
+    )
+  )
+})
