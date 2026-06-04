@@ -36,8 +36,8 @@ standard deviations, raw and absolute SMD, and conventional balance
 thresholds.
 }
 \details{
-\strong{SMD is a conventional companion diagnostic, not the odacore
-balance objective.}  The primary odacore balance assessment uses
+\strong{SMD is a conventional companion diagnostic, not the oda
+balance objective.}  The primary oda balance assessment uses
 \code{\link{oda_balance_table}}.  This function is intended for comparison
 with non-ODA balance reports.
 

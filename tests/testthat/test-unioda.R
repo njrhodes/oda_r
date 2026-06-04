@@ -239,7 +239,7 @@ test_that("oda_mc_p_value: p_mc is raw ge_count/iter_used (no LaPlace +1)", {
   vote  <- c(rep(0L, 118), rep(0L,  78), rep(1L,  34), rep(1L, 177))
   party <- c(rep(0L, 118), rep(1L,  78), rep(0L,  34), rep(1L, 177))
 
-  r1 <- odacore:::oda_mc_p_value(
+  r1 <- oda:::oda_mc_p_value(
     x=party, y=vote, attr_type="ordered", priors_on=TRUE,
     primary="maxsens", secondary="samplerep",
     mc_iter=200L, mc_stop=NA_real_, mc_stopup=NA_real_,
@@ -268,7 +268,7 @@ test_that("oda_mc_p_value: p_mc is raw ge_count/iter_used (no LaPlace +1)", {
     rep(6L,  6), rep(7L,  1)
   )
 
-  r2 <- odacore:::oda_mc_p_value(
+  r2 <- oda:::oda_mc_p_value(
     x=attacks, y=treatment, attr_type="ordered", priors_on=TRUE,
     primary="maxsens", secondary="samplerep",
     mc_iter=500L, mc_stop=NA_real_, mc_stopup=NA_real_,

@@ -1,6 +1,6 @@
 # WIRING_AUDIT.md
 
-Reconciliation document for the odacore public release hygiene pass.
+Reconciliation document for the oda public release hygiene pass.
 Records what was audited, what was found, and what disposition was applied.
 
 ---
@@ -269,7 +269,7 @@ or "Run a... procedure". Verified: no stale hits.
 
 ## 11. Live-Fire Validation Results
 
-### Full fast suite (ODACORE_TEST_TIER=fast) - post-OBBP
+### Full fast suite (ODA_TEST_TIER=fast) - post-OBBP
 
 ```
 FAIL 0 / WARN 0 / SKIP 167 / PASS 1867

@@ -1,6 +1,6 @@
 # ODA Canon
 
-This file defines canonical `oda_fit()` behavior for odacore.
+This file defines canonical `oda_fit()` behavior for oda.
 
 ## Core Definitions
 

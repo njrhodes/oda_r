@@ -92,7 +92,7 @@ every ODA call.  The scientific outcome of interest is strictly out of
 scope; do not pass the outcome as \code{group} or as a column of \code{X}.
 
 \strong{SMD:} conventional standardized mean difference is a companion
-diagnostic, not the odacore balance objective.  Use
+diagnostic, not the oda balance objective.  Use
 \code{\link{smd_balance_table}} for the conventional companion table.
 }
 \examples{

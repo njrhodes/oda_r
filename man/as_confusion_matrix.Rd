@@ -17,7 +17,7 @@ as_confusion_matrix(df)
 \value{
 A 2x2 integer matrix with rows = actual class (0/1) and columns =
 predicted class (0/1), matching the \code{training_confusion} convention
-used throughout \code{odacore}.  Row and column names are \code{"0"} and
+used throughout \code{oda}.  Row and column names are \code{"0"} and
 \code{"1"}.
 }
 \examples{

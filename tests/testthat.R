@@ -1,4 +1,4 @@
 library(testthat)
-library(odacore)
+library(oda)
 
-test_check("odacore")
+test_check("oda")

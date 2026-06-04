@@ -1,8 +1,8 @@
-# odacore - Current Production Status
+# oda - Current Production Status
 
-`odacore` is a pure-R reimplementation of the MegaODA.exe / CTA.exe statistical
+`oda` is a pure-R reimplementation of the MegaODA.exe / CTA.exe statistical
 classification engine. Where fixture coverage exists, correctness is defined by
-the Windows executables; any divergence on a covered fixture is a bug in odacore.
+the Windows executables; any divergence on a covered fixture is a bug in oda.
 
 ---
 
@@ -80,8 +80,8 @@ the Windows executables; any divergence on a covered fixture is a bug in odacore
 
 ## Test tiers
 
-| `ODACORE_TEST_TIER` | Scope |
-|---------------------|-------|
+| `ODA_TEST_TIER` | Scope |
+|-----------------|-------|
 | unset / `cran` | CRAN-safe unit tests only |
 | `fast` | Developer loop; skips slow canon fixtures |
 | `smoke` | Production gate; required before CTA/MDSA/graphics commits |

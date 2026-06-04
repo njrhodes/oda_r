@@ -9,7 +9,9 @@
 /src/*.o
 /src/*.so
 /src/*.dll
+oda_*.tar.gz
 odacore_*.tar.gz
+oda.Rcheck/
 odacore.Rcheck/
 .claude/
 .Rhistory

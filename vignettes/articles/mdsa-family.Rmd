@@ -45,7 +45,7 @@ user-supplied vector. It returns a `cta_family` object (a list of `cta_tree`
 objects plus metadata).
 
 ```{r synthetic-family}
-library(odacore)
+library(oda)
 
 set.seed(1L)
 n <- 80L

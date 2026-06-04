@@ -281,7 +281,7 @@ test_that("C-9: binary predictor LOO routes through oda_loo_binary_map_counts() 
   expect_equal(fit_ref$rule$type, "binary_map",
     label = "C-9: binary attribute must produce binary_map rule")
 
-  loo_ref <- odacore:::oda_loo_for_rule(
+  loo_ref <- oda:::oda_loo_for_rule(
     x         = x_bin,
     y         = y_c9,
     rule      = fit_ref$rule,
@@ -347,7 +347,7 @@ test_that("C-10: weighted binary predictor LOO routes through oda_loo_binary_map
   expect_equal(fit_ref$rule$type, "binary_map",
     label = "C-10: binary attribute must produce binary_map rule")
 
-  loo_ref <- odacore:::oda_loo_for_rule(
+  loo_ref <- oda:::oda_loo_for_rule(
     x         = x_bin,
     y         = y_c10,
     w         = w_c10,
@@ -421,7 +421,7 @@ test_that("C-11: LORT recursive=TRUE forwards binary LOO to oda_loo_binary_map_c
   expect_equal(fit_ref$rule$type, "binary_map",
     label = "C-11: binary attribute must produce binary_map rule")
 
-  loo_ref <- odacore:::oda_loo_for_rule(
+  loo_ref <- oda:::oda_loo_for_rule(
     x         = x_bin,
     y         = y_c11,
     rule      = fit_ref$rule,

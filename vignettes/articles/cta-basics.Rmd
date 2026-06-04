@@ -52,7 +52,7 @@ the primary complexity control in CTA: a larger `mindenom` forces broader,
 simpler trees; a smaller value allows deeper, more granular trees.
 
 ```{r synthetic-data}
-library(odacore)
+library(oda)
 
 set.seed(1L)
 n <- 60L

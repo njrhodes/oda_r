@@ -1,6 +1,6 @@
 # DOCS_INDEX.md
 
-Navigation index for odacore documentation.
+Navigation index for oda documentation.
 
 **Start here:** [STATUS.md](STATUS.md) - current production state, what is implemented,
 what is deferred.

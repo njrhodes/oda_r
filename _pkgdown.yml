@@ -1,4 +1,4 @@
-url: https://njrhodes.github.io/oda_rcore/
+url: https://njrhodes.github.io/oda/
 
 destination: _site   # pkgdown output; docs/ is reserved for design docs
 
@@ -12,7 +12,7 @@ navbar:
   components:
     github:
       icon: fab fa-github
-      href: https://github.com/njrhodes/oda_rcore
+      href: https://github.com/njrhodes/oda
 
 home:
   sidebar:

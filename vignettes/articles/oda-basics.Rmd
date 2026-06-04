@@ -48,7 +48,7 @@ of Medicine*, 88, 241-243.] The class variable is treatment arm (0 or 1);
 the attribute is the ordered attack count.
 
 ```{r data}
-library(odacore)
+library(oda)
 
 # Cross-classification: rows = attacks (0-7), cols = treatment arm.
 #          T1 (0)  T2 (1)

@@ -298,7 +298,7 @@ test_that("new_cta_family_member: valid + no-tree fields; new_cta_family S3 clas
     oda_cta_fit(d$X, d$y, mindenom = 2L, mc_iter = 300L, mc_seed = 1L, loo = "off"))
 
   if (!isTRUE(tree$no_tree)) {
-    m <- odacore:::new_cta_family_member(2L, tree)
+    m <- oda:::new_cta_family_member(2L, tree)
     expect_identical(m$mindenom,          2L)
     expect_false(m$no_tree)
     expect_identical(m$strata,            cta_strata(tree))
@@ -309,7 +309,7 @@ test_that("new_cta_family_member: valid + no-tree fields; new_cta_family S3 clas
   }
 
   nt <- .no_tree_fit()
-  mn <- odacore:::new_cta_family_member(999L, nt)
+  mn <- oda:::new_cta_family_member(999L, nt)
   expect_identical(mn$mindenom,          999L)
   expect_true(mn$no_tree)
   expect_identical(mn$strata,            NA_integer_)
@@ -318,7 +318,7 @@ test_that("new_cta_family_member: valid + no-tree fields; new_cta_family S3 clas
   expect_identical(mn$overall_ess,       NA_real_)
   expect_identical(mn$d,                 NA_real_)
 
-  fam <- odacore:::new_cta_family(list(mn))
+  fam <- oda:::new_cta_family(list(mn))
   expect_s3_class(fam, "cta_family")
   expect_true(is.list(fam$members))
   expect_equal(length(fam$members), 1L)
@@ -348,21 +348,21 @@ test_that("myeloma endpoint chain: MINDENOM=1->30->56 denominators and strata (S
   expect_false(t1$no_tree)
   expect_equal(cta_strata(t1), 3L)
   expect_equal(cta_min_terminal_denom(t1), 29L)
-  m1 <- odacore:::new_cta_family_member(1L, t1)
+  m1 <- oda:::new_cta_family_member(1L, t1)
   expect_equal(m1$next_mindenom, 30L)
 
   t30 <- .myeloma_tree(30L)
   expect_false(t30$no_tree)
   expect_equal(cta_strata(t30), 2L)
   expect_equal(cta_min_terminal_denom(t30), 55L)
-  m30 <- odacore:::new_cta_family_member(30L, t30)
+  m30 <- oda:::new_cta_family_member(30L, t30)
   expect_equal(m30$next_mindenom, 56L)
 
   t56 <- .myeloma_tree(56L)
   expect_true(t56$no_tree)
   expect_identical(cta_strata(t56),              NA_integer_)
   expect_identical(cta_endpoint_denominators(t56), integer(0))
-  m56 <- odacore:::new_cta_family_member(56L, t56)
+  m56 <- oda:::new_cta_family_member(56L, t56)
   expect_true(m56$no_tree)
   expect_identical(m56$next_mindenom, NA_integer_)
 })
@@ -449,14 +449,14 @@ test_that("PRUNE + AxBxC: prune no-op and active both select V14->V15 WESS=27.69
 # =============================================================================
 
 test_that(".cta_predictions_degenerate: all degenerate cases true; non-degenerate false; required_classes", {
-  expect_true(odacore:::.cta_predictions_degenerate(c(0L, 0L, NA_integer_, 0L)))
-  expect_true(odacore:::.cta_predictions_degenerate(c(NA_integer_, 1L, 1L, 1L)))
-  expect_true(odacore:::.cta_predictions_degenerate(c(NA_integer_, NA_integer_)))
-  expect_false(odacore:::.cta_predictions_degenerate(c(0L, 1L, 0L, NA_integer_, 1L)))
-  expect_false(odacore:::.cta_predictions_degenerate(c(0L, NA_integer_, 1L)))
-  expect_true(odacore:::.cta_predictions_degenerate(c(1L, 2L, NA_integer_),
+  expect_true(oda:::.cta_predictions_degenerate(c(0L, 0L, NA_integer_, 0L)))
+  expect_true(oda:::.cta_predictions_degenerate(c(NA_integer_, 1L, 1L, 1L)))
+  expect_true(oda:::.cta_predictions_degenerate(c(NA_integer_, NA_integer_)))
+  expect_false(oda:::.cta_predictions_degenerate(c(0L, 1L, 0L, NA_integer_, 1L)))
+  expect_false(oda:::.cta_predictions_degenerate(c(0L, NA_integer_, 1L)))
+  expect_true(oda:::.cta_predictions_degenerate(c(1L, 2L, NA_integer_),
                                                      required_classes = 3L))
-  expect_false(odacore:::.cta_predictions_degenerate(c(1L, 2L, 3L, NA_integer_),
+  expect_false(oda:::.cta_predictions_degenerate(c(1L, 2L, 3L, NA_integer_),
                                                       required_classes = 3L))
 })
 

@@ -23,7 +23,7 @@
 #   - oda_balance_plot_data() consumes oda_balance_table() output and an
 #     optional smd_balance_table(); it does NOT call oda_fit() and does NOT
 #     accept group or X arguments.
-#   - SMD is a conventional companion; it is not the odacore balance objective.
+#   - SMD is a conventional companion; it is not the oda balance objective.
 #   - Deferred to v3B2: cta_balance_table(), cta_balance_plot_data().
 ###############################################################################
 
@@ -82,7 +82,7 @@
 #' scope; do not pass the outcome as \code{group} or as a column of \code{X}.
 #'
 #' \strong{SMD:} conventional standardized mean difference is a companion
-#' diagnostic, not the odacore balance objective.  Use
+#' diagnostic, not the oda balance objective.  Use
 #' \code{\link{smd_balance_table}} for the conventional companion table.
 #'
 #' @param group Integer (or coercible) binary group indicator.  Must have
@@ -281,8 +281,8 @@ oda_balance_table <- function(group,
 #' standard deviations, raw and absolute SMD, and conventional balance
 #' thresholds.
 #'
-#' \strong{SMD is a conventional companion diagnostic, not the odacore
-#' balance objective.}  The primary odacore balance assessment uses
+#' \strong{SMD is a conventional companion diagnostic, not the oda
+#' balance objective.}  The primary oda balance assessment uses
 #' \code{\link{oda_balance_table}}.  This function is intended for comparison
 #' with non-ODA balance reports.
 #'

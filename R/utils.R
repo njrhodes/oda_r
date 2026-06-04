@@ -1,6 +1,6 @@
 ###############################################################################
 # R/utils.R
-# Shared micro-utilities for odacore.
+# Shared micro-utilities for oda.
 # Nothing here is exported except via NAMESPACE; this file is loaded first
 # because R sources files in the R/ directory in alphabetical order.
 ###############################################################################

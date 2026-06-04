@@ -64,7 +64,7 @@ test_that("E1-4: novo_boot_ci.oda_fit errors on multiclass", {
 })
 
 test_that("E1-5: novo_boot_ci.cta_tree dispatches on cta_tree", {
-  skip_if(Sys.getenv("ODACORE_TEST_TIER") %in% c("", "cran"),
+  skip_if(Sys.getenv("ODA_TEST_TIER", unset = Sys.getenv("ODACORE_TEST_TIER")) %in% c("", "cran"),
           "Skipping cta_tree novo_boot_ci dispatch at cran tier")
   X <- data.frame(
     A = c(rep(0L, 20), rep(1L, 20), rep(1L, 20)),
@@ -91,7 +91,7 @@ test_that("E1-6: novo_boot_ci.cta_tree errors on no_tree", {
 })
 
 test_that("E1-7: novo_boot_ci.cta_ort dispatches on cta_ort", {
-  skip_if(Sys.getenv("ODACORE_TEST_TIER") %in% c("", "cran"),
+  skip_if(Sys.getenv("ODA_TEST_TIER", unset = Sys.getenv("ODACORE_TEST_TIER")) %in% c("", "cran"),
           "Skipping cta_ort novo_boot_ci dispatch at cran tier")
   X <- data.frame(
     A = c(rep(0L, 20), rep(1L, 20), rep(1L, 20)),
@@ -109,7 +109,7 @@ test_that("E1-7: novo_boot_ci.cta_ort dispatches on cta_ort", {
 })
 
 test_that("E1-8: novo_boot_ci.cta_ort accumulates confusion correctly", {
-  skip_if(Sys.getenv("ODACORE_TEST_TIER") %in% c("", "cran"),
+  skip_if(Sys.getenv("ODA_TEST_TIER", unset = Sys.getenv("ODACORE_TEST_TIER")) %in% c("", "cran"),
           "Skipping LORT confusion accumulation at cran tier")
   # Construct a minimal strata data frame manually
   # Two strata: class-0 terminal (pred=0), class-1 terminal (pred=1)
@@ -164,7 +164,7 @@ test_that("E1-9: novo_boot_ci.cta_ort errors when strata absent", {
 # ---------------------------------------------------------------------------
 
 test_that("E2-1: cta_plot_data() returns evidence fields for a valid tree", {
-  skip_if(Sys.getenv("ODACORE_TEST_TIER") %in% c("", "cran"),
+  skip_if(Sys.getenv("ODA_TEST_TIER", unset = Sys.getenv("ODACORE_TEST_TIER")) %in% c("", "cran"),
           "Skipping cta_plot_data evidence fields at cran tier")
   X <- data.frame(
     A = c(rep(0L, 20), rep(1L, 20), rep(1L, 20))
@@ -205,7 +205,7 @@ test_that("E2-2: cta_plot_data() returns NA evidence for no_tree", {
 })
 
 test_that("E2-3: cta_plot_data() d matches cta_d_stat()", {
-  skip_if(Sys.getenv("ODACORE_TEST_TIER") %in% c("", "cran"),
+  skip_if(Sys.getenv("ODA_TEST_TIER", unset = Sys.getenv("ODACORE_TEST_TIER")) %in% c("", "cran"),
           "Skipping cta_plot_data d-stat check at cran tier")
   X <- data.frame(A = c(rep(0L, 20), rep(1L, 20), rep(1L, 20)))
   y <- c(rep(0L, 40), rep(1L, 20))
@@ -221,7 +221,7 @@ test_that("E2-3: cta_plot_data() d matches cta_d_stat()", {
 # ---------------------------------------------------------------------------
 
 test_that("E3-1: ort_plot_data() returns evidence fields", {
-  skip_if(Sys.getenv("ODACORE_TEST_TIER") %in% c("", "cran"),
+  skip_if(Sys.getenv("ODA_TEST_TIER", unset = Sys.getenv("ODACORE_TEST_TIER")) %in% c("", "cran"),
           "Skipping ort_plot_data evidence fields at cran tier")
   X <- data.frame(
     A = c(rep(0L, 20), rep(1L, 20), rep(1L, 20)),
@@ -264,7 +264,7 @@ test_that("E3-2: ort_plot_data() returns NA evidence for empty ort_nodes", {
 test_that("E4-1: plot_cta_tree(show_metrics=TRUE) adds metrics to subtitle", {
   skip_if(!requireNamespace("ggplot2", quietly = TRUE),
           "ggplot2 not available")
-  skip_if(Sys.getenv("ODACORE_TEST_TIER") %in% c("", "cran"),
+  skip_if(Sys.getenv("ODA_TEST_TIER", unset = Sys.getenv("ODACORE_TEST_TIER")) %in% c("", "cran"),
           "Skipping plot_cta_tree show_metrics at cran tier")
   X <- data.frame(A = c(rep(0L, 20), rep(1L, 20), rep(1L, 20)))
   y <- c(rep(0L, 40), rep(1L, 20))
@@ -283,7 +283,7 @@ test_that("E4-1: plot_cta_tree(show_metrics=TRUE) adds metrics to subtitle", {
 test_that("E4-2: plot_cta_tree(show_metrics=FALSE) leaves subtitle unchanged", {
   skip_if(!requireNamespace("ggplot2", quietly = TRUE),
           "ggplot2 not available")
-  skip_if(Sys.getenv("ODACORE_TEST_TIER") %in% c("", "cran"),
+  skip_if(Sys.getenv("ODA_TEST_TIER", unset = Sys.getenv("ODACORE_TEST_TIER")) %in% c("", "cran"),
           "Skipping plot_cta_tree at cran tier")
   X <- data.frame(A = c(rep(0L, 20), rep(1L, 20), rep(1L, 20)))
   y <- c(rep(0L, 40), rep(1L, 20))
@@ -298,7 +298,7 @@ test_that("E4-2: plot_cta_tree(show_metrics=FALSE) leaves subtitle unchanged", {
 test_that("E4-3: plot_cta_tree(show_metrics=TRUE) appends to existing subtitle", {
   skip_if(!requireNamespace("ggplot2", quietly = TRUE),
           "ggplot2 not available")
-  skip_if(Sys.getenv("ODACORE_TEST_TIER") %in% c("", "cran"),
+  skip_if(Sys.getenv("ODA_TEST_TIER", unset = Sys.getenv("ODACORE_TEST_TIER")) %in% c("", "cran"),
           "Skipping plot_cta_tree show_metrics append at cran tier")
   X <- data.frame(A = c(rep(0L, 20), rep(1L, 20), rep(1L, 20)))
   y <- c(rep(0L, 40), rep(1L, 20))
@@ -319,7 +319,7 @@ test_that("E4-3: plot_cta_tree(show_metrics=TRUE) appends to existing subtitle",
 test_that("E5-1: plot_lort_tree(show_metrics=TRUE) adds metrics to subtitle", {
   skip_if(!requireNamespace("ggplot2", quietly = TRUE),
           "ggplot2 not available")
-  skip_if(Sys.getenv("ODACORE_TEST_TIER") %in% c("", "cran"),
+  skip_if(Sys.getenv("ODA_TEST_TIER", unset = Sys.getenv("ODACORE_TEST_TIER")) %in% c("", "cran"),
           "Skipping plot_lort_tree show_metrics at cran tier")
   X <- data.frame(
     A = c(rep(0L, 20), rep(1L, 20), rep(1L, 20)),
@@ -410,7 +410,7 @@ test_that("E8-2: oda_fit path carries source_type = 'oda_fit', weighted = FALSE"
 })
 
 test_that("E8-3: cta_tree full-tree path carries source_type = 'cta_tree'", {
-  skip_if(Sys.getenv("ODACORE_TEST_TIER") %in% c("", "cran"),
+  skip_if(Sys.getenv("ODA_TEST_TIER", unset = Sys.getenv("ODACORE_TEST_TIER")) %in% c("", "cran"),
           "Skipping cta_tree source_type at cran tier")
   X <- data.frame(
     A = c(rep(0L, 20), rep(1L, 20), rep(1L, 20)),
@@ -427,7 +427,7 @@ test_that("E8-3: cta_tree full-tree path carries source_type = 'cta_tree'", {
 })
 
 test_that("E8-4: cta_tree node_id path uses leaf class_counts and carries metadata", {
-  skip_if(Sys.getenv("ODACORE_TEST_TIER") %in% c("", "cran"),
+  skip_if(Sys.getenv("ODA_TEST_TIER", unset = Sys.getenv("ODACORE_TEST_TIER")) %in% c("", "cran"),
           "Skipping cta_tree node_id at cran tier")
   X <- data.frame(
     A = c(rep(0L, 20), rep(1L, 20), rep(1L, 20)),
@@ -456,7 +456,7 @@ test_that("E8-4: cta_tree node_id path uses leaf class_counts and carries metada
 })
 
 test_that("E8-5: cta_tree node_id errors on non-leaf node", {
-  skip_if(Sys.getenv("ODACORE_TEST_TIER") %in% c("", "cran"),
+  skip_if(Sys.getenv("ODA_TEST_TIER", unset = Sys.getenv("ODACORE_TEST_TIER")) %in% c("", "cran"),
           "Skipping at cran tier")
   X <- data.frame(
     A = c(rep(0L, 20), rep(1L, 20), rep(1L, 20)),
@@ -567,7 +567,7 @@ test_that("E9-1: as_confusion_matrix converts 2x2 tidy df to matrix", {
 })
 
 test_that("E9-2: as_confusion_matrix round-trips cta_confusion_table", {
-  skip_if(Sys.getenv("ODACORE_TEST_TIER") %in% c("", "cran"),
+  skip_if(Sys.getenv("ODA_TEST_TIER", unset = Sys.getenv("ODACORE_TEST_TIER")) %in% c("", "cran"),
           "Skipping cta_confusion_table round-trip at cran tier")
   X <- data.frame(
     A = c(rep(0L, 20), rep(1L, 20), rep(1L, 20)),

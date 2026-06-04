@@ -39,7 +39,7 @@ The rule is stored in `$rule$cut_values` (length C - 1) and
 ### iris example
 
 ```{r iris-3class}
-library(odacore)
+library(oda)
 
 x <- iris$Petal.Length
 y <- as.integer(iris$Species)   # 1=setosa, 2=versicolor, 3=virginica

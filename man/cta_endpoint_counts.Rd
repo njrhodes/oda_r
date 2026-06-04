@@ -18,7 +18,7 @@ event rates, odds, or staging order.  Staging-table and event-rate
 summaries are available via \code{\link{cta_staging_table}}.
 
 If any terminal leaf is missing the stored class counts (i.e., the
-\code{cta_tree} was fitted by an earlier version of odacore that did
+\code{cta_tree} was fitted by an earlier version of oda that did
 not store endpoint counts), the function stops with a clear error.
 }
 \usage{cta_endpoint_counts(tree)}

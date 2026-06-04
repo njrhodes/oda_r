@@ -1,4 +1,4 @@
-# Copilot Instructions for odacore
+# Copilot Instructions for oda
 
 This repository is a pure-R reimplementation of the MegaODA / CTA classification engine. All algorithmic behavior must match canonical MegaODA.exe / CTA.exe output exactly for covered fixtures. The following rules apply when reviewing or suggesting changes.
 
@@ -69,4 +69,4 @@ This repository is a pure-R reimplementation of the MegaODA / CTA classification
 ## 10. Extension vs. parity
 
 - Binary CTA and UniODA/MultiODA behavior are parity-driven against MegaODA.exe / CTA.exe.
-- Multiclass CTA has no gold executable benchmark. Any multiclass CTA implementation must be explicitly labeled as an `odacore` extension, not MegaODA/CTA parity. Fixture strategy for multiclass CTA must be synthetic/property-based, not gold parity.
+- Multiclass CTA has no gold executable benchmark. Any multiclass CTA implementation must be explicitly labeled as an `oda` extension, not MegaODA/CTA parity. Fixture strategy for multiclass CTA must be synthetic/property-based, not gold parity.

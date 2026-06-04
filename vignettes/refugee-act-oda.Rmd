@@ -1,6 +1,6 @@
 ---
 title: "Binary ODA: Voting on the Refugee Act of 1980"
-author: "odacore"
+author: "oda"
 date: "`r Sys.Date()`"
 output: rmarkdown::html_vignette
 vignette: >
@@ -35,7 +35,7 @@ reconstructed directly into observation-level vectors  -  no external data file
 is required.
 
 ```{r data}
-library(odacore)
+library(oda)
 
 # Cross-classification: rows = vote (class), cols = party (attribute).
 #          Rep (0)   Dem (1)

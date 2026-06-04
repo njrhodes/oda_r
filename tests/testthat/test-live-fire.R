@@ -7,7 +7,7 @@
 #
 # All tests skip at cran tier; gated at fast tier and above.
 
-LIVEFIRE_SKIP <- Sys.getenv("ODACORE_TEST_TIER") %in% c("", "cran")
+LIVEFIRE_SKIP <- Sys.getenv("ODA_TEST_TIER", unset = Sys.getenv("ODACORE_TEST_TIER")) %in% c("", "cran")
 SKIP_MSG      <- "live-fire workflow: skip at cran tier"
 
 # ---------------------------------------------------------------------------

@@ -18,7 +18,7 @@ knitr::opts_chunk$set(collapse = TRUE, comment = "#>")
   The synthetic example below is already live and demonstrates the v3 API.
 -->
 
-`odacore` provides two levels of CTA tree visualisation:
+`oda` provides two levels of CTA tree visualisation:
 
 - **Base-R renderers** (`plot.cta_tree`, `plot.cta_ort`): no external
   dependencies; structural diagram via base graphics.
@@ -37,7 +37,7 @@ terminal predictions from a fitted `cta_tree` object. The result is a
 self-contained plot-data object usable by any renderer.
 
 ```{r synthetic}
-library(odacore)
+library(oda)
 
 set.seed(1L)
 n <- 60L

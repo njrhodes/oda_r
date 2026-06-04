@@ -1,9 +1,9 @@
 # Myeloma CTA: Translation and Reporting Walkthrough
 
-> **Worked fixture example.** All values computed from actual `odacore` package runs
+> **Worked fixture example.** All values computed from actual `oda` package runs
 > on the myeloma fixture (`tests/testthat/fixtures/myeloma/`). Not active roadmap.
 
-This document is a workflow walkthrough showing how the `odacore`
+This document is a workflow walkthrough showing how the `oda`
 CTA reporting stack maps from a fitted tree to endpoint summaries, staging
 tables, propensity weights, confusion table, and family-level interpretation.
 All output shown below is computed from the myeloma fixture included in this

@@ -74,7 +74,7 @@ The myeloma MINDENOM=1 pruned tree produces this confusion matrix (verified
 against CTA.exe):
 
 ```{r conf-matrix}
-library(odacore)
+library(oda)
 
 # Myeloma MINDENOM=1 pruned tree confusion (actual x predicted, byrow = TRUE)
 # Rows: actual class (0 and 1). Columns: predicted class (0 and 1).

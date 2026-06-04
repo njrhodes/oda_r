@@ -543,7 +543,7 @@ cta_confusion_table <- function(tree) {
 #'   required, with \code{actual} and \code{predicted} taking values 0 and 1.
 #' @return A 2x2 integer matrix with rows = actual class (0/1) and columns =
 #'   predicted class (0/1), matching the \code{training_confusion} convention
-#'   used throughout \code{odacore}.
+#'   used throughout \code{oda}.
 #' @examples
 #' data(mtcars)
 #' X    <- mtcars[, c("cyl", "disp", "hp", "wt")]
@@ -709,7 +709,7 @@ cta_endpoint_summary <- function(tree) {
 #' summaries are available via \code{\link{cta_staging_table}}.
 #'
 #' If any terminal leaf is missing the stored class counts (i.e., the
-#' \code{cta_tree} was fitted by an earlier version of odacore that did
+#' \code{cta_tree} was fitted by an earlier version of oda that did
 #' not store endpoint counts), the function stops with a clear error.
 #'
 #' @param tree A \code{cta_tree} from \code{\link{oda_cta_fit}}.
@@ -775,7 +775,7 @@ cta_endpoint_counts <- function(tree) {
                            logical(1L))
   if (any(missing_counts)) {
     stop("endpoint class counts are unavailable for this cta_tree; ",
-         "refit with a version of odacore that stores endpoint counts")
+         "refit with a version of oda that stores endpoint counts")
   }
 
   # Build output columns  -  one entry per leaf x class.

@@ -45,7 +45,7 @@ optional fields, constructor/converter API, and the rules for how a future
 | SORT | Reserved  -  not yet implemented | Requires SDA anchor before starting |
 | GORT | Reserved  -  not yet implemented | Requires formal design doc |
 
-**LORT / SORT / GORT are odacore workflow-layer names, not MPE Chapter 12
+**LORT / SORT / GORT are oda workflow-layer names, not MPE Chapter 12
 canonical method names.**  Do not claim they are canon-anchored against
 CTA.exe unless explicit fixture parity tests exist.
 
@@ -61,7 +61,7 @@ and metadata for downstream consumption.
 
 | Function | Class returned | Description |
 |----------|---------------|-------------|
-| `sda_fit(X, y, mode, ...)` | `c("sda_fit", "odacore_sda")` | Core SDA fitting |
+| `sda_fit(X, y, mode, ...)` | `c("sda_fit", "oda_sda")` | Core SDA fitting |
 | `predict.sda_fit(object, newdata, type, ...)` | vector / data frame | Sequential prediction |
 | `print.sda_fit(x, ...)` | invisible | Concise step summary |
 | `summary.sda_fit(object, ...)` | `sda_fit_summary` | Structured summary |
@@ -70,7 +70,7 @@ and metadata for downstream consumption.
 | `sda_candidate_table(fit, step)` | data frame / list | Per-step candidate detail |
 | `as_cta_candidates(fit, X)` | data frame | X restricted to SDA columns |
 | `sda_to_cta_data(fit, X, y)` | named list | Downstream CTA/MDSA-ready data |
-| `auto_sda_plan(data, outcome, ...)` | `c("auto_sda_plan", "odacore_plan")` | Dry-run planning only |
+| `auto_sda_plan(data, outcome, ...)` | `c("auto_sda_plan", "oda_plan")` | Dry-run planning only |
 
 ### 3.2 `sda_fit` object structure
 

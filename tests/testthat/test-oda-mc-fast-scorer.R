@@ -90,13 +90,13 @@ test_that("fast scorer matches oda_univariate_core ESS for binary x (unweighted)
   y  <- sample(c(0L, 1L), n, replace = TRUE)
   w  <- rep(1, n)
 
-  pc <- odacore:::.oda_mc_precomp(x, w, "binary", mindenom = 1L)
+  pc <- oda:::.oda_mc_precomp(x, w, "binary", mindenom = 1L)
   expect_false(is.null(pc), label = "precomp not NULL for binary")
 
   set.seed(99L)
   for (i in seq_len(200L)) {
     y_perm <- sample(y, n, replace = FALSE)
-    fast   <- odacore:::.oda_fast_ess_perm(y_perm, pc, "off")
+    fast   <- oda:::.oda_fast_ess_perm(y_perm, pc, "off")
     slow   <- {
       fit <- oda_univariate_core(x = x, y = y_perm, w = w,
                attr_type = "binary", priors_on = TRUE,
@@ -116,13 +116,13 @@ test_that("fast scorer matches oda_univariate_core ESS for binary x (weighted, p
   y  <- sample(c(0L, 1L), n, replace = TRUE)
   w  <- runif(n, 0.5, 2.5)
 
-  pc <- odacore:::.oda_mc_precomp(x, w, "binary", mindenom = 1L)
+  pc <- oda:::.oda_mc_precomp(x, w, "binary", mindenom = 1L)
   expect_false(is.null(pc))
 
   set.seed(77L)
   for (i in seq_len(200L)) {
     y_perm <- sample(y, n, replace = FALSE)
-    fast   <- odacore:::.oda_fast_ess_perm(y_perm, pc, "off")
+    fast   <- oda:::.oda_fast_ess_perm(y_perm, pc, "off")
     slow   <- {
       fit <- oda_univariate_core(x = x, y = y_perm, w = w,
                attr_type = "binary", priors_on = TRUE,
@@ -145,14 +145,14 @@ test_that("fast scorer matches oda_univariate_core ESS for ordered x (unweighted
   y <- sample(c(0L, 1L), n, replace = TRUE)
   w <- rep(1, n)
 
-  pc <- odacore:::.oda_mc_precomp(x, w, "ordered", mindenom = 1L)
+  pc <- oda:::.oda_mc_precomp(x, w, "ordered", mindenom = 1L)
   expect_false(is.null(pc))
   expect_gt(length(pc$adm_j), 1L)  # multiple cut positions
 
   set.seed(55L)
   for (i in seq_len(200L)) {
     y_perm <- sample(y, n, replace = FALSE)
-    fast   <- odacore:::.oda_fast_ess_perm(y_perm, pc, "off")
+    fast   <- oda:::.oda_fast_ess_perm(y_perm, pc, "off")
     slow   <- {
       fit <- oda_univariate_core(x = x, y = y_perm, w = w,
                attr_type = "ordered", priors_on = TRUE,
@@ -173,12 +173,12 @@ test_that("fast scorer matches oda_univariate_core ESS for ordered x (weighted, 
   w <- runif(n, 0.1, 3.0)
 
   for (priors in c(TRUE, FALSE)) {
-    pc <- odacore:::.oda_mc_precomp(x, w, "ordered", mindenom = 1L)
+    pc <- oda:::.oda_mc_precomp(x, w, "ordered", mindenom = 1L)
     expect_false(is.null(pc))
     set.seed(33L)
     for (i in seq_len(200L)) {
       y_perm <- sample(y, n, replace = FALSE)
-      fast   <- odacore:::.oda_fast_ess_perm(y_perm, pc, "off")
+      fast   <- oda:::.oda_fast_ess_perm(y_perm, pc, "off")
       slow   <- {
         fit <- oda_univariate_core(x = x, y = y_perm, w = w,
                  attr_type = "ordered", priors_on = priors,
@@ -295,7 +295,7 @@ test_that("oda_mc_p_value fast path is materially faster than slow reference (sm
   y_v1  <- as.integer(dat$V1)
   w_v2  <- dat$V2
   # Clean miss codes as oda_univariate_core would
-  clean <- odacore:::oda_clean_xy(x_v14, y_v1, w_v2, miss_codes = miss9)
+  clean <- oda:::oda_clean_xy(x_v14, y_v1, w_v2, miss_codes = miss9)
   x_c   <- clean$x; y_c <- as.integer(clean$y); w_c <- clean$w
 
   obs_fit <- oda_univariate_core(x = x_c, y = y_c, w = w_c,

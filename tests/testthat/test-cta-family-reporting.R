@@ -61,8 +61,8 @@
 .report_two_member_family <- function() {
   tree1 <- .report_feasible_tree()
   tree2 <- .report_no_tree()
-  m1 <- odacore:::new_cta_family_member(2L,  tree1)
-  m2 <- odacore:::new_cta_family_member(11L, tree2)
+  m1 <- oda:::new_cta_family_member(2L,  tree1)
+  m2 <- oda:::new_cta_family_member(11L, tree2)
   members   <- list(m1, m2)
   mindenoms <- c(2L, 11L)
   summary_df <- data.frame(
@@ -75,7 +75,7 @@
     no_tree            = c(FALSE, TRUE),
     stringsAsFactors   = FALSE
   )
-  odacore:::new_cta_family(
+  oda:::new_cta_family(
     members            = members,
     mindenoms          = mindenoms,
     summary            = summary_df,
@@ -87,13 +87,13 @@
 
 .report_no_tree_only_family <- function() {
   tree <- .report_no_tree()
-  m    <- odacore:::new_cta_family_member(2L, tree)
+  m    <- oda:::new_cta_family_member(2L, tree)
   summary_df <- data.frame(
     mindenom = 2L, status = "no_tree", strata = NA_integer_,
     min_terminal_denom = NA_integer_, overall_ess = NA_real_,
     d = NA_real_, no_tree = TRUE, stringsAsFactors = FALSE
   )
-  odacore:::new_cta_family(
+  oda:::new_cta_family(
     members = list(m), mindenoms = 2L, summary = summary_df,
     min_d_idx = NA_integer_, terminated = TRUE, termination_reason = "no_tree"
   )
@@ -172,7 +172,7 @@ test_that("cta_family_table values: rows, index, mindenoms, selected_min_d, no-t
   expect_false(any(df_nt$selected_min_d))
 
   # empty family: 0 rows with required columns
-  df_empty <- cta_family_table(odacore:::new_cta_family())
+  df_empty <- cta_family_table(oda:::new_cta_family())
   expect_equal(nrow(df_empty), 0L)
   expect_true("selected_min_d" %in% names(df_empty))
 })

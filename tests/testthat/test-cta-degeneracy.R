@@ -87,7 +87,7 @@ test_that("B-2: constant x returns no_tree (no admissible cut, degenerate tree r
 # The guard is tested directly via the internal function.
 
 test_that("B-3: .cta_predictions_degenerate() returns TRUE for all-same-class predictions", {
-  degen <- odacore:::.cta_predictions_degenerate
+  degen <- oda:::.cta_predictions_degenerate
 
   # All class 1
   expect_true(degen(c(1L, 1L, 1L)))
@@ -102,7 +102,7 @@ test_that("B-3: .cta_predictions_degenerate() returns TRUE for all-same-class pr
 })
 
 test_that("B-4: .cta_predictions_degenerate() returns FALSE when two classes present", {
-  degen <- odacore:::.cta_predictions_degenerate
+  degen <- oda:::.cta_predictions_degenerate
 
   # Two classes
   expect_false(degen(c(0L, 1L, 0L)))

@@ -318,7 +318,7 @@ test_that("lort_propensity_weights: requires cta_ort object", {
 })
 
 test_that("lort_propensity_weights: model_family is 'lort'", {
-  skip_if(Sys.getenv("ODACORE_TEST_TIER") %in% c("", "cran"),
+  skip_if(Sys.getenv("ODA_TEST_TIER", unset = Sys.getenv("ODACORE_TEST_TIER")) %in% c("", "cran"),
           "lort fit skipped outside fast/smoke/full tier")
   ort <- lort_fit(X_fix[, c("x1","x4"), drop = FALSE], y_fix,
                   min_n = 10L, mc_iter = 100L, mc_seed = 42L)
@@ -327,7 +327,7 @@ test_that("lort_propensity_weights: model_family is 'lort'", {
 })
 
 test_that("lort_propensity_weights: global_optimization = FALSE", {
-  skip_if(Sys.getenv("ODACORE_TEST_TIER") %in% c("", "cran"),
+  skip_if(Sys.getenv("ODA_TEST_TIER", unset = Sys.getenv("ODACORE_TEST_TIER")) %in% c("", "cran"),
           "lort fit skipped outside fast/smoke/full tier")
   ort <- lort_fit(X_fix[, c("x1","x4"), drop = FALSE], y_fix,
                   min_n = 10L, mc_iter = 100L, mc_seed = 42L)
@@ -336,7 +336,7 @@ test_that("lort_propensity_weights: global_optimization = FALSE", {
 })
 
 test_that("lort_propensity_weights: sda_anchored = FALSE", {
-  skip_if(Sys.getenv("ODACORE_TEST_TIER") %in% c("", "cran"),
+  skip_if(Sys.getenv("ODA_TEST_TIER", unset = Sys.getenv("ODACORE_TEST_TIER")) %in% c("", "cran"),
           "lort fit skipped outside fast/smoke/full tier")
   ort <- lort_fit(X_fix[, c("x1","x4"), drop = FALSE], y_fix,
                   min_n = 10L, mc_iter = 100L, mc_seed = 42L)
@@ -345,7 +345,7 @@ test_that("lort_propensity_weights: sda_anchored = FALSE", {
 })
 
 test_that("lort_propensity_weights: returns 18-column data frame", {
-  skip_if(Sys.getenv("ODACORE_TEST_TIER") %in% c("", "cran"),
+  skip_if(Sys.getenv("ODA_TEST_TIER", unset = Sys.getenv("ODACORE_TEST_TIER")) %in% c("", "cran"),
           "lort fit skipped outside fast/smoke/full tier")
   ort <- lort_fit(X_fix[, c("x1","x4"), drop = FALSE], y_fix,
                   min_n = 10L, mc_iter = 100L, mc_seed = 42L)
@@ -354,7 +354,7 @@ test_that("lort_propensity_weights: returns 18-column data frame", {
 })
 
 test_that("lort_propensity_weights: adjusted weights are finite", {
-  skip_if(Sys.getenv("ODACORE_TEST_TIER") %in% c("", "cran"),
+  skip_if(Sys.getenv("ODA_TEST_TIER", unset = Sys.getenv("ODACORE_TEST_TIER")) %in% c("", "cran"),
           "lort fit skipped outside fast/smoke/full tier")
   ort <- lort_fit(X_fix[, c("x1","x4"), drop = FALSE], y_fix,
                   min_n = 10L, mc_iter = 100L, mc_seed = 42L)
@@ -379,11 +379,11 @@ test_that("propensity_scores (generic) does not exist", {
 })
 
 test_that("sort_propensity_weights is not exported", {
-  expect_false("sort_propensity_weights" %in% getNamespaceExports("odacore"))
+  expect_false("sort_propensity_weights" %in% getNamespaceExports("oda"))
 })
 
 test_that("gort_propensity_weights is not exported", {
-  expect_false("gort_propensity_weights" %in% getNamespaceExports("odacore"))
+  expect_false("gort_propensity_weights" %in% getNamespaceExports("oda"))
 })
 
 # ---------------------------------------------------------------------------
@@ -391,5 +391,5 @@ test_that("gort_propensity_weights is not exported", {
 # ---------------------------------------------------------------------------
 
 test_that("cta_propensity_weights still exported", {
-  expect_true("cta_propensity_weights" %in% getNamespaceExports("odacore"))
+  expect_true("cta_propensity_weights" %in% getNamespaceExports("oda"))
 })

@@ -226,7 +226,7 @@ will error.
 ### CTA tree
 
 ```r
-library(odacore)
+library(oda)
 
 X <- data.frame(
   A = c(rep(0L, 20), rep(1L, 20), rep(1L, 20)),
@@ -391,7 +391,7 @@ can be added before saving:
 
 ```r
 p <- plot_cta_tree(tree) +
-  ggplot2::labs(caption = "Source: odacore v0.1.0")
+  ggplot2::labs(caption = "Source: oda v0.1.0")
 ```
 
 ---

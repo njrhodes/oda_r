@@ -1,4 +1,4 @@
-# odacore
+# oda
 
 Pure-R reimplementation of the MegaODA / CTA classification engine.
 
@@ -17,13 +17,13 @@ Core ODA/CTA behavior and covered fixtures are validated against MegaODA.exe / C
 
 ```r
 # install.packages("devtools")
-devtools::install_github("njrhodes/oda_rcore")
+devtools::install_github("njrhodes/oda")
 ```
 
 Or locally:
 
 ```r
-devtools::install("path/to/oda_rcore")
+devtools::install("path/to/oda")
 ```
 
 ## Collaborator setup
@@ -47,7 +47,7 @@ devtools::load_all()
 Smoke check (CTA, MDSA, reporting, graphics):
 
 ```bash
-ODACORE_TEST_TIER=smoke Rscript --vanilla -e "devtools::test(reporter='progress')"
+ODA_TEST_TIER=smoke Rscript --vanilla -e "devtools::test(reporter='progress')"
 ```
 
 Package check:
@@ -69,7 +69,7 @@ unavailable, but pak is preferred on macOS.
 ### Binary class (C = 2)
 
 ```r
-library(odacore)
+library(oda)
 
 x <- c(1, 2, 3, 4, 5, 6, 7, 8)
 y <- c(0L, 0L, 0L, 0L, 1L, 1L, 1L, 1L)
@@ -84,7 +84,7 @@ fit$confusion        # list: TP, TN, FP, FN, sensitivity, specificity, mean_pac
 ### Multiclass (C >= 3)
 
 ```r
-library(odacore)
+library(oda)
 
 y <- as.integer(factor(iris$Species,
                         levels = c("setosa", "versicolor", "virginica")))
@@ -111,7 +111,7 @@ Predictions use `predict(tree, newdata)`.
 (`oda_cta_fit()` is the internal engine name retained for backward compatibility.)
 
 ```r
-library(odacore)
+library(oda)
 
 # Fit myeloma CTA family (MINDENOM=1 -> termination)
 fam <- cta_descendant_family(
@@ -176,7 +176,7 @@ Base `plot.*` methods are unchanged and do not require ggplot2.
 #### Tree diagrams
 
 ```r
-library(odacore)
+library(oda)
 if (requireNamespace("ggplot2", quietly = TRUE)) {
 
   X <- data.frame(
@@ -272,7 +272,7 @@ LOO validity is a post-selection check, not a tie-break criterion.
 
 ## Running tests
 
-Tests are gated by `ODACORE_TEST_TIER` (see `tests/testthat/helper-test-tier.R`).
+Tests are gated by `ODA_TEST_TIER` (see `tests/testthat/helper-test-tier.R`).
 The default (unset) runs CRAN-safe tests only.
 
 ```bash
@@ -280,13 +280,13 @@ The default (unset) runs CRAN-safe tests only.
 Rscript --vanilla -e "devtools::check(vignettes=FALSE)"
 
 # Fast developer loop (skips all slow canon fixtures):
-ODACORE_TEST_TIER=fast Rscript --vanilla -e "devtools::test(reporter='progress')"
+ODA_TEST_TIER=fast Rscript --vanilla -e "devtools::test(reporter='progress')"
 
 # CTA/MDSA/reporting/graphics production gate (required before those commits):
-ODACORE_TEST_TIER=smoke Rscript --vanilla -e "devtools::test(reporter='progress')"
+ODA_TEST_TIER=smoke Rscript --vanilla -e "devtools::test(reporter='progress')"
 
 # Full canon / release gate (required before release tags or canon parity work):
-ODACORE_TEST_TIER=full Rscript --vanilla -e "devtools::test(reporter='progress')"
+ODA_TEST_TIER=full Rscript --vanilla -e "devtools::test(reporter='progress')"
 ```
 
 Targeted filter examples:

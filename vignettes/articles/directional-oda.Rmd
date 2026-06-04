@@ -47,7 +47,7 @@ is that Democratic affiliation (party = 1) predicts a Pro vote (vote = 1).^[
 Yarnold, B.M. (1990). *Refugees without refuge.* University Press of America.]
 
 ```{r refugee-data}
-library(odacore)
+library(oda)
 
 # party: 0 = Republican, 1 = Democrat
 # vote:  0 = Con, 1 = Pro

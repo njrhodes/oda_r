@@ -1,6 +1,6 @@
 # CTA Canon
 
-This file defines canonical `cta_fit()` / `oda_cta_fit()` behavior for odacore.
+This file defines canonical `cta_fit()` / `oda_cta_fit()` behavior for oda.
 
 CTA chains UniODA models across recursively defined sample strata. Each split node is a UniODA model.
 

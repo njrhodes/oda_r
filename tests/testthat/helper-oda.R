@@ -1,9 +1,9 @@
 ###############################################################################
-# tests/testthat/helper-odacore.R
+# tests/testthat/helper-oda.R
 # Loaded automatically by testthat before every test file.
 #
 # Strategy: always make harness functions available to tests by defining them
-# here directly. The odacore package is loaded via the normal test mechanism;
+# here directly. The oda package is loaded via the normal test mechanism;
 # these helpers fill in the unpublished test-support functions.
 ###############################################################################
 

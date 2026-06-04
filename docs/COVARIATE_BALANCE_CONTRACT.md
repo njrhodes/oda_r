@@ -167,7 +167,7 @@ A list of class `c("cta_balance_table")` with fields:
 ### Purpose
 
 Provides a conventional standardized mean difference (SMD) table as a
-companion diagnostic.  SMD is not the odacore objective; it is included for
+companion diagnostic.  SMD is not the oda objective; it is included for
 comparison with non-ODA balance reports and for plots that display both metrics
 side-by-side.
 
@@ -449,7 +449,7 @@ implementation:
 |---|---|
 | ggplot/grid renderer (`plot.oda_balance`, `plot.cta_balance`) | Graphics v3B  -  after plot-data contract is validated |
 | Quarto/Mermaid export | Graphics v3C  -  after renderer exists |
-| Causal-effect estimation (ATE, ATT, DR estimators) | Different problem; not odacore scope |
+| Causal-effect estimation (ATE, ATT, DR estimators) | Different problem; not oda scope |
 | Outcome modeling | Strictly post-balance; separate API |
 | SORT/GORT recursive balance workflows | SORT/GORT are reserved; not implemented |
 | Multiclass group variable (C > 2) | CTA balance currently binary-only; future extension |

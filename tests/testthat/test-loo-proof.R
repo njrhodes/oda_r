@@ -111,7 +111,7 @@ test_that("B1: binary_map shortcut matches explicit LOO for stable-margin data",
     label = "B1: stable-margin data should have clear '0->1' direction")
 
   # Shortcut path: oda_loo_for_rule applies binary_map shortcut
-  loo_shortcut_b1 <- odacore:::oda_loo_for_rule(
+  loo_shortcut_b1 <- oda:::oda_loo_for_rule(
     x         = x_b1,
     y         = y_b1,
     rule      = fit_b1$rule,
@@ -179,7 +179,7 @@ test_that("B2: binary_map algebraic LOO matches explicit delete-one for near-tie
     label = "B2: training rule should be '0->1' (ESS ~= 2.5% per audit)")
 
   # Algebraic path: oda_loo_for_rule dispatches to oda_loo_binary_map_counts()
-  loo_shortcut_b2 <- odacore:::oda_loo_for_rule(
+  loo_shortcut_b2 <- oda:::oda_loo_for_rule(
     x         = x_b2,
     y         = y_b2,
     rule      = fit_b2$rule,
@@ -235,7 +235,7 @@ test_that("B3: weighted binary_map algebraic LOO matches explicit (stable-margin
   expect_equal(fit_b3$rule$type, "binary_map",
     label = "B3: binary attribute must produce binary_map rule type")
 
-  loo_alg_b3 <- odacore:::oda_loo_for_rule(
+  loo_alg_b3 <- oda:::oda_loo_for_rule(
     x         = x_b3,
     y         = y_b3,
     w         = w_b3,
@@ -294,7 +294,7 @@ test_that("B4: weighted binary_map algebraic LOO matches explicit (direction-fli
   expect_equal(fit_b4$rule$direction, "0->1",
     label = "B4: training rule should be '0->1' for this weighted near-tie data")
 
-  loo_alg_b4 <- odacore:::oda_loo_for_rule(
+  loo_alg_b4 <- oda:::oda_loo_for_rule(
     x         = x_b4,
     y         = y_b4,
     w         = w_b4,
@@ -346,7 +346,7 @@ test_that("A1: algebraic ordered_cut shortcut matches explicit LOO (priors_on=FA
     label = "A1: ordered attribute must produce ordered_cut rule type")
 
   # Algebraic path via oda_loo_for_rule (uniform weights -> algebraic branch)
-  loo_alg_a1 <- odacore:::oda_loo_for_rule(
+  loo_alg_a1 <- oda:::oda_loo_for_rule(
     x         = x_a1,
     y         = y_a1,
     rule      = fit_a1$rule,
@@ -400,7 +400,7 @@ test_that("A2: algebraic ordered_cut shortcut matches explicit LOO (priors_on=TR
     label = "A2: ordered attribute must produce ordered_cut rule type")
 
   # Algebraic path
-  loo_alg_a2 <- odacore:::oda_loo_for_rule(
+  loo_alg_a2 <- oda:::oda_loo_for_rule(
     x         = x_a2,
     y         = y_a2,
     rule      = fit_a2$rule,
@@ -474,7 +474,7 @@ test_that("A3: algebraic ordered_cut tie-forcing -- LOO ESS matches explicit", {
   skip_if(!isTRUE(fit_a3$ok), "A3 training fit failed; cannot run LOO comparison")
 
   # Algebraic path
-  loo_alg_a3 <- odacore:::oda_loo_for_rule(
+  loo_alg_a3 <- oda:::oda_loo_for_rule(
     x         = x_a3,
     y         = y_a3,
     rule      = fit_a3$rule,
@@ -578,7 +578,7 @@ test_that("W-A1: weighted ordered_cut algebraic LOO matches explicit (stable, pr
   expect_equal(fit_wa1$rule$type, "ordered_cut",
     label = "W-A1: ordered attribute must produce ordered_cut rule type")
 
-  loo_alg_wa1 <- odacore:::oda_loo_for_rule(
+  loo_alg_wa1 <- oda:::oda_loo_for_rule(
     x         = x_wa1,
     y         = y_wa1,
     w         = w_wa1,
@@ -639,7 +639,7 @@ test_that("W-A2: weighted ordered_cut algebraic LOO matches oracle pred-by-pred 
   expect_equal(fit_wa2$rule$direction, "0->1",
     label = "W-A2: training direction must be '0->1'")
 
-  loo_alg_wa2 <- odacore:::oda_loo_for_rule(
+  loo_alg_wa2 <- oda:::oda_loo_for_rule(
     x         = x_wa2,
     y         = y_wa2,
     w         = w_wa2,
@@ -660,7 +660,7 @@ test_that("W-A2: weighted ordered_cut algebraic LOO matches oracle pred-by-pred 
 
   # Compare algebraic prediction vector to explicit oracle, obs-by-obs.
   # Obtain algebraic predictions by running oda_loo_ordered_cut_counts directly.
-  alg_pred_wa2 <- odacore:::oda_loo_ordered_cut_counts(
+  alg_pred_wa2 <- oda:::oda_loo_ordered_cut_counts(
     x = x_wa2, y = y_wa2, w = w_wa2, priors_on = TRUE, rule = fit_wa2$rule
   )
   expect_false(is.null(alg_pred_wa2),
@@ -711,7 +711,7 @@ test_that("W-A3: weighted ordered_cut algebraic LOO matches oracle pred-by-pred 
   expect_equal(fit_wa3$rule$direction, "0->1",
     label = "W-A3: training direction must be '0->1'")
 
-  loo_alg_wa3 <- odacore:::oda_loo_for_rule(
+  loo_alg_wa3 <- oda:::oda_loo_for_rule(
     x         = x_wa3,
     y         = y_wa3,
     w         = w_wa3,
@@ -730,7 +730,7 @@ test_that("W-A3: weighted ordered_cut algebraic LOO matches oracle pred-by-pred 
   expect_equal(oracle_wa3$pred[4L], 1L,
     label = "W-A3: explicit oracle must predict 1 for obs 4 after cut shift")
 
-  alg_pred_wa3 <- odacore:::oda_loo_ordered_cut_counts(
+  alg_pred_wa3 <- oda:::oda_loo_ordered_cut_counts(
     x = x_wa3, y = y_wa3, w = w_wa3, priors_on = TRUE, rule = fit_wa3$rule
   )
   expect_false(is.null(alg_pred_wa3),
@@ -772,7 +772,7 @@ test_that("W-A4: weighted ordered_cut algebraic LOO matches explicit (priors_on=
   expect_equal(fit_wa4$rule$type, "ordered_cut",
     label = "W-A4: must produce ordered_cut rule")
 
-  loo_alg_wa4 <- odacore:::oda_loo_for_rule(
+  loo_alg_wa4 <- oda:::oda_loo_for_rule(
     x         = x_wa4,
     y         = y_wa4,
     w         = w_wa4,
@@ -783,7 +783,7 @@ test_that("W-A4: weighted ordered_cut algebraic LOO matches explicit (priors_on=
   expect_true(isTRUE(loo_alg_wa4$allowed),
     label = "W-A4: oda_loo_for_rule must be allowed for priors_on=FALSE")
 
-  alg_pred_wa4 <- odacore:::oda_loo_ordered_cut_counts(
+  alg_pred_wa4 <- oda:::oda_loo_ordered_cut_counts(
     x = x_wa4, y = y_wa4, w = w_wa4, priors_on = FALSE, rule = fit_wa4$rule
   )
   expect_false(is.null(alg_pred_wa4),
@@ -833,7 +833,7 @@ test_that("W-A5: near-degenerate fold falls back to training rule without error"
     label = "W-A5: training cut must be 1.5")
 
   # Algebraic path must return without error.
-  alg_pred_wa5 <- odacore:::oda_loo_ordered_cut_counts(
+  alg_pred_wa5 <- oda:::oda_loo_ordered_cut_counts(
     x = x_wa5, y = y_wa5, w = w_wa5, priors_on = TRUE, rule = fit_wa5$rule
   )
   expect_false(is.null(alg_pred_wa5),

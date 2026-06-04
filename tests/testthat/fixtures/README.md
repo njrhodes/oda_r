@@ -1,6 +1,6 @@
 # Fixture provenance
 
-This directory contains canonical test fixtures used for odacore parity and regression testing.
+This directory contains canonical test fixtures used for oda parity and regression testing.
 Fixtures are validated against MegaODA.exe / CTA.exe golden outputs.
 
 ## myeloma/

@@ -1,5 +1,5 @@
 ^\.github$
-^odacore\.Rproj$
+^oda\.Rproj$
 ^\.gitignore$
 ^README\.md$
 ^\.claude$
@@ -33,3 +33,4 @@
 ^PROD_CHECKPOINT\.md$
 ^tests/testthat/myeloma$
 ^tests/testthat/CTA_DEMO\.CSV$
+^.*\.tar\.gz$

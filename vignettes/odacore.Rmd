@@ -1,10 +1,10 @@
 ---
-title: "Getting started with odacore"
-author: "odacore"
+title: "Getting started with oda"
+author: "oda"
 date: "`r Sys.Date()`"
 output: rmarkdown::html_vignette
 vignette: >
-  %\VignetteIndexEntry{Getting started with odacore}
+  %\VignetteIndexEntry{Getting started with oda}
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}
 ---
@@ -13,7 +13,7 @@ vignette: >
 knitr::opts_chunk$set(collapse = TRUE, comment = "#>")
 ```
 
-`odacore` is a pure-R implementation of the MegaODA / CTA classification
+`oda` is a pure-R implementation of the MegaODA / CTA classification
 engine. It provides three main tools:
 
 - **`oda_fit()`**  -  Optimal Data Analysis (ODA): univariate binary or
@@ -33,7 +33,7 @@ weighting when `priors_on = TRUE`). ESS (Effect Strength for Sensitivity)
 measures how far Mean PAC exceeds the chance benchmark of 50%.
 
 ```{r oda-binary}
-library(odacore)
+library(oda)
 
 x <- c(1, 2, 3, 4, 5, 6, 7, 8)
 y <- c(0L, 0L, 0L, 0L, 1L, 1L, 1L, 1L)
@@ -103,4 +103,4 @@ examples for each component of the package:
 The four example-driven CRAN vignettes  -  *Binary ODA: Migraine Attacks*,
 *Binary Ordered Directional ODA: The Refugee Act*, *Binary Categorical
 Directional ODA: Gully Erosion*, and *Multiclass Categorical Directional ODA:
-Protein Type*  -  are also available via `browseVignettes("odacore")`.
+Protein Type*  -  are also available via `browseVignettes("oda")`.

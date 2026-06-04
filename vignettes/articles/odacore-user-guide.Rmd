@@ -1,5 +1,5 @@
 ---
-title: "odacore practitioner guide"
+title: "oda practitioner guide"
 output: rmarkdown::html_vignette
 ---
 
@@ -10,13 +10,13 @@ knitr::opts_chunk$set(
 )
 ```
 
-This guide walks through the full odacore workflow in order: power planning,
+This guide walks through the full oda workflow in order: power planning,
 data preparation, ODA fitting, CTA and recursive trees, Structural
 Decomposition Analysis, covariate balance diagnostics, graphics, and bootstrap
 confidence intervals.  All examples use public, exported functions only.  Code
 chunks are self-contained and reproducible.
 
-**Scope note.** odacore implements unit-weighted binary and multiclass ODA,
+**Scope note.** oda implements unit-weighted binary and multiclass ODA,
 Classification Tree Analysis (CTA), Locally Optimal Recursive Trees (LORT),
 Structural Decomposition Analysis (SDA), and associated reporting and diagnostic
 tools. Weighted SDA, multiclass CTA, SORT, and GORT are deferred and not yet
@@ -24,12 +24,12 @@ implemented.  See the final section for a complete boundary list.
 
 **Relationship to the legacy ODA package.** The legacy `ODA` R package
 provides an R interface for MegaODA.exe and CTA.exe workflows and their outputs.
-`odacore` is a separate native-R implementation of core ODA, CTA, and selected
+`oda` is a separate native-R implementation of core ODA, CTA, and selected
 novometric workflows, with test-backed public objects, evidence accessors,
-validation helpers, graphics, and practitioner examples.  `odacore` is a native-R
+validation helpers, graphics, and practitioner examples.  `oda` is a native-R
 core continuation of the ODA software ecosystem, not a drop-in replacement for
 every MegaODA/CTA.exe feature.  Use `ODA` for historical executable-interface
-workflows.  Use `odacore` for native R workflows that are implemented, documented,
+workflows.  Use `oda` for native R workflows that are implemented, documented,
 and tested in this package.
 
 ---
@@ -40,16 +40,16 @@ Install from GitHub (development version) or from CRAN once published:
 
 ```{r install, eval = FALSE}
 # Development version
-remotes::install_github("njrhodes/oda_rcore")
+remotes::install_github("njrhodes/oda")
 
 # CRAN (once released)
-# install.packages("odacore")
+# install.packages("oda")
 
-library(odacore)
+library(oda)
 ```
 
 ```{r load, include = FALSE}
-library(odacore)
+library(oda)
 ```
 
 ---
@@ -759,7 +759,7 @@ Before committing to a final analysis, verify each item:
 
 ---
 
-## 14. What odacore does not yet do
+## 14. What oda does not yet do
 
 The following capabilities are explicitly deferred or reserved:
 

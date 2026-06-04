@@ -60,7 +60,7 @@ test_that(".cta_ordered_scan: myeloma Node 4 V4 returns cut 359.80 ESS ~34.90%",
   y01 <- .recode01(dat$V1[idx])
   w   <- dat$V2[idx]
 
-  res <- odacore:::.cta_ordered_scan(x, y01, w,
+  res <- oda:::.cta_ordered_scan(x, y01, w,
                                      priors_on  = TRUE,
                                      miss_codes = -9,
                                      mindenom   = 1L)
@@ -85,7 +85,7 @@ test_that(".cta_ordered_scan: myeloma Node 2 V4 returns cut 371.20 ESS ~34.89%",
   y01 <- .recode01(dat$V1[idx])
   w   <- dat$V2[idx]
 
-  res <- odacore:::.cta_ordered_scan(x, y01, w,
+  res <- oda:::.cta_ordered_scan(x, y01, w,
                                      priors_on  = TRUE,
                                      miss_codes = -9,
                                      mindenom   = 1L)
@@ -136,21 +136,21 @@ test_that(".cta_ordered_scan: returns NULL for pure node", {
   x <- 1:6
   y <- rep(0L, 6)
   w <- rep(1, 6)
-  expect_null(odacore:::.cta_ordered_scan(x, y, w, TRUE, NULL, 1L))
+  expect_null(oda:::.cta_ordered_scan(x, y, w, TRUE, NULL, 1L))
 })
 
 test_that(".cta_ordered_scan: returns NULL when all obs missing", {
   x <- rep(-9, 6)
   y <- c(0L, 0L, 0L, 1L, 1L, 1L)
   w <- rep(1, 6)
-  expect_null(odacore:::.cta_ordered_scan(x, y, w, TRUE, -9, 1L))
+  expect_null(oda:::.cta_ordered_scan(x, y, w, TRUE, -9, 1L))
 })
 
 test_that(".cta_ordered_scan: does not error under varying mindenom", {
   set.seed(1)
   x <- 1:8; y <- c(0L,0L,0L,0L,1L,1L,1L,1L); w <- rep(1, 8)
-  r1 <- odacore:::.cta_ordered_scan(x, y, w, TRUE, NULL, 1L)
-  r5 <- odacore:::.cta_ordered_scan(x, y, w, TRUE, NULL, 5L)
+  r1 <- oda:::.cta_ordered_scan(x, y, w, TRUE, NULL, 1L)
+  r5 <- oda:::.cta_ordered_scan(x, y, w, TRUE, NULL, 5L)
   expect_false(is.null(r1), label = "mindenom=1 finds a cut")
   expect_true(is.null(r5) || is.list(r5), label = "mindenom=5 returns NULL or list")
 })

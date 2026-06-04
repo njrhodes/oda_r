@@ -7,7 +7,7 @@ output: rmarkdown::html_vignette
 knitr::opts_chunk$set(collapse = TRUE, comment = "#>")
 ```
 
-`odacore` is validated against the original MegaODA.exe and CTA.exe executables
+`oda` is validated against the original MegaODA.exe and CTA.exe executables
 on a set of covered fixtures. This article explains what "canonical parity"
 means, how tests are organised into tiers, which fixtures are currently passing,
 and what remains in scope for future work.
@@ -16,32 +16,32 @@ and what remains in scope for future work.
 
 ## Test tiers
 
-Tests are gated by the `ODACORE_TEST_TIER` environment variable:
+Tests are gated by the `ODA_TEST_TIER` environment variable:
 
 | Tier | Variable value | When to use |
 |------|---------------|-------------|
 | CRAN (default) | unset | CRAN submission and default `devtools::check()` |
-| fast | `ODACORE_TEST_TIER=fast` | Development loop |
-| smoke | `ODACORE_TEST_TIER=smoke` | Required before any CTA / MDSA / graphics commit |
-| full | `ODACORE_TEST_TIER=full` | Release gate and deep canon parity work only |
+| fast | `ODA_TEST_TIER=fast` | Development loop |
+| smoke | `ODA_TEST_TIER=smoke` | Required before any CTA / MDSA / graphics commit |
+| full | `ODA_TEST_TIER=full` | Release gate and deep canon parity work only |
 
 ```bash
 # Default CRAN-safe check (no env var):
 Rscript --vanilla -e "devtools::check(vignettes=FALSE)"
 
 # Fast developer loop:
-ODACORE_TEST_TIER=fast Rscript --vanilla -e "devtools::test(reporter='progress')"
+ODA_TEST_TIER=fast Rscript --vanilla -e "devtools::test(reporter='progress')"
 
 # Production smoke before any CTA commit:
-ODACORE_TEST_TIER=smoke Rscript --vanilla -e "devtools::test(reporter='progress')"
+ODA_TEST_TIER=smoke Rscript --vanilla -e "devtools::test(reporter='progress')"
 ```
 
-**Do not run `ODACORE_TEST_TIER=full` by default.** It is a release gate only,
+**Do not run `ODA_TEST_TIER=full` by default.** It is a release gate only,
 requiring the full canon fixture set including slow myeloma MINDENOM runs.
 
 ## Canonical parity: what it means
 
-A covered fixture is a dataset for which odacore's R output has been verified
+A covered fixture is a dataset for which oda's R output has been verified
 to match the original MegaODA.exe or CTA.exe output:
 
 - **Rule:** the same cutpoint and direction (ordered) or category partition

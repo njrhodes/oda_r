@@ -3,14 +3,14 @@
 **Status:** Active agent handoff contract. Read before touching recursive CTA code.
 **Supersedes:** Generic "ORT" and "staged CTA" as primary method names.
 
-**Canon boundary:** LORT, SORT, and GORT are odacore workflow-layer names, not
+**Canon boundary:** LORT, SORT, and GORT are oda workflow-layer names, not
 canonical MegaODA/CTA.exe commands or MPE Chapter 12 method names. They are valid
 only insofar as their components and claims are explicitly anchored to novometric
 canon: Axiom 1 statistical sample/power, Axiom 2 SDA when applicable, Axiom 3
 MDSA descendant-family construction, D/ESS objective clarity, and Axiom 4
 reproducibility.
 
-- **LORT** is an odacore workflow-layer composition adjacent to MPE / Chapter 12
+- **LORT** is an oda workflow-layer composition adjacent to MPE / Chapter 12
   canon, using canon CTA/MDSA components at each node. It is greedy-local, not
   globally verified, and has no direct MegaODA/CTA.exe equivalent. `lort_fit()` is
   public workflow API, not a canon claim. Legacy ORT naming is compatibility only.
@@ -308,7 +308,7 @@ are verified against a CTA.exe program file or MPE source document.
 The canon anchor is novometric methodology (MPE / Chapter 12), not the
 LORT/SORT/GORT workflow labels.
 
-For current odacore purposes, novometric canon depends on:
+For current oda purposes, novometric canon depends on:
 
 1. **Sample size / denominator adequacy**
    - MINDENOM (denominator/design constraint - current implemented tool)
@@ -342,7 +342,7 @@ Every public output must be classified against this hierarchy:
 | **Canonical core** | ODA/CTA/SDA/novometric component verified against MegaODA/CTA.exe or MPE source |
 | **Adjacent workflow** | Workflow-layer composition using canon components; not Chapter 12 canon itself |
 | **Future/reserved** | Not yet implemented; reserved namespace only |
-| **Companion diagnostic** | Non-odacore objective; supplementary |
+| **Companion diagnostic** | Non-oda objective; supplementary |
 | **Production helper** | Operational tooling; not statistical canon |
 
 Current classifications:
@@ -357,7 +357,7 @@ Current classifications:
 | LORT (`lort_fit`) | Adjacent workflow | CTA/MDSA components at each node |
 | SORT (`sort_fit`) | Future/reserved | Will require SDA anchor; not implemented |
 | GORT (`gort_fit`) | Future/reserved | Requires formal design doc; not implemented |
-| SMD balance table | Companion diagnostic | Non-odacore objective |
+| SMD balance table | Companion diagnostic | Non-oda objective |
 | Readiness checks | Production helper | Operational only |
 | Graphics v3 | Production helper | Reporting layer; not canon |
 | Propensity weights | Adjacent workflow | ODA/CTA/LORT strata as input; not outcome modeling |

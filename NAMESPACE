@@ -1,4 +1,4 @@
-# Hand-maintained NAMESPACE for odacore.
+# Hand-maintained NAMESPACE for oda.
 # Run devtools::document() to regenerate from roxygen if @-tags are added.
 
 # ----- Primary public API -----

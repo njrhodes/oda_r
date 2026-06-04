@@ -331,7 +331,7 @@ test_that("LORT fit is unchanged after sda_anchor implementation", {
 # ---------------------------------------------------------------------------
 test_that("sort_fit is not exported", {
   expect_false(existsFunction("sort_fit") &&
-    isExportedFromNamespace("sort_fit", "odacore"))
+    isExportedFromNamespace("sort_fit", "oda"))
 })
 
 # ---------------------------------------------------------------------------
@@ -339,14 +339,14 @@ test_that("sort_fit is not exported", {
 # ---------------------------------------------------------------------------
 test_that("gort_fit is not exported", {
   expect_false(existsFunction("gort_fit") &&
-    isExportedFromNamespace("gort_fit", "odacore"))
+    isExportedFromNamespace("gort_fit", "oda"))
 })
 
 # ---------------------------------------------------------------------------
 # 24. sda_propensity_weights does not exist
 # ---------------------------------------------------------------------------
 test_that("sda_propensity_weights is not exported", {
-  ns_exports <- getNamespaceExports("odacore")
+  ns_exports <- getNamespaceExports("oda")
   expect_false("sda_propensity_weights" %in% ns_exports)
 })
 
