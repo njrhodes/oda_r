@@ -31,3 +31,5 @@
 ^_site$
 
 ^PROD_CHECKPOINT\.md$
+^tests/testthat/myeloma$
+^tests/testthat/CTA_DEMO\.CSV$

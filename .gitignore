@@ -75,3 +75,6 @@ _site
 
 # knitr figure output from article development knit runs
 /figure/
+
+# Internal maintainer checkpoint -- not public package content
+PROD_CHECKPOINT.md
