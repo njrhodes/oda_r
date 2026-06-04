@@ -257,35 +257,110 @@ test_that("propensity_ess_balance errors when newdata missing for cta_tree", {
 })
 
 # ---------------------------------------------------------------------------
-# 12. Bad input: LORT (cta_ort) not supported
+# Shared LORT fixture
 # ---------------------------------------------------------------------------
-test_that("propensity_ess_balance errors for cta_ort (LORT not supported)", {
-  set.seed(1L)
-  X_lort <- data.frame(v1 = c(rnorm(20L, 0), rnorm(20L, 3)))
-  y_lort <- c(rep(0L, 20L), rep(1L, 20L))
-  lort_fit_obj <- lort_fit(
-    X       = X_lort,
-    y       = y_lort,
-    min_n   = 5L,
-    mc_iter = 100L,
-    mc_seed = 1L,
-    loo     = "off"
+
+set.seed(1L)
+X_lort <- data.frame(v1 = c(rnorm(20L, 0), rnorm(20L, 3)))
+y_lort <- c(rep(0L, 20L), rep(1L, 20L))
+lort_fit_obj <- lort_fit(
+  X       = X_lort,
+  y       = y_lort,
+  min_n   = 5L,
+  mc_iter = 100L,
+  mc_seed = 1L,
+  loo     = "off"
+)
+
+# ---------------------------------------------------------------------------
+# 12. LORT path: returns expected class and columns
+# ---------------------------------------------------------------------------
+test_that("propensity_ess_balance (LORT) returns correct class and columns", {
+  skip_if(isTRUE(lort_fit_obj$no_tree), "LORT propensity fit produced no tree")
+
+  peb <- propensity_ess_balance(
+    propensity_fit = lort_fit_obj,
+    group          = y_lort,
+    X_balance      = X_lort,
+    newdata        = X_lort,
+    n_boot         = 20L,
+    seed           = 1L
   )
+  expect_s3_class(peb, "propensity_ess_balance")
+  expect_s3_class(peb, "data.frame")
+  expected_cols <- c("variable", "n", "unweighted_ess", "weighted_ess",
+                     "delta_ess", "boot_low", "boot_high", "crosses_null",
+                     "status")
+  expect_true(all(expected_cols %in% names(peb)),
+              info = paste("Missing:", paste(setdiff(expected_cols, names(peb)),
+                                             collapse = ", ")))
+  expect_equal(nrow(peb), ncol(X_lort))
+})
+
+# ---------------------------------------------------------------------------
+# 13. LORT path: point estimates numeric, delta consistent
+# ---------------------------------------------------------------------------
+test_that("propensity_ess_balance (LORT) delta_ess consistent with columns", {
+  skip_if(isTRUE(lort_fit_obj$no_tree), "LORT propensity fit produced no tree")
+
+  peb <- propensity_ess_balance(
+    propensity_fit = lort_fit_obj,
+    group          = y_lort,
+    X_balance      = X_lort,
+    newdata        = X_lort,
+    n_boot         = 20L,
+    seed           = 2L
+  )
+  ok <- peb$status == "ok"
+  if (any(ok)) {
+    expect_equal(peb$delta_ess[ok],
+                 peb$weighted_ess[ok] - peb$unweighted_ess[ok],
+                 tolerance = 1e-10)
+    expect_true(all(is.finite(peb$unweighted_ess[ok])))
+    expect_true(all(is.finite(peb$weighted_ess[ok])))
+  }
+})
+
+# ---------------------------------------------------------------------------
+# 14. LORT path: seed reproducibility
+# ---------------------------------------------------------------------------
+test_that("propensity_ess_balance (LORT) seed gives identical bootstrap output", {
+  skip_if(isTRUE(lort_fit_obj$no_tree), "LORT propensity fit produced no tree")
+
+  args <- list(
+    propensity_fit = lort_fit_obj,
+    group          = y_lort,
+    X_balance      = X_lort,
+    newdata        = X_lort,
+    n_boot         = 30L,
+    seed           = 77L
+  )
+  peb1 <- do.call(propensity_ess_balance, args)
+  peb2 <- do.call(propensity_ess_balance, args)
+  expect_identical(peb1$boot_low,  peb2$boot_low)
+  expect_identical(peb1$boot_high, peb2$boot_high)
+})
+
+# ---------------------------------------------------------------------------
+# 15. LORT path: newdata missing errors
+# ---------------------------------------------------------------------------
+test_that("propensity_ess_balance errors when newdata missing for cta_ort", {
+  skip_if(isTRUE(lort_fit_obj$no_tree), "LORT propensity fit produced no tree")
+
   expect_error(
     propensity_ess_balance(
       propensity_fit = lort_fit_obj,
       group          = y_lort,
       X_balance      = X_lort,
-      newdata        = X_lort,
+      newdata        = NULL,
       n_boot         = 5L
     ),
-    regexp = "cta_ort|LORT|not supported",
-    ignore.case = TRUE
+    regexp = "newdata is required"
   )
 })
 
 # ---------------------------------------------------------------------------
-# 13. X_balance nrow mismatch
+# 16. X_balance nrow mismatch
 # ---------------------------------------------------------------------------
 test_that("propensity_ess_balance errors when X_balance nrow != length(group)", {
   expect_error(
@@ -301,7 +376,7 @@ test_that("propensity_ess_balance errors when X_balance nrow != length(group)", 
 })
 
 # ---------------------------------------------------------------------------
-# 14. Invalid n_boot
+# 17. Invalid n_boot
 # ---------------------------------------------------------------------------
 test_that("propensity_ess_balance errors on n_boot < 1", {
   expect_error(

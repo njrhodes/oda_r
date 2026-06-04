@@ -1390,10 +1390,21 @@ cta_balance_effect_summary <- function(group,
   group_chr <- as.character(group_int)
 
   if (inherits(propensity_fit, "cta_ort")) {
-    # cta_ort inherits cta_tree so this branch must come first
-    stop("propensity_fit must be an oda_fit or cta_tree object. ",
-         "LORT (cta_ort) is not supported in this version.",
-         call. = FALSE)
+    # cta_ort inherits cta_tree; this branch must come first
+    if (is.null(newdata))
+      stop("newdata is required when propensity_fit is a cta_ort (LORT).",
+           call. = FALSE)
+    if (!is.data.frame(newdata)) newdata <- as.data.frame(newdata)
+    if (nrow(newdata) != n)
+      stop("newdata must have nrow equal to length(group).", call. = FALSE)
+
+    pw          <- lort_propensity_weights(propensity_fit,
+                                           target_class = target_class,
+                                           adjusted     = adjusted)
+    pred_strat  <- predict(propensity_fit, newdata, type = "stratum")
+    pw_key  <- paste(pw$stratum_id, pw$class, sep = "_")
+    row_key <- paste(pred_strat, group_chr, sep = "_")
+    wts     <- pw[[wt_col]][match(row_key, pw_key)]
 
   } else if (inherits(propensity_fit, "oda_fit")) {
     if (is.null(x_prop))
@@ -1432,8 +1443,7 @@ cta_balance_effect_summary <- function(group,
     wts     <- pw[[wt_col]][match(row_key, pw_key)]
 
   } else {
-    stop("propensity_fit must be an oda_fit or cta_tree object. ",
-         "LORT (cta_ort) is not supported in this version.",
+    stop("propensity_fit must be an oda_fit, cta_tree, or cta_ort object.",
          call. = FALSE)
   }
 
@@ -1464,8 +1474,8 @@ cta_balance_effect_summary <- function(group,
 #' means the ODA association was attenuated by weighting (improved balance).
 #' \code{crosses_null = TRUE} means the bootstrap CI for the delta includes 0.
 #'
-#' @param propensity_fit An \code{oda_fit} or \code{cta_tree} trained with
-#'   \code{group} as the class variable.
+#' @param propensity_fit An \code{oda_fit}, \code{cta_tree}, or \code{cta_ort}
+#'   (LORT) object trained with \code{group} as the class variable.
 #' @param group Integer (or coercible) binary group/treatment vector of length
 #'   \code{n}.
 #' @param X_balance Data frame of baseline covariates.  Must have \code{n}
@@ -1474,12 +1484,12 @@ cta_balance_effect_summary <- function(group,
 #'   \code{propensity_fit} is an \code{oda_fit}; assigns each observation to
 #'   an ODA stratum.
 #' @param newdata Data frame with \code{n} rows.  Required when
-#'   \code{propensity_fit} is a \code{cta_tree}; used to assign observations
-#'   to CTA endpoints.  Must contain the columns used to fit the propensity
-#'   tree.
+#'   \code{propensity_fit} is a \code{cta_tree} or \code{cta_ort}; used to
+#'   assign observations to endpoints/strata.  Must contain the columns used
+#'   to fit the propensity model.
 #' @param target_class Integer.  Passed to
-#'   \code{\link{cta_propensity_weights}} for CTA fits with more than two
-#'   classes.
+#'   \code{\link{cta_propensity_weights}} / \code{\link{lort_propensity_weights}}
+#'   for models with more than two classes.
 #' @param adjusted Logical.  If \code{TRUE} (default), uses adjusted
 #'   propensity weights (one-hypothetical-misclassification correction for
 #'   zero-cell strata).

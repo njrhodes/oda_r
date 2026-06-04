@@ -18,8 +18,8 @@ propensity_ess_balance(
 )
 }
 \arguments{
-\item{propensity_fit}{An \code{oda_fit} or \code{cta_tree} trained with
-\code{group} as the class variable.}
+\item{propensity_fit}{An \code{oda_fit}, \code{cta_tree}, or \code{cta_ort}
+(LORT) object trained with \code{group} as the class variable.}
 
 \item{group}{Integer (or coercible) binary group/treatment vector of length
 \code{n}.}
@@ -32,13 +32,13 @@ rows.}
 an ODA stratum.}
 
 \item{newdata}{Data frame with \code{n} rows.  Required when
-\code{propensity_fit} is a \code{cta_tree}; used to assign observations
-to CTA endpoints.  Must contain the columns used to fit the propensity
-tree.}
+\code{propensity_fit} is a \code{cta_tree} or \code{cta_ort}; used to
+assign observations to endpoints/strata.  Must contain the columns used
+to fit the propensity model.}
 
 \item{target_class}{Integer.  Passed to
-\code{\link{cta_propensity_weights}} for CTA fits with more than two
-classes.}
+\code{\link{cta_propensity_weights}} / \code{\link{lort_propensity_weights}}
+for models with more than two classes.}
 
 \item{adjusted}{Logical.  If \code{TRUE} (default), uses adjusted
 propensity weights (one-hypothetical-misclassification correction for
