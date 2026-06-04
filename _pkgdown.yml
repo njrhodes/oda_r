@@ -12,7 +12,7 @@ navbar:
   components:
     github:
       icon: fab fa-github
-      href: https://github.com/njrhodes/oda
+      href: https://github.com/njrhodes/oda_r
 
 home:
   sidebar:
