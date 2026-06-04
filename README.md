@@ -26,6 +26,44 @@ Or locally:
 devtools::install("path/to/oda_rcore")
 ```
 
+## Collaborator setup
+
+Preferred dependency installation (validated on macOS arm64 / R 4.3.2):
+
+```r
+# Install pak if not already present
+install.packages("pak")
+
+# Install all package dependencies
+pak::local_install_deps(dependencies = TRUE)
+```
+
+Then load and verify:
+
+```r
+devtools::load_all()
+```
+
+Smoke check (CTA, MDSA, reporting, graphics):
+
+```bash
+ODACORE_TEST_TIER=smoke Rscript --vanilla -e "devtools::test(reporter='progress')"
+```
+
+Package check:
+
+```bash
+Rscript --vanilla -e "devtools::check(vignettes=FALSE)"
+```
+
+Expected result: 0 errors / 0 warnings / at most 1 note.
+The note about future file timestamps can appear on cloud-synced or
+network-mounted folders (e.g., Dropbox). It is a filesystem timestamp
+artifact, not a package failure.
+
+`devtools::install_deps(dependencies = TRUE)` is an alternative if pak is
+unavailable, but pak is preferred on macOS.
+
 ## Quick start
 
 ### Binary class (C = 2)
