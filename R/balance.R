@@ -2,9 +2,13 @@
 # R/balance.R  -  Covariate balance analysis (univariate ODA + SMD companion)
 #
 # Public API:
-#   oda_balance_table()      -  univariate ODA balance diagnostics
-#   smd_balance_table()      -  conventional SMD companion (no p-values)
-#   oda_balance_plot_data()  -  renderer-ready plot data (no fitting)
+#   oda_balance_table()          -  univariate ODA balance diagnostics
+#   smd_balance_table()          -  conventional SMD companion (no p-values)
+#   cta_balance_table()          -  CTA-based covariate balance
+#   oda_balance_plot_data()      -  renderer-ready plot data (no fitting)
+#   cta_balance_plot_data()      -  CTA renderer-ready plot data (no fitting)
+#   oda_balance_effect_table()   -  bootstrap evidence intervals per covariate
+#   cta_balance_effect_summary() -  CTA bootstrap evidence summary
 #
 # Canon:
 #   Linden & Yarnold (2016). Using machine learning to assess covariate
@@ -24,7 +28,6 @@
 #     optional smd_balance_table(); it does NOT call oda_fit() and does NOT
 #     accept group or X arguments.
 #   - SMD is a conventional companion; it is not the oda balance objective.
-#   - Deferred to v3B2: cta_balance_table(), cta_balance_plot_data().
 ###############################################################################
 
 # ---- Internal helpers ------------------------------------------------------- #
