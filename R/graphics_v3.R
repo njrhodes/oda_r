@@ -1,11 +1,18 @@
 ###############################################################################
 # R/graphics_v3.R  -  Graphics v3: direct ggplot2 tree renderers
 #
-# Public API (v3C1):
-#   plot_cta_tree()     -  ggplot CTA tree diagram
-#   plot_lort_tree()    -  ggplot LORT (recursive CTA) tree diagram
-#
-# v3C2 balance renderers are deferred to the next slice.
+# Public API:
+#   v3C1 - tree renderers:
+#     plot_cta_tree()            -  ggplot CTA tree diagram
+#     plot_lort_tree()           -  ggplot LORT (recursive CTA) tree diagram
+#   v3C2 - balance renderers:
+#     plot_oda_balance()         -  ODA covariate balance dot plot
+#     plot_smd_balance()         -  SMD absolute-value covariate balance dot plot
+#     plot_balance_love()        -  Love-plot wrapper (calls plot_smd_balance)
+#     plot_cta_balance()         -  CTA multivariate balance: tree or message panel
+#   v3C3 - evidence-interval balance renderers:
+#     plot_oda_balance_effects() -  forest plot for oda_balance_effect_table
+#     plot_cta_balance_effects() -  evidence card for cta_balance_effect_summary
 #
 # Rules:
 #   - All functions return ggplot objects.

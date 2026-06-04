@@ -447,8 +447,7 @@ implementation:
 
 | Deferred item | Reason / when |
 |---|---|
-| ggplot/grid renderer (`plot.oda_balance`, `plot.cta_balance`) | Graphics v3B  -  after plot-data contract is validated |
-| Quarto/Mermaid export | Graphics v3C  -  after renderer exists |
+| Quarto/Mermaid export | Future; after renderers are stable |
 | Causal-effect estimation (ATE, ATT, DR estimators) | Different problem; not oda scope |
 | Outcome modeling | Strictly post-balance; separate API |
 | SORT/GORT recursive balance workflows | SORT/GORT are reserved; not implemented |
@@ -469,7 +468,7 @@ implementation:
 4. oda_balance_plot_data()              <- reads oda_balance_table() + optional SMD
 5. cta_balance_plot_data()              <- reads cta_balance_table() + cta_plot_data()
 6. Tests (synthetic fixture + myeloma)  <- balance tables on known fixtures
-7. Graphics v3B renderer                <- deferred; separate slice
+7. Graphics v3C2/v3C3 renderers         <- complete
 ```
 
 Dependencies: steps 4-5 require steps 1-3 to exist.  Renderer (step 7) requires

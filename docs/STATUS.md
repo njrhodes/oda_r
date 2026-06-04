@@ -39,6 +39,7 @@ the Windows executables; any divergence on a covered fixture is a bug in oda.
 
 - `plot_cta_tree()`, `plot_lort_tree()`
 - `plot_oda_balance()`, `plot_smd_balance()`, `plot_balance_love()`, `plot_cta_balance()`
+- `plot_oda_balance_effects()`, `plot_cta_balance_effects()`
 
 ---
 
