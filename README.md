@@ -17,7 +17,7 @@ Core ODA/CTA behavior and covered fixtures are validated against MegaODA.exe / C
 
 ```r
 # install.packages("devtools")
-devtools::install_github("njrhodes/oda")
+devtools::install_github("njrhodes/oda_r")
 ```
 
 Or locally:

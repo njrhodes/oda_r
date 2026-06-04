@@ -40,7 +40,7 @@ Install from GitHub (development version) or from CRAN once published:
 
 ```{r install, eval = FALSE}
 # Development version
-remotes::install_github("njrhodes/oda")
+remotes::install_github("njrhodes/oda_r")
 
 # CRAN (once released)
 # install.packages("oda")
