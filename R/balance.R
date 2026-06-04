@@ -2,13 +2,14 @@
 # R/balance.R  -  Covariate balance analysis (univariate ODA + SMD companion)
 #
 # Public API:
-#   oda_balance_table()          -  univariate ODA balance diagnostics
-#   smd_balance_table()          -  conventional SMD companion (no p-values)
-#   cta_balance_table()          -  CTA-based covariate balance
-#   oda_balance_plot_data()      -  renderer-ready plot data (no fitting)
-#   cta_balance_plot_data()      -  CTA renderer-ready plot data (no fitting)
-#   oda_balance_effect_table()   -  bootstrap evidence intervals per covariate
-#   cta_balance_effect_summary() -  CTA bootstrap evidence summary
+#   oda_balance_table()            -  univariate ODA balance diagnostics
+#   smd_balance_table()            -  conventional SMD companion (no p-values)
+#   cta_balance_table()            -  CTA-based covariate balance
+#   oda_balance_plot_data()        -  renderer-ready plot data (no fitting)
+#   cta_balance_plot_data()        -  CTA renderer-ready plot data (no fitting)
+#   oda_balance_effect_table()     -  bootstrap evidence intervals per covariate
+#   cta_balance_effect_summary()   -  CTA bootstrap evidence summary
+#   propensity_ess_balance()       -  propensity-weighted ESS balance diagnostic
 #
 # Canon:
 #   Linden & Yarnold (2016). Using machine learning to assess covariate
@@ -1369,5 +1370,266 @@ cta_balance_effect_summary <- function(group,
     )
   )
   class(out) <- "cta_balance_effect_summary"
+  out
+}
+
+###############################################################################
+# propensity_ess_balance
+###############################################################################
+
+# ---- .propensity_row_weights (internal) ------------------------------------- #
+
+# Map each observation to a row-level propensity weight given a fitted
+# propensity model (oda_fit or cta_tree) and the observed group membership.
+# Returns a numeric vector of length n.  Errors if any row cannot be mapped
+# or yields a non-positive/infinite weight.
+.propensity_row_weights <- function(propensity_fit, group_int, n,
+                                     x_prop, newdata, target_class, adjusted) {
+  wt_col    <- if (isTRUE(adjusted)) "adjusted_propensity_weight"
+               else "propensity_weight"
+  group_chr <- as.character(group_int)
+
+  if (inherits(propensity_fit, "cta_ort")) {
+    # cta_ort inherits cta_tree so this branch must come first
+    stop("propensity_fit must be an oda_fit or cta_tree object. ",
+         "LORT (cta_ort) is not supported in this version.",
+         call. = FALSE)
+
+  } else if (inherits(propensity_fit, "oda_fit")) {
+    if (is.null(x_prop))
+      stop("x_prop is required when propensity_fit is an oda_fit.", call. = FALSE)
+    if (length(x_prop) != n)
+      stop("x_prop must have the same length as group.", call. = FALSE)
+    if (!isTRUE(propensity_fit$ok))
+      stop("propensity_fit is not admissible (propensity_fit$ok is not TRUE).",
+           call. = FALSE)
+
+    pw    <- oda_propensity_weights(propensity_fit, adjusted = adjusted)
+    preds <- oda_rule_predict(x_prop, propensity_fit$rule)
+    # stratum_id: 1 = rule predicts class 0, 2 = rule predicts class 1
+    sid   <- ifelse(preds == 0L, 1L, 2L)
+
+    pw_key  <- paste(pw$stratum_id, pw$class, sep = "_")
+    row_key <- paste(sid, group_chr, sep = "_")
+    wts     <- pw[[wt_col]][match(row_key, pw_key)]
+
+  } else if (inherits(propensity_fit, "cta_tree")) {
+    if (is.null(newdata))
+      stop("newdata is required when propensity_fit is a cta_tree.", call. = FALSE)
+    if (!is.data.frame(newdata)) newdata <- as.data.frame(newdata)
+    if (nrow(newdata) != n)
+      stop("newdata must have nrow equal to length(group).", call. = FALSE)
+
+    pw  <- cta_propensity_weights(propensity_fit,
+                                   target_class = target_class,
+                                   adjusted     = adjusted)
+    ea  <- cta_assign_endpoints(propensity_fit, newdata)
+    # Align endpoint_id to row order
+    ep_ordered <- ea$endpoint_id[match(seq_len(n), ea$row_id)]
+
+    pw_key  <- paste(pw$endpoint_id, pw$class, sep = "_")
+    row_key <- paste(ep_ordered, group_chr, sep = "_")
+    wts     <- pw[[wt_col]][match(row_key, pw_key)]
+
+  } else {
+    stop("propensity_fit must be an oda_fit or cta_tree object. ",
+         "LORT (cta_ort) is not supported in this version.",
+         call. = FALSE)
+  }
+
+  if (anyNA(wts))
+    stop("Some observations could not be mapped to a propensity weight. ",
+         "Check that the propensity model was fit on the same observations, ",
+         "or use adjusted = TRUE to handle zero-cell strata.",
+         call. = FALSE)
+  if (any(!is.finite(wts) | wts <= 0))
+    stop("Propensity weights must be finite and positive. ",
+         "Use adjusted = TRUE to handle undefined (zero-cell) weights.",
+         call. = FALSE)
+
+  wts
+}
+
+# ---- propensity_ess_balance ------------------------------------------------- #
+
+#' Propensity-weighted ESS balance diagnostic
+#'
+#' For each covariate in \code{X_balance}, computes the unweighted and
+#' propensity-weighted ODA ESS association with \code{group}, the delta ESS
+#' (weighted minus unweighted), and a bootstrap confidence interval on the
+#' delta.
+#'
+#' If propensity weighting controls confounding, the weighted ODA ESS should
+#' move toward 0 (the chance/null boundary).  A negative \code{delta_ess}
+#' means the ODA association was attenuated by weighting (improved balance).
+#' \code{crosses_null = TRUE} means the bootstrap CI for the delta includes 0.
+#'
+#' @param propensity_fit An \code{oda_fit} or \code{cta_tree} trained with
+#'   \code{group} as the class variable.
+#' @param group Integer (or coercible) binary group/treatment vector of length
+#'   \code{n}.
+#' @param X_balance Data frame of baseline covariates.  Must have \code{n}
+#'   rows.
+#' @param x_prop Numeric vector of length \code{n}.  Required when
+#'   \code{propensity_fit} is an \code{oda_fit}; assigns each observation to
+#'   an ODA stratum.
+#' @param newdata Data frame with \code{n} rows.  Required when
+#'   \code{propensity_fit} is a \code{cta_tree}; used to assign observations
+#'   to CTA endpoints.  Must contain the columns used to fit the propensity
+#'   tree.
+#' @param target_class Integer.  Passed to
+#'   \code{\link{cta_propensity_weights}} for CTA fits with more than two
+#'   classes.
+#' @param adjusted Logical.  If \code{TRUE} (default), uses adjusted
+#'   propensity weights (one-hypothetical-misclassification correction for
+#'   zero-cell strata).
+#' @param n_boot Integer.  Number of bootstrap resamples.  Default 500L.
+#' @param boot_alpha Numeric in (0, 1).  CI level is \code{1 - boot_alpha}.
+#'   Default 0.05 gives a 95\% CI.
+#' @param seed Integer or \code{NULL}.  Passed to \code{set.seed()} before
+#'   bootstrap resampling for reproducibility.
+#' @return A \code{data.frame} of class
+#'   \code{c("propensity_ess_balance", "data.frame")} with one row per
+#'   covariate and columns:
+#'   \describe{
+#'     \item{variable}{Covariate name.}
+#'     \item{n}{Effective sample size from the unweighted ODA fit.}
+#'     \item{unweighted_ess}{Unweighted ODA ESS (\%).}
+#'     \item{weighted_ess}{Propensity-weighted ODA ESS / WESS (\%).}
+#'     \item{delta_ess}{\code{weighted_ess - unweighted_ess}.  Negative values
+#'       indicate attenuation (improved balance).}
+#'     \item{boot_low}{Lower bound of the bootstrap CI on \code{delta_ess}.}
+#'     \item{boot_high}{Upper bound of the bootstrap CI on \code{delta_ess}.}
+#'     \item{crosses_null}{Logical.  \code{TRUE} when the CI includes 0.}
+#'     \item{status}{\code{"ok"}, \code{"inadmissible_unweighted"},
+#'       \code{"inadmissible_weighted"}, or \code{"inadmissible_both"}.}
+#'   }
+#' @details
+#'   LORT (\code{cta_ort}) propensity models are not supported in this version.
+#'   Use a single \code{cta_tree} via \code{cta_fit()} instead.
+#'
+#'   The bootstrap uses plug-in propensity weights: weights computed on the
+#'   full data are reused in each resample rather than re-estimating the
+#'   propensity model.  This is appropriate for assessing sampling variability
+#'   in the balance diagnostic given a fixed propensity model.
+#'
+#'   \code{oda_balance_table} is called with \code{mcarlo = FALSE}; MC
+#'   p-values are not computed during bootstrap iterations.
+#' @seealso \code{\link{oda_propensity_weights}},
+#'   \code{\link{cta_propensity_weights}},
+#'   \code{\link{oda_balance_table}}
+#' @examples
+#' set.seed(1L)
+#' n     <- 80L
+#' group <- c(rep(0L, 40L), rep(1L, 40L))
+#' x_pv  <- c(rnorm(40, 0), rnorm(40, 3))
+#' prop_fit <- oda_fit(x = x_pv, y = group)
+#' X_bal <- data.frame(age   = c(rnorm(40, 45), rnorm(40, 55)),
+#'                     score = rnorm(80))
+#' \donttest{
+#' peb <- propensity_ess_balance(prop_fit, group, X_bal,
+#'                                x_prop = x_pv, n_boot = 50L, seed = 1L)
+#' print(peb[, c("variable", "unweighted_ess", "weighted_ess",
+#'               "delta_ess", "crosses_null")])
+#' }
+#' @export
+propensity_ess_balance <- function(propensity_fit,
+                                    group,
+                                    X_balance,
+                                    x_prop       = NULL,
+                                    newdata      = NULL,
+                                    target_class = NULL,
+                                    adjusted     = TRUE,
+                                    n_boot       = 500L,
+                                    boot_alpha   = 0.05,
+                                    seed         = NULL) {
+
+  # ---- Validate inputs -------------------------------------------------------
+  group     <- as.integer(group)
+  n         <- length(group)
+  X_balance <- as.data.frame(X_balance)
+
+  if (nrow(X_balance) != n)
+    stop("X_balance must have nrow equal to length(group).", call. = FALSE)
+
+  grp_vals <- sort(unique(group[!is.na(group)]))
+  if (length(grp_vals) != 2L)
+    stop("group must have exactly 2 distinct non-missing values.", call. = FALSE)
+
+  n_boot     <- as.integer(n_boot)
+  boot_alpha <- as.numeric(boot_alpha)
+  if (n_boot < 1L)
+    stop("n_boot must be >= 1.", call. = FALSE)
+  if (boot_alpha <= 0 || boot_alpha >= 1)
+    stop("boot_alpha must be strictly between 0 and 1.", call. = FALSE)
+
+  # ---- Row-level propensity weights ------------------------------------------
+  row_weights <- .propensity_row_weights(
+    propensity_fit = propensity_fit,
+    group_int      = group,
+    n              = n,
+    x_prop         = x_prop,
+    newdata        = newdata,
+    target_class   = target_class,
+    adjusted       = adjusted
+  )
+
+  # ---- Unweighted and weighted balance tables --------------------------------
+  bt_unw <- oda_balance_table(group, X_balance, w = NULL,        mcarlo = FALSE)
+  bt_wt  <- oda_balance_table(group, X_balance, w = row_weights, mcarlo = FALSE)
+
+  # ---- Point estimates -------------------------------------------------------
+  unw_rows <- bt_unw$rows
+  wt_rows  <- bt_wt$rows
+  vars     <- unw_rows$attribute
+  k        <- length(vars)
+
+  status <- ifelse(!unw_rows$fit_ok & !wt_rows$fit_ok, "inadmissible_both",
+            ifelse(!unw_rows$fit_ok,                   "inadmissible_unweighted",
+            ifelse(!wt_rows$fit_ok,                    "inadmissible_weighted",
+                                                        "ok")))
+
+  out <- data.frame(
+    variable       = vars,
+    n              = unw_rows$n_total,
+    unweighted_ess = unw_rows$ess_display,
+    weighted_ess   = wt_rows$ess_display,
+    delta_ess      = wt_rows$ess_display - unw_rows$ess_display,
+    boot_low       = NA_real_,
+    boot_high      = NA_real_,
+    crosses_null   = NA,
+    status         = status,
+    stringsAsFactors = FALSE
+  )
+  rownames(out) <- NULL
+
+  # ---- Bootstrap CI on delta_ess ---------------------------------------------
+  if (!is.null(seed)) set.seed(seed)
+  boot_mat <- matrix(NA_real_, nrow = n_boot, ncol = k)
+
+  for (b in seq_len(n_boot)) {
+    idx   <- sample.int(n, n, replace = TRUE)
+    grp_b <- group[idx]
+    X_b   <- X_balance[idx, , drop = FALSE]
+    rw_b  <- row_weights[idx]
+
+    bu <- tryCatch(
+      oda_balance_table(grp_b, X_b, w = NULL,  mcarlo = FALSE),
+      error = function(e) NULL)
+    bw <- tryCatch(
+      oda_balance_table(grp_b, X_b, w = rw_b,  mcarlo = FALSE),
+      error = function(e) NULL)
+    if (!is.null(bu) && !is.null(bw) &&
+        nrow(bu$rows) == k && nrow(bw$rows) == k)
+      boot_mat[b, ] <- bw$rows$ess_display - bu$rows$ess_display
+  }
+
+  alpha_lo <- boot_alpha / 2
+  alpha_hi <- 1 - boot_alpha / 2
+  out$boot_low     <- apply(boot_mat, 2L, quantile, probs = alpha_lo,  na.rm = TRUE)
+  out$boot_high    <- apply(boot_mat, 2L, quantile, probs = alpha_hi, na.rm = TRUE)
+  out$crosses_null <- out$boot_low <= 0 & out$boot_high >= 0
+
+  class(out) <- c("propensity_ess_balance", "data.frame")
   out
 }
