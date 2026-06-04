@@ -1,5 +1,5 @@
 ###############################################################################
-# test-cta-confusion-table.R — cta_confusion_table()
+# test-cta-confusion-table.R - cta_confusion_table()
 #
 # Reads training_confusion stored at fit time (final selected tree).
 # Must NOT return split-node local confusion.
@@ -70,7 +70,7 @@
 # Contract tests
 # =============================================================================
 
-test_that("ctbl: schema — data.frame, columns, types, zero rows for no-tree", {
+test_that("ctbl: schema - data.frame, columns, types, zero rows for no-tree", {
   df <- cta_confusion_table(.ctbl_no_tree_fit())
   expect_s3_class(df, "data.frame")
   expect_equal(nrow(df), 0L)
@@ -94,7 +94,7 @@ test_that("ctbl: schema — data.frame, columns, types, zero rows for no-tree", 
   expect_equal(nrow(cta_confusion_table(nt)), 0L)
 })
 
-test_that("ctbl: semantic — returns training_confusion, not split-node confusion", {
+test_that("ctbl: semantic - returns training_confusion, not split-node confusion", {
   tree <- .constructed_semantic_tree()
   # Verify intentionally different split vs final confusion
   expect_false(identical(tree$nodes[[1L]]$confusion, tree$training_confusion))
@@ -111,7 +111,7 @@ test_that("ctbl: semantic — returns training_confusion, not split-node confusi
   expect_true(all(c(0L, 1L) %in% df$predicted))
 })
 
-test_that("ctbl: stump — 4 rows, n=8, zero off-diagonal, canonical row order", {
+test_that("ctbl: stump - 4 rows, n=8, zero off-diagonal, canonical row order", {
   tree <- .ctbl_stump_fit()
   skip_if(isTRUE(tree$no_tree), "mc sampling missed")
   expect_true(is.matrix(tree$training_confusion))

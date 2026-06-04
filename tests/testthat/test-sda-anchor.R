@@ -1,5 +1,5 @@
 ###############################################################################
-# test-sda-anchor.R — SDA anchor object and task hook tests (Slice O)
+# test-sda-anchor.R - SDA anchor object and task hook tests (Slice O)
 #
 # Tier: CRAN-safe (all tests run at default tier).
 # All sda_fit calls use small mc_iter for speed. Only synthetic public data.

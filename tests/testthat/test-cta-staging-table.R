@@ -1,5 +1,5 @@
 ###############################################################################
-# test-cta-staging-table.R — cta_staging_table()
+# test-cta-staging-table.R - cta_staging_table()
 #
 # Per-endpoint staging table ordered by ascending adjusted target-class
 # propensity. Consumes cta_endpoint_summary() + cta_endpoint_counts() only.
@@ -33,8 +33,8 @@
 }
 
 # Synthetic 2-leaf tree with known counts for exact arithmetic.
-#   node2 (x<=6.5): class0=6, class1=2 → target_n=2, denom=8, prop=0.25
-#   node3 (x>6.5):  class0=1, class1=7 → target_n=7, denom=8, prop=0.875
+#   node2 (x<=6.5): class0=6, class1=2 -> target_n=2, denom=8, prop=0.25
+#   node3 (x>6.5):  class0=1, class1=7 -> target_n=7, denom=8, prop=0.875
 .est_2leaf_known <- function() {
   node1 <- list(
     node_id = 1L, parent_id = 0L, depth = 1L, leaf = FALSE,
@@ -178,7 +178,7 @@
 # Contract tests
 # =============================================================================
 
-test_that("est: schema — zero rows, 21 columns, correct types for no-tree", {
+test_that("est: schema - zero rows, 21 columns, correct types for no-tree", {
   df <- cta_staging_table(.est_no_tree_fit())
   expect_equal(nrow(df), 0L)
   expected_cols <- c(
@@ -202,7 +202,7 @@ test_that("est: schema — zero rows, 21 columns, correct types for no-tree", {
   expect_true(is.numeric(df2$odds))
 })
 
-test_that("est: arithmetic + ordering — known 2-leaf tree, target_class resolution/errors", {
+test_that("est: arithmetic + ordering - known 2-leaf tree, target_class resolution/errors", {
   df <- cta_staging_table(.est_2leaf_known())
   expect_equal(nrow(df), 2L)
   expect_equal(df$stage, c(1L, 2L))
@@ -220,7 +220,7 @@ test_that("est: arithmetic + ordering — known 2-leaf tree, target_class resolu
   expect_equal(df$odds, df$target_n / df$non_target_n, tolerance = 1e-12)
   # Stage ordering by ascending adjusted_target_proportion
   expect_true(all(diff(df$adjusted_target_proportion) >= 0))
-  # NULL target_class → binary default = 1
+  # NULL target_class -> binary default = 1
   expect_equal(unique(df$target_class), 1L)
   # Explicit target_class=0 uses class-0 counts
   df0 <- cta_staging_table(.est_2leaf_known(), target_class = 0L)
@@ -249,9 +249,9 @@ test_that("est: arithmetic + ordering — known 2-leaf tree, target_class resolu
   expect_equal(df_w1$denominator[df_w1$endpoint_node_id == 2L], 14.0) # wt total
 })
 
-test_that("est: perfect endpoint — detection, odds NA, adjustment arithmetic", {
+test_that("est: perfect endpoint - detection, odds NA, adjustment arithmetic", {
   df <- cta_staging_table(.est_perfect_ep_tree())
-  # node3: class0=0, class1=4 → non_target_n=0 → perfectly_predicted
+  # node3: class0=0, class1=4 -> non_target_n=0 -> perfectly_predicted
   expect_true(df$perfectly_predicted[df$endpoint_node_id == 3L])
   expect_false(df$perfectly_predicted[df$endpoint_node_id == 2L])
   expect_true(is.na(df$odds[df$endpoint_node_id == 3L]))
@@ -278,7 +278,7 @@ test_that("est: perfect endpoint — detection, odds NA, adjustment arithmetic",
   expect_equal(row3_no$adjusted_target_n, row3_no$target_n)
 })
 
-test_that("est: stump fit — 2 rows, denominator sums, weighted variant", {
+test_that("est: stump fit - 2 rows, denominator sums, weighted variant", {
   tree <- .est_stump_fit()
   skip_if(isTRUE(tree$no_tree), "mc sampling missed")
   df <- cta_staging_table(tree)
@@ -330,15 +330,15 @@ test_that("est: stump fit — 2 rows, denominator sums, weighted variant", {
   }
 })
 
-test_that("est: myeloma — rows, stage order, target reconcile for MINDENOM=56/30/1", {
+test_that("est: myeloma - rows, stage order, target reconcile for MINDENOM=56/30/1", {
   skip_if_slow_tests_disabled("cta-staging-table")
 
-  # MINDENOM=56: no-tree → 0 rows, 21 columns
+  # MINDENOM=56: no-tree -> 0 rows, 21 columns
   df56 <- cta_staging_table(.est_myeloma_fit(56L))
   expect_equal(nrow(df56), 0L)
   expect_equal(length(names(df56)), 21L)
 
-  # MINDENOM=30: stump → 2 rows, stage 1:2, ascending prop, target_class=1
+  # MINDENOM=30: stump -> 2 rows, stage 1:2, ascending prop, target_class=1
   df30 <- cta_staging_table(.est_myeloma_fit(30L))
   expect_equal(nrow(df30), 2L)
   expect_equal(df30$stage, c(1L, 2L))

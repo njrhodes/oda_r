@@ -1,5 +1,5 @@
 ###############################################################################
-# test-cta.R — CTA core tests
+# test-cta.R - CTA core tests
 ###############################################################################
 
 # ---- Data helpers -----------------------------------------------------------
@@ -29,7 +29,7 @@ test_that("basic fit contract: class, root n_obs, mindenom, max_depth, case weig
   expect_gte(tree$n_nodes, 1L)
   expect_equal(tree$nodes[[tree$root_id]]$n_obs, length(d$y))
 
-  # mindenom too large → single leaf
+  # mindenom too large -> single leaf
   nt <- oda_cta_fit(d$X, d$y, mindenom = 999L, mc_iter = 100L, mc_seed = 1L, loo = "off")
   expect_equal(nt$n_nodes, 1L)
   expect_true(isTRUE(nt$nodes[[1]]$leaf))
@@ -45,7 +45,7 @@ test_that("basic fit contract: class, root n_obs, mindenom, max_depth, case weig
 # 2. max_depth enforcement + node_table columns
 # =============================================================================
 
-test_that("max_depth: depth-1 root splits → children are leaves; depth-2 limit enforced; node_table schema", {
+test_that("max_depth: depth-1 root splits -> children are leaves; depth-2 limit enforced; node_table schema", {
   d <- bin_data()
 
   # max_depth=1: root is split, all children are leaves, no node deeper than 2
@@ -167,7 +167,7 @@ test_that("multi-attribute: x1 (perfect separator) selected over x2 (noise)", {
   if (!isTRUE(root$leaf))
     expect_equal(root$attribute, "x1")
   else
-    skip("root is leaf — increase mc_iter for reliable test")
+    skip("root is leaf - increase mc_iter for reliable test")
 })
 
 # =============================================================================
@@ -341,7 +341,7 @@ test_that("new_cta_family_member: valid + no-tree fields; new_cta_family S3 clas
   ))
 }
 
-test_that("myeloma endpoint chain: MINDENOM=1→30→56 denominators and strata (SLOW)", {
+test_that("myeloma endpoint chain: MINDENOM=1->30->56 denominators and strata (SLOW)", {
   skip_if_slow_tests_disabled("cta-myeloma-chain")
 
   t1 <- .myeloma_tree(1L)
@@ -390,7 +390,7 @@ test_that("cta_d_stat: NA for no_tree/missing/non-finite/non-positive ess/strata
 })
 
 # =============================================================================
-# 15. PRUNE: Sidak-Bonferroni + A×B×C ENUMERATE sentinel (SLOW)
+# 15. PRUNE: Sidak-Bonferroni + AxBxC ENUMERATE sentinel (SLOW)
 # =============================================================================
 
 .myeloma_prune_tree <- function(prune_alpha_val) {
@@ -412,7 +412,7 @@ test_that("cta_d_stat: NA for no_tree/missing/non-finite/non-positive ess/strata
                length(nd[["child_ids"]]) > 0L, logical(1L)))
 }
 
-test_that("PRUNE + A×B×C: prune no-op and active both select V14->V15 WESS=27.69%; right=leaf, left=V15 (SLOW)", {
+test_that("PRUNE + AxBxC: prune no-op and active both select V14->V15 WESS=27.69%; right=leaf, left=V15 (SLOW)", {
   skip_if_slow_tests_disabled("cta-myeloma-prune")
 
   # prune_alpha=1.0: pruning disabled; enumerated winner V14->V15 returned unchanged
@@ -430,7 +430,7 @@ test_that("PRUNE + A×B×C: prune no-op and active both select V14->V15 WESS=27.
                label = "prune active: WESS=27.69%")
   expect_equal(t_act[["nodes"]][[t_act[["root_id"]]]][["attribute"]], "V14")
 
-  # A×B×C sentinel: root=V14; right child=leaf (C=leaf); left child=V15 split
+  # AxBxC sentinel: root=V14; right child=leaf (C=leaf); left child=V15 split
   skip_if(isTRUE(t_act$no_tree) || isTRUE(t_act$nodes[[t_act$root_id]]$leaf),
           "ENUMERATE did not grow a tree")
   root       <- t_act$nodes[[t_act$root_id]]
@@ -468,11 +468,11 @@ test_that("denom-admissibility: B1 no_tree when MINDENOM>child; B2 valid non-deg
   X_nd <- data.frame(V1 = 1:10)
   y_nd <- c(rep(0L, 5L), rep(1L, 5L))
 
-  # B1: MINDENOM=6 > n_child=5 → no_tree
+  # B1: MINDENOM=6 > n_child=5 -> no_tree
   fit6 <- oda_cta_fit(X_nd, y_nd, mindenom = 6L, mc_iter = 500L, mc_seed = 1L, loo = "off")
   expect_true(isTRUE(fit6$no_tree))
 
-  # B2: MINDENOM=4 ≤ n_child=5 → valid, predicts both classes
+  # B2: MINDENOM=4 <= n_child=5 -> valid, predicts both classes
   fit4 <- oda_cta_fit(X_nd, y_nd, mindenom = 4L, mc_iter = 500L, mc_seed = 1L, loo = "off")
   expect_false(isTRUE(fit4$no_tree))
   expect_gte(length(unique(predict(fit4, X_nd)[!is.na(predict(fit4, X_nd))])), 2L)
@@ -484,7 +484,7 @@ test_that("denom-admissibility: B1 no_tree when MINDENOM>child; B2 valid non-deg
   expect_equal(fit6$C, 2L)
   expect_equal(length(predict(fit6, X_nd)), 10L)
 
-  # B5: sweep md=1,3,6 — valid trees predict both classes; md=6 no_tree confirmed
+  # B5: sweep md=1,3,6 - valid trees predict both classes; md=6 no_tree confirmed
   for (md in c(1L, 3L)) {
     fit <- oda_cta_fit(X_nd, y_nd, mindenom = md, mc_iter = 500L, mc_seed = 1L, loo = "off")
     if (!isTRUE(fit$no_tree))
@@ -504,7 +504,7 @@ test_that("arg contracts: B3a mindenom rejected for recursive=TRUE; B3b min_n gu
     regexp = "mindenom"
   )
 
-  # B3b: min_n guard → root is terminal, stop_reason='min_n'
+  # B3b: min_n guard -> root is terminal, stop_reason='min_n'
   ort  <- cta_fit(X_nd, y_nd, recursive = TRUE, min_n = 20L,
                   mc_iter = 100L, mc_seed = 1L, loo = "off")
   root <- ort$ort_nodes[["1"]]

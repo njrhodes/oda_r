@@ -86,7 +86,7 @@ test_that("Bowker Table 4.1: ordered training ESS approx 93.7", {
   # Hard stability anchor: diagonal sum from confusion matrix must equal 53295.
   expect_equal(sum(diag(fit$confusion)), 53295L)
 
-  # Note: p_mc is not asserted here — DIRECTIONAL not yet implemented (issue #6).
+  # Note: p_mc is not asserted here - DIRECTIONAL not yet implemented (issue #6).
   # When DIRECTIONAL is added, expect p_mc < 0.0001 with directional Fisher.
 })
 
@@ -94,7 +94,7 @@ test_that("Bowker Table 4.1: DIRECTIONAL ordered multiclass p_mc < 0.0001", {
   skip_if_not_full("MPE Chapter 4 canon")
   # MPE Chapter 4: Bowker/stability, DIRECTIONAL < 1 2 3 4.
   # direction = "ascending" constrains segment s --> class s (MPE Chapter 4 ordered).
-  # Anchors: ESS ≈ 93.7, diagonal = 53295, p_mc < 0.0001.
+  # Anchors: ESS ~= 93.7, diagonal = 53295, p_mc < 0.0001.
   # LOO not declared by MPE for this analysis.
   bowker <- matrix(c(
     11607,   100,   366,   124,
@@ -140,7 +140,7 @@ test_that("Marginal dissymmetry Table 4.1: transcription check (N=2686)", {
 
 test_that("Marginal dissymmetry Table 4.1: categorical training ESS approx 21.1", {
   skip_if_not_full("MPE Chapter 4 canon")
-  # SDA step 2: classify changers (off-diagonal) — categorical (unordered)
+  # SDA step 2: classify changers (off-diagonal) - categorical (unordered)
   # because dissymmetry patterns need not respect ordinal rank.
   # Class = 1985 category; Attribute = 1980 category.
   marg <- matrix(c(
@@ -163,7 +163,7 @@ test_that("Marginal dissymmetry Table 4.1: categorical training ESS approx 21.1"
   expect_equal(fit$ess, 21.1, tolerance = 0.5)
   expect_equal(fit$rule$type, "multiclass_nominal")
 
-  # Note: p_mc not asserted — DIRECTIONAL not yet implemented (issue #6).
+  # Note: p_mc not asserted - DIRECTIONAL not yet implemented (issue #6).
   # Note: This is SDA step 2 context from MPE Ch. 4; full SDA also requires
   # step 1 (overall Bowker stability, above) and D-statistic comparison.
 })
@@ -369,7 +369,7 @@ test_that("LOO absent-level override triggers only for truly absent category", {
 })
 
 test_that("LOO absent-level override does not trigger when category present", {
-  # Same structure as above but level 3 has 2 observations — never absent
+  # Same structure as above but level 3 has 2 observations - never absent
   # from any LOO fold. Override must not fire; LOO ESS == training ESS
   # (rule is completely stable across all folds).
   set.seed(8L)

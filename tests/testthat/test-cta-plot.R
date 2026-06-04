@@ -1,5 +1,5 @@
 ###############################################################################
-# test-cta-plot.R — unit tests for cta_plot_data() and plot.cta_tree()
+# test-cta-plot.R - unit tests for cta_plot_data() and plot.cta_tree()
 ###############################################################################
 
 # --- shared fixtures ---------------------------------------------------------
@@ -25,7 +25,7 @@ make_no_tree <- function() {
 }
 
 # =============================================================================
-# 1. cta_plot_data() schema — list names and data.frame columns
+# 1. cta_plot_data() schema - list names and data.frame columns
 # =============================================================================
 
 test_that("cta_plot_data schema: correct top-level names and column sets", {
@@ -43,7 +43,7 @@ test_that("cta_plot_data schema: correct top-level names and column sets", {
 })
 
 # =============================================================================
-# 2. cta_plot_data() — column types and data properties
+# 2. cta_plot_data() - column types and data properties
 # =============================================================================
 
 test_that("cta_plot_data data properties: types, geometry, labels, flags", {
@@ -108,7 +108,7 @@ test_that("cta_plot_data data properties: types, geometry, labels, flags", {
 })
 
 # =============================================================================
-# 3. cta_plot_data() — no-tree and stump edge cases
+# 3. cta_plot_data() - no-tree and stump edge cases
 # =============================================================================
 
 test_that("cta_plot_data edge cases: no-tree is empty; stump has 3 nodes/2 edges", {
@@ -132,12 +132,12 @@ test_that("cta_plot_data edge cases: no-tree is empty; stump has 3 nodes/2 edges
     expect_equal(nrow(pd_st$nodes), 3L)
     expect_equal(nrow(pd_st$edges), 2L)
   } else {
-    skip("tree is not a stump at mindenom=14 — skip stump-specific counts")
+    skip("tree is not a stump at mindenom=14 - skip stump-specific counts")
   }
 })
 
 # =============================================================================
-# 4. plot.cta_tree() — smoke + parameter acceptance
+# 4. plot.cta_tree() - smoke + parameter acceptance
 # =============================================================================
 
 test_that("plot.cta_tree: no errors across all parameter variants", {
@@ -175,7 +175,7 @@ test_that("plot.cta_tree: no errors across all parameter variants", {
 })
 
 # =============================================================================
-# 5. cta_plot_data() — target-class enrichment
+# 5. cta_plot_data() - target-class enrichment
 # =============================================================================
 
 test_that("cta_plot_data target-class enrichment: columns, types, contracts", {
@@ -309,7 +309,7 @@ test_that("myeloma plot smoke: 3 endpoints, proportions, stages, labels, colors"
   st_props <- sort(cta_staging_table(tree, target_class = 1L)$target_proportion)
   expect_equal(props, st_props)
 
-  # stages 1–3
+  # stages 1-3
   expect_setequal(ep$stage, 1:3)
 
   # endpoint_label contains "%" on leaf nodes

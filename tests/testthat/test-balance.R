@@ -2,9 +2,9 @@
 # test-balance.R
 #
 # Tests for the univariate ODA covariate balance layer:
-#   oda_balance_table()     (T1–T5, T7)
+#   oda_balance_table()     (T1-T5, T7)
 #   smd_balance_table()     (T6)
-#   oda_balance_plot_data() (T8–T9)
+#   oda_balance_plot_data() (T8-T9)
 #
 # Test plan:
 #   T1  obvious imbalance returns high ESS and significant raw p (MC enabled)
@@ -50,19 +50,19 @@ bt_weighted <- oda_balance_table(grp_bal, X_bal,
 smd_tbl <- smd_balance_table(grp_bal, X_bal)
 
 # ---------------------------------------------------------------------------
-# T1: obvious imbalance → high ESS and significant raw p
+# T1: obvious imbalance -> high ESS and significant raw p
 # ---------------------------------------------------------------------------
 test_that("oda_balance_table: imbalanced covariate yields high ESS and significant p (T1)", {
   row_age <- bt_unweighted$rows[bt_unweighted$rows$attribute == "age", ]
   expect_true(row_age$fit_ok)
-  # Perfect separation → ESS should be very high (close to 100%)
+  # Perfect separation -> ESS should be very high (close to 100%)
   expect_true(row_age$ess_display > 50)
   # With mc_iter=200 and perfect separation, p should be significant
   expect_true(row_age$significant_raw || row_age$p_mc <= 0.05)
 })
 
 # ---------------------------------------------------------------------------
-# T2: noise covariate → weak ESS or non-significant p
+# T2: noise covariate -> weak ESS or non-significant p
 # ---------------------------------------------------------------------------
 test_that("oda_balance_table: noise covariate yields low ESS (T2)", {
   row_noise <- bt_unweighted$rows[bt_unweighted$rows$attribute == "noise", ]
@@ -100,7 +100,7 @@ test_that("oda_balance_table: required columns all present (T3)", {
 # T4: failed covariate fit returns fit_ok = FALSE, row still present
 # ---------------------------------------------------------------------------
 test_that("oda_balance_table: failed fit is a row with fit_ok=FALSE, not dropped (T4)", {
-  # Force a failure by passing a constant column (no variation → ODA fails or
+  # Force a failure by passing a constant column (no variation -> ODA fails or
   # returns ok=FALSE). Catch: if oda_fit returns ok=TRUE for a constant column
   # we fall through gracefully; the row must still be present.
   X_const <- data.frame(good  = c(rep(0L, 30L), rep(1L, 30L)),
@@ -152,7 +152,7 @@ test_that("smd_balance_table: returns group means and abs_smd (T6)", {
   expect_equal(row_age$mean_0, 40, tolerance = 0.5)
   expect_equal(row_age$mean_1, 60, tolerance = 0.5)
   # SMD for a 20-unit gap with ~0 SD should be large
-  expect_true(row_age$abs_smd > 1 || is.na(row_age$smd))   # SD of constant is 0 → NA
+  expect_true(row_age$abs_smd > 1 || is.na(row_age$smd))   # SD of constant is 0 -> NA
 })
 
 # ---------------------------------------------------------------------------
@@ -214,7 +214,7 @@ test_that("oda_balance_plot_data: does not call oda_fit; takes balance_table onl
 })
 
 ###############################################################################
-# cta_balance_table() / cta_balance_plot_data() — T10–T17
+# cta_balance_table() / cta_balance_plot_data() - T10-T17
 ###############################################################################
 
 # ---- Module-level CTA fixtures --------------------------------------------- #
@@ -236,7 +236,7 @@ ct_notree <- cta_balance_table(grp_cta_disc, X_cta_disc,
                                 alpha_split = 0)
 
 # ---------------------------------------------------------------------------
-# T10: discriminating data → status stump or valid_tree, ess_display > 0
+# T10: discriminating data -> status stump or valid_tree, ess_display > 0
 # ---------------------------------------------------------------------------
 test_that("cta_balance_table: discriminating data finds a tree (T10)", {
   expect_true(ct_disc$status %in% c("stump", "valid_tree"))
@@ -250,7 +250,7 @@ test_that("cta_balance_table: discriminating data finds a tree (T10)", {
 # ---------------------------------------------------------------------------
 # T11: alpha_split=0 forces no_tree; balance_interpretation correct
 # ---------------------------------------------------------------------------
-test_that("cta_balance_table: no_tree → no_discriminating_combinations (T11)", {
+test_that("cta_balance_table: no_tree -> no_discriminating_combinations (T11)", {
   expect_equal(ct_notree$status, "no_tree")
   expect_equal(ct_notree$balance_interpretation, "no_discriminating_combinations")
   expect_true(is.na(ct_notree$root_attribute))
@@ -297,9 +297,9 @@ test_that("cta_balance_table: weights accepted, has_weights reflected (T14)", {
 })
 
 # ---------------------------------------------------------------------------
-# T15: no_tree → no_tree_message populated, cta_pd = NULL
+# T15: no_tree -> no_tree_message populated, cta_pd = NULL
 # ---------------------------------------------------------------------------
-test_that("cta_balance_plot_data: no_tree → message populated, cta_pd NULL (T15)", {
+test_that("cta_balance_plot_data: no_tree -> message populated, cta_pd NULL (T15)", {
   cpd <- cta_balance_plot_data(ct_notree)
   expect_s3_class(cpd, "cta_balance_plot_data")
   expect_equal(cpd$status, "no_tree")
@@ -310,9 +310,9 @@ test_that("cta_balance_plot_data: no_tree → message populated, cta_pd NULL (T1
 })
 
 # ---------------------------------------------------------------------------
-# T16: discriminating tree → cta_pd populated, no_tree_message = NA
+# T16: discriminating tree -> cta_pd populated, no_tree_message = NA
 # ---------------------------------------------------------------------------
-test_that("cta_balance_plot_data: valid tree → cta_pd populated, no message (T16)", {
+test_that("cta_balance_plot_data: valid tree -> cta_pd populated, no message (T16)", {
   cpd <- cta_balance_plot_data(ct_disc)
   expect_s3_class(cpd, "cta_balance_plot_data")
   expect_true(cpd$status %in% c("stump", "valid_tree"))

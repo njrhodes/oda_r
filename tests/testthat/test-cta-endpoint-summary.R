@@ -1,5 +1,5 @@
 ###############################################################################
-# test-cta-endpoint-summary.R — cta_endpoint_summary()
+# test-cta-endpoint-summary.R - cta_endpoint_summary()
 #
 # One row per terminal leaf with structural fields only.
 # No class counts, no target-class proportions, no staging order.
@@ -23,7 +23,7 @@
   )
 }
 
-# Synthetic 3-leaf tree — stable anchor for path/structure known values.
+# Synthetic 3-leaf tree - stable anchor for path/structure known values.
 .epsum_3leaf_tree <- function() {
   node1 <- list(
     node_id = 1L, parent_id = 0L, depth = 1L, leaf = FALSE,
@@ -80,7 +80,7 @@
 # Contract tests
 # =============================================================================
 
-test_that("epsum: schema — data.frame, correct columns/types, no-tree zero rows", {
+test_that("epsum: schema - data.frame, correct columns/types, no-tree zero rows", {
   df <- cta_endpoint_summary(.epsum_no_tree_fit())
   expect_s3_class(df, "data.frame")
   expect_equal(nrow(df), 0L)
@@ -97,7 +97,7 @@ test_that("epsum: schema — data.frame, correct columns/types, no-tree zero row
   expect_false(any(c("target_class","target_proportion","odds","staging_tier") %in% names(df)))
 })
 
-test_that("epsum: stump — 2 rows, denominator=n_obs, valid terminal_prediction", {
+test_that("epsum: stump - 2 rows, denominator=n_obs, valid terminal_prediction", {
   tree <- .epsum_stump_fit()
   skip_if(isTRUE(tree$no_tree), "mc sampling missed")
   df <- cta_endpoint_summary(tree)
@@ -108,7 +108,7 @@ test_that("epsum: stump — 2 rows, denominator=n_obs, valid terminal_prediction
   expect_true(all(nzchar(df$path)))
 })
 
-test_that("epsum: synthetic 3-leaf — known node IDs, paths, predictions, depths", {
+test_that("epsum: synthetic 3-leaf - known node IDs, paths, predictions, depths", {
   df <- cta_endpoint_summary(.epsum_3leaf_tree())
   expect_equal(nrow(df), 3L)
   expect_equal(df$endpoint_node_id, c(2L, 4L, 5L))
@@ -150,7 +150,7 @@ test_that("epsum: synthetic 3-leaf — known node IDs, paths, predictions, depth
   }
 })
 
-test_that("epsum: myeloma — rows/paths for MINDENOM=1/30/56; denominators reconcile", {
+test_that("epsum: myeloma - rows/paths for MINDENOM=1/30/56; denominators reconcile", {
   skip_if_slow_tests_disabled("cta-endpoint-summary")
 
   # MINDENOM=1: 3 endpoints, paths all mention V14 (root)
@@ -165,7 +165,7 @@ test_that("epsum: myeloma — rows/paths for MINDENOM=1/30/56; denominators reco
   expect_equal(nrow(df30), 2L)
   expect_true(all(grepl("V17", df30$path, fixed = TRUE)))
 
-  # MINDENOM=56: no-tree → zero rows with correct columns
+  # MINDENOM=56: no-tree -> zero rows with correct columns
   df56 <- cta_endpoint_summary(.epsum_myeloma_fit(56L))
   expect_equal(nrow(df56), 0L)
   expect_equal(names(df56), c("endpoint_id", "endpoint_node_id", "path", "depth",

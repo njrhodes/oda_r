@@ -5,7 +5,7 @@
 #
 # Scope: unit tests ONLY for the scan function itself.
 #   The rule (rightmost sens_wa > 0.5) is empirically confirmed only for
-#   myeloma V4 at Node 4 and Node 2 (direction 0→1, WEIGHT V2 active).
+#   myeloma V4 at Node 4 and Node 2 (direction 0->1, WEIGHT V2 active).
 #   It has NOT been verified against other fixtures (e.g. cta_demo).
 #   Do NOT integrate .cta_ordered_scan() into .fast_screen() or
 #   .full_fit_one() until confirmed against all canonical CTA fixtures.
@@ -48,7 +48,7 @@
 }
 
 # =============================================================================
-# .cta_ordered_scan() — myeloma-specific audit evidence
+# .cta_ordered_scan() - myeloma-specific audit evidence
 # =============================================================================
 
 test_that(".cta_ordered_scan: myeloma Node 4 V4 returns cut 359.80 ESS ~34.90%", {
@@ -92,7 +92,7 @@ test_that(".cta_ordered_scan: myeloma Node 2 V4 returns cut 371.20 ESS ~34.89%",
 
   expect_false(is.null(res),              label = "result is not NULL")
   expect_equal(res$rule$cut_value, 371.20, tolerance = 0.01,
-               label = "cut value — CTA.exe myeloma Node 2 V4 audit")
+               label = "cut value - CTA.exe myeloma Node 2 V4 audit")
   expect_equal(res$ess,            34.89,  tolerance = 0.01,
                label = "WESS matches CTA.exe myeloma fixture")
   expect_gt(res$sens_wa, 0.5, label = "sens_wa > 0.5")

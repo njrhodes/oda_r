@@ -209,11 +209,11 @@ test_that("multiclass categorical direction_map: fixed-partition overrides searc
 #   loo = "stable"  -> STABLE gate; |WESSL - WESS| <= 0.01 pp
 #   loo = "off"     -> no LOO; fit$loo will be NULL
 #
-# Fixture: n=20, x=1:20, y=10×0 + 10×1. Probe confirms:
+# Fixture: n=20, x=1:20, y=10x0 + 10x1. Probe confirms:
 #   loo=0.99 -> ok=TRUE, p_loo=1e-4 (passes)
 #   loo="pvalue" -> ok=TRUE, p_loo=1e-4 (passes default 0.05)
 #   loo=1e-9  -> ok=FALSE, reason=loo_p_not_significant (gate rejects deterministically)
-#   loo="stable" -> ok=FALSE (LOO genuinely unstable on integer-separable data — not a bug)
+#   loo="stable" -> ok=FALSE (LOO genuinely unstable on integer-separable data - not a bug)
 #   loo="off" -> fit$loo = NULL (LOO never runs)
 
 .loo_sem_xy <- function() {
@@ -228,7 +228,7 @@ test_that("oda_fit: loo='off' leaves fit$loo NULL (no LOO computation)", {
 })
 
 test_that("oda_fit: numeric loo=0.99 runs LOO and produces non-NULL fit$loo", {
-  # loo=0.99 passes the gate (p_loo=1e-4 < 0.99) — proves LOO ran, not silently 'off'.
+  # loo=0.99 passes the gate (p_loo=1e-4 < 0.99) - proves LOO ran, not silently 'off'.
   d   <- .loo_sem_xy()
   fit <- oda_fit(d$x, d$y, loo = 0.99, mcarlo = TRUE, mc_iter = 1000L, mc_seed = 1L)
   expect_true(isTRUE(fit$ok),

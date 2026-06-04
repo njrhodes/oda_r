@@ -1,37 +1,37 @@
 ###############################################################################
-# test-sda-unioda.R — SDA-1 tests for sda_fit(mode = "unioda_max_ess")
+# test-sda-unioda.R - SDA-1 tests for sda_fit(mode = "unioda_max_ess")
 #
 # Tier: CRAN-safe (all tests run at default tier).
 # All fits use small mc_iter for speed. Only synthetic public data.
 ###############################################################################
 
 # ---------------------------------------------------------------------------
-# Synthetic dataset — 100 observations, 3 attributes, 2 classes
+# Synthetic dataset - 100 observations, 3 attributes, 2 classes
 #
 # Design goal: A has higher ESS than B so A wins at step 1.
 #
 #   class 1L: rows 1-50
 #   class 2L: rows 51-100
 #
-#   A (near-perfect, ESS ≈ 60%):
-#     rows  1-40: class 1, A=0  (40 of 50 class-1 on left — correctly pred class 1)
+#   A (near-perfect, ESS ~= 60%):
+#     rows  1-40: class 1, A=0  (40 of 50 class-1 on left - correctly pred class 1)
 #     rows 41-50: class 1, A=1  (10 class-1 "wrong" side)
-#     rows 51-90: class 2, A=1  (40 of 50 class-2 on right — correctly pred class 2)
+#     rows 51-90: class 2, A=1  (40 of 50 class-2 on right - correctly pred class 2)
 #     rows 91-100: class 2, A=0 (10 class-2 "wrong" side)
-#     → sens = 40/50 = 0.80, spec = 40/50 = 0.80 → ESS ≈ 60%
+#     -> sens = 40/50 = 0.80, spec = 40/50 = 0.80 -> ESS ~= 60%
 #
-#   B (weaker, ESS ≈ 20%):
+#   B (weaker, ESS ~= 20%):
 #     rows  1-30: class 1, B=0  (30 of 50 class-1 on left)
 #     rows 31-50: class 1, B=1  (20 class-1 "wrong" side)
 #     rows 51-80: class 2, B=1  (30 of 50 class-2 on right)
 #     rows 81-100: class 2, B=0 (20 class-2 "wrong" side)
-#     → sens = 30/50 = 0.60, spec = 30/50 = 0.60 → ESS ≈ 20%
+#     -> sens = 30/50 = 0.60, spec = 30/50 = 0.60 -> ESS ~= 20%
 #
 #   C: noise
 #
 # After step 1 (A selected, 80 obs correctly classified):
 #   Remaining 20: rows 41-50 (class 1, A=1) + rows 91-100 (class 2, A=0)
-#   On this subsample B has ESS=100% (class1→B=1, class2→B=0, inverted direction)
+#   On this subsample B has ESS=100% (class1->B=1, class2->B=0, inverted direction)
 # ---------------------------------------------------------------------------
 
 set.seed(0)
@@ -153,7 +153,7 @@ test_that("sda: candidate table has required columns at every step", {
 })
 
 # ---------------------------------------------------------------------------
-# Test 7: predict.sda_fit(type="class") classifies correctly; unresolved → NA
+# Test 7: predict.sda_fit(type="class") classifies correctly; unresolved -> NA
 # ---------------------------------------------------------------------------
 test_that("sda predict: type='class' returns integer vector with NA for unresolved", {
   fit <- sda_fit(sda_X, sda_y,

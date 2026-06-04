@@ -7,21 +7,21 @@
 # Key audit findings (docs/CTA_ORDERED_CUT_AUDIT.md):
 #
 #   Node 4 (V17<=0.5 AND V15<=0.5, n=113):
-#     V4  CTA scan: cut=359.80, WESS=34.90%, Signif F → rejected at MC gate.
-#         Even when Signif T, |WESS(34.90) - WESSL(~46.99)| >> 0.01 → UNSTABLE.
-#         V4 is the only candidate → no split.
+#     V4  CTA scan: cut=359.80, WESS=34.90%, Signif F -> rejected at MC gate.
+#         Even when Signif T, |WESS(34.90) - WESSL(~46.99)| >> 0.01 -> UNSTABLE.
+#         V4 is the only candidate -> no split.
 #
 #   Node 2 (V17<=0.5, n=131):
 #     V4  CTA scan: cut=371.20, WESS=34.89%, Signif T.
-#         Generic ODA LOO WESSL≈38.52%; |34.89-38.52|=3.63 >> 0.01 → UNSTABLE.
+#         Generic ODA LOO WESSL~=38.52%; |34.89-38.52|=3.63 >> 0.01 -> UNSTABLE.
 #         V4 always rejected by LOO STABLE gate (regardless of MC outcome).
 #     V15 binary (2 unique values): CTA path bypassed; generic ODA WESS=17.57%.
-#         Generic ODA LOO WESSL=17.57% = WESS → STABLE.
-#         V15 Signif T → selected as root.
+#         Generic ODA LOO WESSL=17.57% = WESS -> STABLE.
+#         V15 Signif T -> selected as root.
 #
 #   cta_demo (uniform weights):
-#     CTA path guard (any(w != w[1])) is FALSE → CTA path bypassed entirely.
-#     Generic ODA path unchanged → root=V2, ESS=52.63%.
+#     CTA path guard (any(w != w[1])) is FALSE -> CTA path bypassed entirely.
+#     Generic ODA path unchanged -> root=V2, ESS=52.63%.
 #
 # Reference: docs/CTA_ORDERED_CUT_AUDIT.md
 ###############################################################################
@@ -59,13 +59,13 @@
 }
 
 # =============================================================================
-# Test 1: Node 4, V4 only → always leaf
+# Test 1: Node 4, V4 only -> always leaf
 #
 # V4 at Node 4 is Signif F per CTA.exe (WESS=34.90%).
 # Even when Signif T by chance, LOO gate rejects: |34.90 - 46.99| >> 0.01.
 # =============================================================================
 
-test_that("node-selection: Node 4 V4-only is always rejected → leaf-only tree", {
+test_that("node-selection: Node 4 V4-only is always rejected -> leaf-only tree", {
   skip_if_slow_tests_disabled("cta-node-selection")
   if (!.ns_myeloma_ok()) skip("myeloma fixture missing")
 
@@ -98,14 +98,14 @@ test_that("node-selection: Node 4 V4-only is always rejected → leaf-only tree"
 })
 
 # =============================================================================
-# Test 2: Node 2, V4 only → always leaf (Signif T but LOO UNSTABLE)
+# Test 2: Node 2, V4 only -> always leaf (Signif T but LOO UNSTABLE)
 #
 # V4 at Node 2: CTA scan WESS=34.89% (cut=371.20), CTA.exe Signif T.
-# Generic ODA LOO WESSL≈38.52% (cut≈84.85). |34.89 - 38.52| = 3.63 >> 0.01.
+# Generic ODA LOO WESSL~=38.52% (cut~=84.85). |34.89 - 38.52| = 3.63 >> 0.01.
 # V4 is ALWAYS rejected at the LOO STABLE gate regardless of MC outcome.
 # =============================================================================
 
-test_that("node-selection: Node 2 V4-only always LOO UNSTABLE → leaf-only tree", {
+test_that("node-selection: Node 2 V4-only always LOO UNSTABLE -> leaf-only tree", {
   skip_if_slow_tests_disabled("cta-node-selection")
   if (!.ns_myeloma_ok()) skip("myeloma fixture missing")
 
@@ -134,18 +134,18 @@ test_that("node-selection: Node 2 V4-only always LOO UNSTABLE → leaf-only tree
   root <- tree$nodes[[tree$root_id]]
   expect_true(isTRUE(root$leaf),
     label = paste0("V4 at Node 2: CTA scan WESS=34.89% but generic ODA LOO",
-                   " WESSL≈38.52%; |delta|=3.63pp → UNSTABLE → must be rejected"))
+                   " WESSL~=38.52%; |delta|=3.63pp -> UNSTABLE -> must be rejected"))
 })
 
 # =============================================================================
-# Test 3: Node 2, V4+V15 → V4 rejected; root must be V15
+# Test 3: Node 2, V4+V15 -> V4 rejected; root must be V15
 #
-# V4: CTA path → LOO UNSTABLE → rejected (see Test 2 above).
-# V15: binary (2 unique values) → CTA path bypassed; generic ODA WESS=17.57%,
-#      LOO WESSL=17.57% → STABLE; Signif T → selected as root.
+# V4: CTA path -> LOO UNSTABLE -> rejected (see Test 2 above).
+# V15: binary (2 unique values) -> CTA path bypassed; generic ODA WESS=17.57%,
+#      LOO WESSL=17.57% -> STABLE; Signif T -> selected as root.
 # =============================================================================
 
-test_that("node-selection: Node 2 V4+V15 → V4 rejected; root is V15 (STABLE)", {
+test_that("node-selection: Node 2 V4+V15 -> V4 rejected; root is V15 (STABLE)", {
   skip_if_slow_tests_disabled("cta-node-selection")
   if (!.ns_myeloma_ok()) skip("myeloma fixture missing")
 
@@ -173,18 +173,18 @@ test_that("node-selection: Node 2 V4+V15 → V4 rejected; root is V15 (STABLE)",
 
   root <- tree$nodes[[tree$root_id]]
 
-  # V4 must never be selected — LOO STABLE gate always rejects it.
+  # V4 must never be selected - LOO STABLE gate always rejects it.
   if (!isTRUE(root$leaf)) {
     expect_equal(root$attribute, "V15",
       label = "V4 is LOO UNSTABLE; only V15 can be root")
     expect_equal(root$ess, 17.57, tolerance = 0.1,
-      label = "V15 root WESS ≈ 17.57% (CTA.exe Node 2 fixture)")
+      label = "V15 root WESS ~= 17.57% (CTA.exe Node 2 fixture)")
     expect_equal(root$loo_status, "STABLE",
       label = "V15 must carry LOO STABLE status")
   } else {
     # V15 MC came back non-significant with this seed; this is not a bug.
     # V4 being absent is still confirmed. Skip rather than fail.
-    skip("V15 Signif F with this MC seed — V4 rejection still confirmed by Test 2")
+    skip("V15 Signif F with this MC seed - V4 rejection still confirmed by Test 2")
   }
 })
 

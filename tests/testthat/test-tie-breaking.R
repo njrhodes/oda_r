@@ -35,9 +35,9 @@ test_that("layer2 SAMPLEREP: seg=(2,1,3) is the only valid nondegenerate at cut 
   #   seg1 argmax=c2 (unique: c2_pw=1/3 > c1_pw=1/4)
   #   seg2 argmax=c1 (unique: c1_pw=0.5 > c3_pw=0.25)
   #   seg3 argmax=c3 (unique: c3_pw=0.75 > c2_pw=0.667 > c1_pw=0.25)
-  # → only (2,1,3) is nondegenerate. First-identified-cut also picks this cut.
+  # -> only (2,1,3) is nondegenerate. First-identified-cut also picks this cut.
   # At cut (2.5,3.5): assignment (1,3,2) also ties on primary.
-  # Two-level: cut (1.5,2.5) enumerated first → wins → seg=(2,1,3).
+  # Two-level: cut (1.5,2.5) enumerated first -> wins -> seg=(2,1,3).
   x <- c(1L, 1L,  2L, 2L, 2L,  3L, 3L, 3L, 3L, 3L, 3L)
   y <- c(1L, 2L,  1L, 1L, 3L,  1L, 2L, 2L, 3L, 3L, 3L)
 
@@ -56,7 +56,7 @@ test_that("layer2 SAMPLEREP: seg=(2,1,3) is the only valid nondegenerate at cut 
 
 
 test_that("layer2 SAMPLEREP: balanced predicted distribution preferred", {
-  # 6 obs, 3 classes, 2 each — any valid cut achieves perfect PAC,
+  # 6 obs, 3 classes, 2 each - any valid cut achieves perfect PAC,
   # but SAMPLEREP should ensure predicted counts match observed (2,2,2)
   x <- c(1, 1, 3, 3, 5, 5)
   y <- c(1L,1L, 2L,2L, 3L,3L)
@@ -77,7 +77,7 @@ test_that("layer2 SAMPLEREP: balanced predicted distribution preferred", {
 
 # ---- Layer 3: FIRST IDENTIFIED (deterministic) --------------------------- #
 
-test_that("layer3 FIRST IDENTIFIED: same call → identical rule every time", {
+test_that("layer3 FIRST IDENTIFIED: same call -> identical rule every time", {
   x <- c(1,2,3,4,5,6,7,8,9)
   y <- c(1L,1L,1L,2L,2L,2L,3L,3L,3L)
 
@@ -114,7 +114,7 @@ test_that("priors_on=TRUE avoids degenerate solution on heavily imbalanced data"
 
 test_that("degen=FALSE and only 2 classes in data returns not_multiclass", {
   x <- c(1,2,3,4,5)
-  y <- c(1L,1L,2L,2L,2L)   # only 2 distinct classes → multiclass core rejects
+  y <- c(1L,1L,2L,2L,2L)   # only 2 distinct classes -> multiclass core rejects
 
   fit <- oda_multiclass_unioda_core(
     x=x, y=y, attr_type="ordered",

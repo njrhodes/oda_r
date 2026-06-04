@@ -63,15 +63,15 @@ All exported symbols inspected against canon contracts.
 
 | Symbol | Status |
 |--------|--------|
-| `novo_boot_ci` (default, oda_fit, cta_tree, cta_ort) | KEEP — all six dispatch paths wired |
-| `as_confusion_matrix` | KEEP — tidy df → 2x2 matrix bridge for `novo_boot_ci.default` |
+| `novo_boot_ci` (default, oda_fit, cta_tree, cta_ort) | KEEP - all six dispatch paths wired |
+| `as_confusion_matrix` | KEEP - tidy df -> 2x2 matrix bridge for `novo_boot_ci.default` |
 
 ### Power and sample-size surface -- KEEP (narrow canon scope)
 
 | Symbol | Status | Canon source |
 |--------|--------|--------------|
-| `oda_power` | KEEP — planning support | Rhodes 2020; Yarnold & Soltysik 2005, Ch. 2/4 |
-| `oda_sample_size` | KEEP — planning support | Rhodes 2020 (bisection over `oda_power`) |
+| `oda_power` | KEEP - planning support | Rhodes 2020; Yarnold & Soltysik 2005, Ch. 2/4 |
+| `oda_sample_size` | KEEP - planning support | Rhodes 2020 (bisection over `oda_power`) |
 
 **Scope constraint:** Unit-weighted, binary class, binary (2-level) attribute only.
 This is the Fisher exact/ODA isomorphism planning case.
@@ -269,7 +269,7 @@ or "Run a... procedure". Verified: no stale hits.
 
 ## 11. Live-Fire Validation Results
 
-### Full fast suite (ODACORE_TEST_TIER=fast) — post-OBBP
+### Full fast suite (ODACORE_TEST_TIER=fast) - post-OBBP
 
 ```
 FAIL 0 / WARN 0 / SKIP 167 / PASS 1867

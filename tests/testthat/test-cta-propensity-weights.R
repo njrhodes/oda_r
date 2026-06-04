@@ -1,7 +1,7 @@
 ###############################################################################
-# test-cta-propensity-weights.R — cta_propensity_weights()
+# test-cta-propensity-weights.R - cta_propensity_weights()
 #
-# Endpoint × class stabilized propensity-style weights.
+# Endpoint x class stabilized propensity-style weights.
 # Consumes cta_endpoint_counts(tree) only. Also covers lean-fit invariants.
 ###############################################################################
 
@@ -160,7 +160,7 @@ test_that("epw lean: no cached artifacts on tree; no row indices on leaves; immu
   expect_identical(t_before, t2)
 })
 
-test_that("epw: schema — 0 rows no-tree, 21 columns, types, no forbidden columns", {
+test_that("epw: schema - 0 rows no-tree, 21 columns, types, no forbidden columns", {
   df <- cta_propensity_weights(.epw_no_tree_fit())
   expect_equal(nrow(df), 0L)
   expected_cols <- c(
@@ -185,7 +185,7 @@ test_that("epw: schema — 0 rows no-tree, 21 columns, types, no forbidden colum
   # No model-selection columns
   forbidden <- c("ess", "wess", "p_mc", "loo_status", "loo_ess", "loo_p")
   expect_equal(length(intersect(names(df2), forbidden)), 0L)
-  # Stump: 4 rows (2 endpoints × 2 classes)
+  # Stump: 4 rows (2 endpoints x 2 classes)
   tree <- .epw_stump_fit()
   skip_if(isTRUE(tree$no_tree), "mc sampling missed")
   expect_equal(nrow(cta_propensity_weights(tree)), 4L)
@@ -199,7 +199,7 @@ test_that("epw: target_class resolution and errors", {
   expect_equal(length(unique(cta_propensity_weights(.epw_2leaf_known())$target_class)), 1L)
 })
 
-test_that("epw: empirical formula — 4 exact weights, marginal sum, endpoint_n, within-ep mean", {
+test_that("epw: empirical formula - 4 exact weights, marginal sum, endpoint_n, within-ep mean", {
   df <- cta_propensity_weights(.epw_2leaf_known())
   # Formula: weight = endpoint_n * marginal_prob / class_n
   expect_equal(df$propensity_weight,
@@ -228,16 +228,16 @@ test_that("epw: empirical formula — 4 exact weights, marginal sum, endpoint_n,
   }
 })
 
-test_that("epw: perfect endpoints — undefined_empirical, Inf, adjustment arithmetic", {
+test_that("epw: perfect endpoints - undefined_empirical, Inf, adjustment arithmetic", {
   df <- cta_propensity_weights(.epw_perfect_ep_tree())
-  # undefined_empirical ↔ class_n == 0; propensity_weight = Inf there
+  # undefined_empirical <-> class_n == 0; propensity_weight = Inf there
   expect_true(all(df$undefined_empirical == (df$class_n == 0L)))
   expect_true(all(is.infinite(df$propensity_weight[df$class_n == 0L])))
   # perfectly_predicted_endpoint for both rows of node3
   rows3 <- df[df$endpoint_node_id == 3L, ]
   expect_true(all(rows3$perfectly_predicted_endpoint))
   expect_false(any(df$perfectly_predicted_endpoint[df$endpoint_node_id == 2L]))
-  # adjusted = TRUE ↔ class_n == 0
+  # adjusted = TRUE <-> class_n == 0
   expect_true(all(df$adjusted == (df$class_n == 0L)))
   # adjusted_class_n = class_n + 1 for adjusted rows; unchanged for others
   adj  <- df[ df$adjusted, ]; nadj <- df[!df$adjusted, ]
@@ -254,7 +254,7 @@ test_that("epw: perfect endpoints — undefined_empirical, Inf, adjustment arith
   # adjusted_propensity_weight finite for all rows; exact for node3/class0
   expect_true(all(is.finite(df$adjusted_propensity_weight)))
   row <- df[df$endpoint_node_id == 3L & df$class == "0", ]
-  # adj_class_n=1, adj_ep_n=5, adj_Pr(0)=7/13 → 5*(7/13)/1 = 35/13
+  # adj_class_n=1, adj_ep_n=5, adj_Pr(0)=7/13 -> 5*(7/13)/1 = 35/13
   expect_equal(row$adjusted_propensity_weight, 35/13, tolerance = 1e-12)
   # Within-endpoint adjusted weighted mean = 1.0
   for (eid in unique(df$endpoint_id)) {
@@ -303,15 +303,15 @@ test_that("epw: perfect endpoints — undefined_empirical, Inf, adjustment arith
   }
 })
 
-test_that("epw: myeloma — rows, marginal probs, adjusted weights for MINDENOM=56/30/1", {
+test_that("epw: myeloma - rows, marginal probs, adjusted weights for MINDENOM=56/30/1", {
   skip_if_slow_tests_disabled("cta-propensity-weights")
 
-  # MINDENOM=56: no-tree → 0 rows, 21 columns
+  # MINDENOM=56: no-tree -> 0 rows, 21 columns
   df56 <- cta_propensity_weights(.epw_myeloma_fit(56L))
   expect_equal(nrow(df56), 0L)
   expect_equal(length(names(df56)), 21L)
 
-  # MINDENOM=30: stump → 4 rows, no NA endpoint_id, marginal probs sum to 1
+  # MINDENOM=30: stump -> 4 rows, no NA endpoint_id, marginal probs sum to 1
   df30 <- cta_propensity_weights(.epw_myeloma_fit(30L))
   expect_equal(nrow(df30), 4L)
   expect_false(any(is.na(df30$endpoint_id)))
@@ -320,7 +320,7 @@ test_that("epw: myeloma — rows, marginal probs, adjusted weights for MINDENOM=
   by30a <- tapply(df30$adjusted_marginal_class_probability, df30$class, unique)
   expect_equal(sum(unlist(by30a)), 1.0, tolerance = 1e-12)
 
-  # MINDENOM=1: 3 endpoints × 2 classes = 6 rows; adjusted weights finite;
+  # MINDENOM=1: 3 endpoints x 2 classes = 6 rows; adjusted weights finite;
   # within-endpoint adjusted weighted mean = 1.0
   df1 <- cta_propensity_weights(.epw_myeloma_fit(1L))
   expect_equal(nrow(df1), 6L)

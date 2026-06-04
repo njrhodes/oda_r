@@ -6,8 +6,8 @@
 ###############################################################################
 
 # Suppress R CMD check visible-binding notes for ggplot2 aes() column names.
-# .eid   — ellipse grouping column in graphics_v3.R geom_polygon calls
-# status_lbl — annotation column in plot_cta_balance_effects()
+# .eid   - ellipse grouping column in graphics_v3.R geom_polygon calls
+# status_lbl - annotation column in plot_cta_balance_effects()
 utils::globalVariables(c(".eid", "status_lbl"))
 
 # Null-coalescing operator (defined once here; not re-defined elsewhere)

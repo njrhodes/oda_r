@@ -236,16 +236,16 @@ All six binary-capable dispatch paths are wired.  Each return object carries
 
 | Path | Source | `source_type` | `source_id` | `weighted` |
 |------|--------|--------------|-------------|------------|
-| A. `novo_boot_ci(matrix)` | 2×2 matrix passed directly | `"matrix"` | `NA` | `NA` |
+| A. `novo_boot_ci(matrix)` | 2x2 matrix passed directly | `"matrix"` | `NA` | `NA` |
 | B. `novo_boot_ci(oda_fit)` | `fit$confusion` (raw counts) | `"oda_fit"` | `NA` | `FALSE` |
 | C. `novo_boot_ci(cta_tree)` | `tree$training_confusion` | `"cta_tree"` | `NA` | `FALSE` |
 | D. `novo_boot_ci(cta_tree, node_id)` | leaf `class_counts_raw` / `class_counts_weighted` | `"cta_tree_node"` | node_id | param |
 | E. `novo_boot_ci(cta_ort)` | sum of `strata$class_counts` | `"cta_ort"` | `NA` | `FALSE` |
 | F. `novo_boot_ci(cta_ort, stratum_id)` | single-stratum `class_counts` | `"cta_ort_stratum"` | stratum_id | param |
 
-**Path G — `as_confusion_matrix()`:** `cta_confusion_table()` returns a
+**Path G - `as_confusion_matrix()`:** `cta_confusion_table()` returns a
 tidy data.frame (columns `actual`, `predicted`, `n`).  `as_confusion_matrix(df)`
-converts it to a 2×2 integer matrix for `novo_boot_ci.default`.
+converts it to a 2x2 integer matrix for `novo_boot_ci.default`.
 
 ---
 
@@ -253,7 +253,7 @@ converts it to a 2×2 integer matrix for `novo_boot_ci.default`.
 
 | Gap | Reason deferred |
 |-----|----------------|
-| NOVOboot for multiclass ODA | NOVOboot requires 2×2 confusion; no correct extension exists for C>2 without redesign |
+| NOVOboot for multiclass ODA | NOVOboot requires 2x2 confusion; no correct extension exists for C>2 without redesign |
 | LOO-confusion NOVOboot | LOO confusion stored per-fold only; aggregation semantics not defined |
 | `novo_boot_ci(cta_endpoint_counts(...), endpoint_id = ...)` endpoint CI | Endpoint-level bootstrap; no design yet |
 | Stage-wise SDA/SORT bootstrap | Requires SDA-5 staged evidence objects; deferred with SORT |

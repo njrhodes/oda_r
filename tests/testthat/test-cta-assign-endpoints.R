@@ -1,5 +1,5 @@
 ###############################################################################
-# test-cta-assign-endpoints.R — cta_assign_endpoints()
+# test-cta-assign-endpoints.R - cta_assign_endpoints()
 #
 # On-demand observation-to-endpoint assignment.
 # Traverses the fitted cta_tree for each row of newdata; returns
@@ -71,7 +71,7 @@
 # Contract tests
 # =============================================================================
 
-test_that("ae: schema — columns/types/row-count; no-tree returns all-NA endpoints", {
+test_that("ae: schema - columns/types/row-count; no-tree returns all-NA endpoints", {
   # Schema on stump
   tree <- .ae_stump_fit()
   skip_if(isTRUE(tree$no_tree), "mc sampling missed")
@@ -103,13 +103,13 @@ test_that("ae: stump routing, missingness, immutability, and merge sketch", {
   ep2 <- cta_assign_endpoints(tree, data.frame(x = c(1L, 8L)))
   expect_equal(length(unique(ep2$endpoint_id)), 2L)
 
-  # Missingness: missing_action='na' → NA for missing row; others still valid
+  # Missingness: missing_action='na' -> NA for missing row; others still valid
   nd <- data.frame(x = c(1L, 2L, NA_integer_, 6L, 7L))
   ep_na <- cta_assign_endpoints(tree, nd, missing_action = "na")
   expect_true(is.na(ep_na$endpoint_id[3L]))
   expect_true(is.na(ep_na$endpoint_node_id[3L]))
   expect_true(all(ep_na$endpoint_id[-3L] %in% es$endpoint_id))
-  # missing_action='majority' → non-NA endpoint for missing row
+  # missing_action='majority' -> non-NA endpoint for missing row
   ep_maj <- cta_assign_endpoints(tree, nd, missing_action = "majority")
   expect_false(is.na(ep_maj$endpoint_id[3L]))
   expect_true(ep_maj$endpoint_id[3L] %in% es$endpoint_id)
@@ -120,7 +120,7 @@ test_that("ae: stump routing, missingness, immutability, and merge sketch", {
   invisible(cta_assign_endpoints(tree2, data.frame(x = 1:8)))
   expect_identical(before, tree2)
 
-  # Merge sketch: join with propensity weights — 8 rows, all non-NA weights
+  # Merge sketch: join with propensity weights - 8 rows, all non-NA weights
   X <- data.frame(x = 1:8)
   y <- c(0L,0L,0L,0L,1L,1L,1L,1L)
   ep_m <- cta_assign_endpoints(.ae_2leaf_tree(), X, missing_action = "na")
@@ -146,7 +146,7 @@ test_that("ae: stump routing, missingness, immutability, and merge sketch", {
   expect_equal(nrow(joined2), 4L)
 })
 
-test_that("ae: errors — non-cta_tree, bad missing_action, zero-column data", {
+test_that("ae: errors - non-cta_tree, bad missing_action, zero-column data", {
   tree <- .ae_stump_fit()
   skip_if(isTRUE(tree$no_tree), "mc sampling missed")
   expect_error(cta_assign_endpoints(list(), data.frame(x = 1)), regexp = "inherits")
@@ -184,13 +184,13 @@ test_that("ae: errors — non-cta_tree, bad missing_action, zero-column data", {
   }
 })
 
-test_that("ae: myeloma — classified counts and merge sketch for MINDENOM=56/1/30", {
+test_that("ae: myeloma - classified counts and merge sketch for MINDENOM=56/1/30", {
   skip_if_slow_tests_disabled("cta-assign-endpoints")
   df <- .ae_load_myeloma()
   X  <- df[, .ae_myeloma_attrs]
   y  <- as.integer(df$V1)
 
-  # MINDENOM=56: no-tree → all NA
+  # MINDENOM=56: no-tree -> all NA
   t56 <- .ae_myeloma_fit(56L)
   ep56 <- cta_assign_endpoints(t56, X, missing_action = "na")
   expect_equal(nrow(ep56), nrow(df))

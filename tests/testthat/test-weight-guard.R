@@ -15,7 +15,7 @@ y_cta <- c(0L, 0L, 0L, 0L, 1L, 1L, 1L, 1L)
 n_cta <- nrow(X_cta)
 
 # ------------------------------------------------------------------
-# .validate_case_weights — direct unit tests (internal helper)
+# .validate_case_weights - direct unit tests (internal helper)
 # ------------------------------------------------------------------
 
 test_that("valid positive weights pass silently", {

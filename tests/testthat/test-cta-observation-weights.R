@@ -1,5 +1,5 @@
 ###############################################################################
-# test-cta-observation-weights.R — cta_observation_weights()
+# test-cta-observation-weights.R - cta_observation_weights()
 #
 # Per-observation propensity weight assignment.
 ###############################################################################
@@ -26,7 +26,7 @@
 # Contract tests
 # =============================================================================
 
-test_that("ow: schema + no-tree — nrow, columns, no-tree all unassigned/NA", {
+test_that("ow: schema + no-tree - nrow, columns, no-tree all unassigned/NA", {
   tree <- .ow_stump_fit()
   skip_if(isTRUE(tree$no_tree), "mc sampling missed")
   X <- data.frame(x = 1:8)
@@ -53,7 +53,7 @@ test_that("ow: schema + no-tree — nrow, columns, no-tree all unassigned/NA", {
   expect_true(all(is.na(ow_nt$adjusted_propensity_weight)))
 })
 
-test_that("ow: stump contract — assigned, missing_action, NA y, target_class annotation", {
+test_that("ow: stump contract - assigned, missing_action, NA y, target_class annotation", {
   tree <- .ow_stump_fit()
   skip_if(isTRUE(tree$no_tree), "mc sampling missed")
   X <- data.frame(x = 1:8)
@@ -61,7 +61,7 @@ test_that("ow: stump contract — assigned, missing_action, NA y, target_class a
   # All 8 obs assigned when using adjusted=FALSE on perfectly separated data
   ow <- cta_observation_weights(tree, X, y, adjusted = FALSE)
   expect_true(all(ow$assigned))
-  # missing_action='na' → row 1 unassigned; 'majority' → row 1 assigned
+  # missing_action='na' -> row 1 unassigned; 'majority' -> row 1 assigned
   X_miss <- data.frame(x = c(NA, 1, 2, 3, 5, 6, 7, 8))
   y_miss  <- c(0L, 0L, 0L, 0L, 1L, 1L, 1L, 1L)
   ow_na  <- cta_observation_weights(tree, X_miss, y_miss, missing_action = "na")
@@ -69,7 +69,7 @@ test_that("ow: stump contract — assigned, missing_action, NA y, target_class a
   expect_true(is.na(ow_na$endpoint_id[1L]))
   expect_false(is.na(ow_maj$endpoint_id[1L]))
   expect_equal(nrow(ow_na), 8L); expect_equal(nrow(ow_maj), 8L)
-  # NA y → assigned=FALSE and NA weight; other rows still assigned
+  # NA y -> assigned=FALSE and NA weight; other rows still assigned
   y_na <- c(NA_integer_, 0L, 0L, 0L, 1L, 1L, 1L, 1L)
   ow_yn <- cta_observation_weights(tree, X, y_na)
   expect_false(ow_yn$assigned[1L])
@@ -82,13 +82,13 @@ test_that("ow: stump contract — assigned, missing_action, NA y, target_class a
   expect_true(all(ow1$target_class[ow1$assigned] == 1L))
 })
 
-test_that("ow: errors — y length mismatch, non-cta_tree, unmatched obs warning", {
+test_that("ow: errors - y length mismatch, non-cta_tree, unmatched obs warning", {
   tree <- .ow_stump_fit()
   skip_if(isTRUE(tree$no_tree), "mc sampling missed")
   X <- data.frame(x = 1:8)
   expect_error(cta_observation_weights(tree, X, y = 1:5), regexp = "length\\(y\\)")
   expect_error(cta_observation_weights(list(), data.frame(x=1:4), y=1:4), regexp = "cta_tree")
-  # Class "2" not in fitted tree → warning about unmatched obs
+  # Class "2" not in fitted tree -> warning about unmatched obs
   y_bad <- c(2L, 0L, 0L, 0L, 1L, 1L, 1L, 1L)
   expect_warning(cta_observation_weights(tree, X, y_bad), regexp = "could not be matched")
   # matrix newdata coerced to data.frame without error
@@ -123,13 +123,13 @@ test_that("ow: errors — y length mismatch, non-cta_tree, unmatched obs warning
   }
 })
 
-test_that("ow: myeloma — assigned counts and no-tree for MINDENOM=56/1/30", {
+test_that("ow: myeloma - assigned counts and no-tree for MINDENOM=56/1/30", {
   skip_if_slow_tests_disabled("fixture-myeloma-obs-weights")
   d <- .ow_load_myeloma()
   X <- d[, .ow_myeloma_attrs]
   y <- as.integer(d$V1)
 
-  # MINDENOM=56: no-tree → all unassigned, all NA endpoint_id
+  # MINDENOM=56: no-tree -> all unassigned, all NA endpoint_id
   ow56 <- cta_observation_weights(.ow_myeloma_fit(56L), X, y, adjusted = TRUE)
   expect_true(all(!ow56$assigned))
   expect_true(all(is.na(ow56$endpoint_id)))

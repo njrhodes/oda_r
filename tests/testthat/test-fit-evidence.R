@@ -1,5 +1,5 @@
 # tests/testthat/test-fit-evidence.R
-# Slice S — Fit Object Evidence Wiring Audit tests
+# Slice S - Fit Object Evidence Wiring Audit tests
 #
 # Covers:
 #  E1. novo_boot_ci S3 dispatch
@@ -73,7 +73,7 @@ test_that("E1-5: novo_boot_ci.cta_tree dispatches on cta_tree", {
   y <- c(rep(0L, 40), rep(1L, 20))
   tree <- cta_fit(X, y, mc_iter = 500L, mc_seed = 1L, loo = "off",
                   mindenom = 5L)
-  if (isTRUE(tree$no_tree)) skip("no_tree — skip dispatch test")
+  if (isTRUE(tree$no_tree)) skip("no_tree - skip dispatch test")
   ci <- novo_boot_ci(tree, nboot = 50L, seed = 42L)
   expect_s3_class(ci, "novo_boot_ci")
   expect_equal(ci$confusion, tree$training_confusion)
@@ -437,7 +437,7 @@ test_that("E8-4: cta_tree node_id path uses leaf class_counts and carries metada
   tree <- cta_fit(X, y, mc_iter = 500L, mc_seed = 1L, loo = "off",
                   mindenom = 5L)
   expect_false(isTRUE(tree$no_tree), label = "mc_seed=1 fixture must produce a tree")
-  # Find a terminal node id — nodes is unnamed; iterate by position
+  # Find a terminal node id - nodes is unnamed; iterate by position
   leaf_positions <- which(vapply(tree$nodes,
     function(nd) !is.null(nd) && isTRUE(nd$leaf), logical(1L)))
   expect_true(length(leaf_positions) > 0L, label = "mc_seed=1 fixture must have leaf nodes")
@@ -466,7 +466,7 @@ test_that("E8-5: cta_tree node_id errors on non-leaf node", {
   tree <- cta_fit(X, y, mc_iter = 500L, mc_seed = 1L, loo = "off",
                   mindenom = 5L)
   expect_false(isTRUE(tree$no_tree), label = "mc_seed=1 fixture must produce a tree")
-  # Root is the canonical non-leaf node — use root_id directly
+  # Root is the canonical non-leaf node - use root_id directly
   nid <- tree$root_id
   expect_false(isTRUE(tree$nodes[[nid]]$leaf), label = "root must be a split node")
   expect_error(novo_boot_ci(tree, node_id = nid, nboot = 50L),
@@ -548,7 +548,7 @@ test_that("E8-8: cta_ort stratum_id errors on missing stratum", {
 })
 
 # ---------------------------------------------------------------------------
-# E9: as_confusion_matrix() — bridge from cta_confusion_table to 2x2 matrix
+# E9: as_confusion_matrix() - bridge from cta_confusion_table to 2x2 matrix
 # ---------------------------------------------------------------------------
 
 test_that("E9-1: as_confusion_matrix converts 2x2 tidy df to matrix", {

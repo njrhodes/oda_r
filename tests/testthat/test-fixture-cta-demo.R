@@ -1,5 +1,5 @@
 ###############################################################################
-# test-fixture-cta-demo.R — gold regression vs CTA_DEMO_output.txt (MegaODA)
+# test-fixture-cta-demo.R - gold regression vs CTA_DEMO_output.txt (MegaODA)
 #
 # Canon: OPEN CTA_DEMO.CSV; VARS V1-V6; CLASS V1; ATTRIBUTE V2-V6;
 #   MC ITER 25000 CUTOFF 0.05 STOP 99.9; MINDENOM 1; PRUNE 0.05;
@@ -107,7 +107,7 @@ test_that("cta-demo gold: 8 splits with EXE-canonical attrs, obs, depth breakdow
 # 3. Training performance
 # =============================================================================
 
-test_that("cta-demo gold: confusion [[103,21],[6,70]] and overall ESS ≈ 75.17%", {
+test_that("cta-demo gold: confusion [[103,21],[6,70]] and overall ESS ~= 75.17%", {
   skip_if_not_smoke("fixture-cta-demo")
   d     <- load_cta_demo()
   tree  <- .cta_demo_fit()

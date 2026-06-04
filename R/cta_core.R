@@ -154,15 +154,15 @@
 # Called once per (node, attribute) pair before the MC permutation loop.
 #
 # Returns a list with:
-#   keep       — logical mask: which raw observations survive miss_code removal
-#   w_clean    — case weights for kept observations (numeric)
-#   block_idx  — integer 1..m: unique-value block membership for each kept obs
-#   uvals      — sorted unique x values (length m)
-#   m          — number of unique values
-#   nv         — per-block observation counts (integer, length m)
-#   Nv         — cumsum(nv): left-side observation count at each cut (integer, length m)
-#   Nm         — total kept observations (integer)
-#   mindenom   — stored for use inside .cta_fast_scan_perm()
+#   keep       - logical mask: which raw observations survive miss_code removal
+#   w_clean    - case weights for kept observations (numeric)
+#   block_idx  - integer 1..m: unique-value block membership for each kept obs
+#   uvals      - sorted unique x values (length m)
+#   m          - number of unique values
+#   nv         - per-block observation counts (integer, length m)
+#   Nv         - cumsum(nv): left-side observation count at each cut (integer, length m)
+#   Nm         - total kept observations (integer)
+#   mindenom   - stored for use inside .cta_fast_scan_perm()
 .cta_mc_precomp_ord <- function(x_raw, w_raw, miss_codes, mindenom) {
   miss_mask <- is.na(x_raw)
   if (!is.null(miss_codes)) miss_mask <- miss_mask | (x_raw %in% miss_codes)
@@ -222,7 +222,7 @@
     w1_adj <- w_c * (y_c == 1L)
   }
 
-  # Block aggregation via rowsum() (C-level) — replaces the O(m) R for-loop
+  # Block aggregation via rowsum() (C-level) - replaces the O(m) R for-loop
   z0a <- as.numeric(rowsum(w0_adj, precomp$block_idx, reorder = TRUE))
   z1a <- as.numeric(rowsum(w1_adj, precomp$block_idx, reorder = TRUE))
   C0a <- cumsum(z0a); C1a <- cumsum(z1a)
@@ -1283,7 +1283,7 @@ oda_cta_fit <- function(
   #     C = best-ESS valid split on the right branch (trace-selected node 3), or leaf
   #   Grow HO-CTA below B and C.  Score the full pruned tree.
   #
-  # Full A×B×C outer-product enumeration is NOT canonical.  The EXE trace for
+  # Full AxBxC outer-product enumeration is NOT canonical.  The EXE trace for
   # CTA_DEMO MODEL8 Tree 4 (A=V6) proves this: V4 (ESS=31.86%) is evaluated at
   # node 2 but NOT selected; only V2 (ESS=48.65%) is used for the expanded
   # candidate.  Evaluating B=V4 produces a 69.99% tree EXE never reports.
@@ -1351,7 +1351,7 @@ oda_cta_fit <- function(
         nd2 <- .split_nd(2L, 1L, 2L, left_idx, B_cand, appl_B)
 
         # Grow HO-CTA below B's children (depth 3+); node 2 is already placed.
-        # Canonical: B is at node 2; left child = 4 (2×2), right child = 5 (2×2+1).
+        # Canonical: B is at node 2; left child = 4 (2x2), right child = 5 (2x2+1).
         B_sub_env       <- new.env(parent = emptyenv())
         B_sub_env$nodes <- list()
 
@@ -1379,7 +1379,7 @@ oda_cta_fit <- function(
         # (B=leaf, C=leaf) handled by root-only stump phase - skip here
         if (B_is_leaf && C_is_leaf) next
 
-        # Canonical: C is always the right child of the root (node 3 = 2×1+1).
+        # Canonical: C is always the right child of the root (node 3 = 2x1+1).
         c_root_id <- 3L
 
         if (C_is_leaf) {
@@ -1394,7 +1394,7 @@ oda_cta_fit <- function(
           nd_C <- .split_nd(3L, 1L, 2L, right_idx, C_cand, appl_C)
 
           # Grow HO-CTA below C's children; C is at node 3.
-          # Canonical: left child = 6 (2×3), right child = 7 (2×3+1).
+          # Canonical: left child = 6 (2x3), right child = 7 (2x3+1).
           C_sub_env       <- new.env(parent = emptyenv())
           C_sub_env$nodes <- list()
 

@@ -76,7 +76,7 @@ LORT distinctions:
 | SDA-4B novometric_min_d mode | complete |
 | Post-pruning degeneracy gate (CTA + ORT + family) | complete |
 | LORT/SORT/GORT taxonomy | complete |
-| Power/sample-size planning: `oda_power()` / `oda_sample_size()` (unit-weighted binary 2×2) | complete |
+| Power/sample-size planning: `oda_power()` / `oda_sample_size()` (unit-weighted binary 2x2) | complete |
 | ODA/SMD/CTA covariate balance tables + plot data | complete |
 | SDA anchor object + task hooks (Slice O) | complete |
 | Production tools: readiness checks + ODA/LORT propensity (Slice Q) | complete |

@@ -4,7 +4,7 @@
 ###############################################################################
 
 test_that("UniODA ordered: naval big-ships example achieves 87.5% PAC", {
-  # Yarnold & Soltysik (2005) p.62 — optimal cut at 80, PAC = 87.5%
+  # Yarnold & Soltysik (2005) p.62 - optimal cut at 80, PAC = 87.5%
   x <- c(35, 45, 55, 65, 75, 85, 95, 99)
   y <- c(0L, 0L, 1L, 0L, 0L, 1L, 1L, 1L)
 
@@ -73,7 +73,7 @@ test_that("UniODA binary attribute: runs and produces a valid rule", {
 
 
 test_that("UniODA: priors_on=TRUE vs FALSE differ on imbalanced classes", {
-  # 9 class-0 vs 3 class-1 — priors_on should NOT produce a degenerate solution
+  # 9 class-0 vs 3 class-1 - priors_on should NOT produce a degenerate solution
   x <- c(1,2,3,4,5,6,7,8,9, 10,11,12)
   y <- c(rep(0L,9), 1L,1L,1L)
 
@@ -133,7 +133,7 @@ test_that("UniODA MC: p-value is in [0,1]", {
 })
 
 
-test_that("UniODA: deterministic — identical calls give identical results", {
+test_that("UniODA: deterministic - identical calls give identical results", {
   x <- c(1,2,3,4,5,6,7,8)
   y <- c(0L,0L,0L,0L,1L,1L,1L,1L)
 
@@ -148,7 +148,7 @@ test_that("UniODA: deterministic — identical calls give identical results", {
 
 # ---- LOO contract -----------------------------------------------------------
 
-test_that("LOO contract: loo='off' is default — fit$loo is NULL without explicit loo=", {
+test_that("LOO contract: loo='off' is default - fit$loo is NULL without explicit loo=", {
   # Canon: LOO is off unless the caller explicitly opts in.
   # Omitting loo= must leave fit$loo as NULL.
   x <- c(1, 2, 3, 4, 5, 6, 7, 8)
@@ -160,7 +160,7 @@ test_that("LOO contract: loo='off' is default — fit$loo is NULL without explic
 
 test_that("LOO contract: explicit loo='pvalue' populates fit$loo with ess_loo present", {
   # Use oda_univariate_core with loo_alpha=1.0 so the LOO always runs and
-  # populates fields — tests the contract (fields present), not significance
+  # populates fields - tests the contract (fields present), not significance
   # gating. (oda_fit does not forward loo_alpha.)
   x <- c(1, 2, 3, 4, 5, 6, 7, 8)
   y <- c(0L, 0L, 0L, 0L, 1L, 1L, 1L, 1L)
@@ -194,7 +194,7 @@ test_that("LOO contract: weighted categorical LOO returns ok=TRUE with allowed=F
 test_that("LOO contract: absent category in ordinary prediction routes to right side (class 1)", {
   # Canon: the absent-level override lives only inside oda_loo_for_rule().
   # oda_rule_predict / oda_rule_side must send an unseen category to the right
-  # side (1L, coded) — NOT to the left side as the LOO override does.
+  # side (1L, coded) - NOT to the left side as the LOO override does.
   # Mechanistic boundary established by commit 8197c4c; probe-confirmed.
   x <- c(rep(1L, 10L), rep(2L, 10L))  # only categories 1 and 2 in training
   y <- c(rep(0L, 10L), rep(1L, 10L))  # 1 -> class 0, 2 -> class 1 (perfect separation)
@@ -233,7 +233,7 @@ test_that("UniODA SAMPLEREP: balanced split chosen over unbalanced when PAC ties
 test_that("oda_mc_p_value: p_mc is raw ge_count/iter_used (no LaPlace +1)", {
   # Seeded regression anchors verify the formula directly.
   #
-  # Anchor 1 — refugee-act data, ESS = 44.09% (strong effect).
+  # Anchor 1 - refugee-act data, ESS = 44.09% (strong effect).
   # seed=1, mc_iter=200 is a seeded regression anchor with ge_count == 0.
   # p_mc must be exactly 0.0 (raw proportion), not (0+1)/(200+1) = 1/201.
   vote  <- c(rep(0L, 118), rep(0L,  78), rep(1L,  34), rep(1L, 177))
@@ -249,9 +249,9 @@ test_that("oda_mc_p_value: p_mc is raw ge_count/iter_used (no LaPlace +1)", {
   expect_equal(r1$iter_used, 200L, label = "anchor1: iter_used == 200")
   expect_equal(r1$p_mc,      0.0,  label = "anchor1: p_mc == 0.0 (not 1/201)")
 
-  # Anchor 2 — migraine data, ESS = 24.69% (weak; MC p ~ 0.086 per MegaODA).
+  # Anchor 2 - migraine data, ESS = 24.69% (weak; MC p ~ 0.086 per MegaODA).
   # seed=1, mc_iter=500: probe gives ge_count=39, iter_used=500.
-  # Raw p_mc = 39/500 = 0.078.  LaPlace would give 40/501 ≈ 0.07984.
+  # Raw p_mc = 39/500 = 0.078.  LaPlace would give 40/501 ~= 0.07984.
   treatment <- c(
     rep(0L, 13), rep(1L,  5),
     rep(0L,  9), rep(1L, 13),
@@ -336,7 +336,7 @@ test_that("DIRECTION: direction='off' matches default (regression gate)", {
 test_that("DIRECTION: direction propagates into MC permutation refits", {
   # Structural contract: direction is wired into oda_mc_p_value() and its
   # internal oda_univariate_core() calls.  Assert rule direction obeyed and
-  # p_mc is a valid probability — not the specific value.
+  # p_mc is a valid probability - not the specific value.
   x <- c(1, 2, 3, 4, 5, 6, 7, 8, 9, 10)
   y <- c(0L, 0L, 0L, 0L, 0L, 1L, 1L, 1L, 1L, 1L)
 

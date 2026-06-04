@@ -1,5 +1,5 @@
 ###############################################################################
-# test-fixture-cta-demo-model8.R — CTA_DEMO MINDENOM=8 canon coverage
+# test-fixture-cta-demo-model8.R - CTA_DEMO MINDENOM=8 canon coverage
 #
 # EXE: MINDENOM 8; PRUNE 0.05; ENUMERATE; LOO STABLE; MC ITER 25000 STOP 99.9.
 # Canon from MODEL8.TXT:
@@ -7,11 +7,11 @@
 #   Pruned:   6 splits (V2 V6 V2 V3 V6 V4), node5/V5 removed, ESS = 68.08%
 #   Enumerated == Pruned. Confusion: [[104,20],[12,64]], n=200.
 #
-# Block 1 (CRAN):  static canon — encodes MODEL8.TXT, no R fitting.
-# Block 2 (smoke): R e2e — prune_info fields and ESS values.
-# Block 3 (smoke): R e2e — tree geometry (node IDs, branch sizes, confusion).
+# Block 1 (CRAN):  static canon - encodes MODEL8.TXT, no R fitting.
+# Block 2 (smoke): R e2e - prune_info fields and ESS values.
+# Block 3 (smoke): R e2e - tree geometry (node IDs, branch sizes, confusion).
 #
-# Never rewrite expected values from R output — all derive from MODEL8.TXT.
+# Never rewrite expected values from R output - all derive from MODEL8.TXT.
 ###############################################################################
 
 # ---- R e2e helpers ----------------------------------------------------------
@@ -51,7 +51,7 @@
 })
 
 # =============================================================================
-# 1. Static canon — MODEL8.TXT anchors (CRAN-safe, no R fitting)
+# 1. Static canon - MODEL8.TXT anchors (CRAN-safe, no R fitting)
 # =============================================================================
 
 test_that("MODEL8 static canon: unpruned/pruned/enumerated structure and confusion", {
@@ -67,7 +67,7 @@ test_that("MODEL8 static canon: unpruned/pruned/enumerated structure and confusi
   expect_true("V5" %in% EXE_UNPRUNED_SPLIT_ATTRS)
   expect_equal(which(EXE_UNPRUNED_SPLIT_ATTRS == "V5"), 5L)
 
-  # pruning removes exactly V5 → 6 splits
+  # pruning removes exactly V5 -> 6 splits
   expect_length(EXE_PRUNED_SPLIT_ATTRS, 6L)
   expect_false("V5" %in% EXE_PRUNED_SPLIT_ATTRS)
   expect_equal(setdiff(EXE_UNPRUNED_SPLIT_ATTRS, EXE_PRUNED_SPLIT_ATTRS), "V5")
@@ -84,7 +84,7 @@ test_that("MODEL8 static canon: unpruned/pruned/enumerated structure and confusi
 })
 
 # =============================================================================
-# 2. R e2e — prune_info fields and ESS values
+# 2. R e2e - prune_info fields and ESS values
 # =============================================================================
 
 test_that("MODEL8 R e2e: prune_info records V5/node5 removal; ESS values match EXE", {
@@ -102,15 +102,15 @@ test_that("MODEL8 R e2e: prune_info records V5/node5 removal; ESS values match E
   expect_equal(length(pi$removed_attrs), length(pi$removed_node_ids))
 
   expect_equal(round(pi$unpruned_ess, 2), 60.65, tolerance = 0.5,
-               label = "unpruned ESS ≈ 60.65%")
+               label = "unpruned ESS ~= 60.65%")
   expect_equal(round(pi$pruned_ess,   2), 68.08, tolerance = 0.5,
-               label = "pruned ESS ≈ 68.08%")
+               label = "pruned ESS ~= 68.08%")
   expect_equal(pi$pruned_ess, tree$overall_ess,
                label = "pruned_ess == overall_ess")
 })
 
 # =============================================================================
-# 3. R e2e — tree geometry and training performance
+# 3. R e2e - tree geometry and training performance
 # =============================================================================
 
 test_that("MODEL8 R e2e: split IDs, node attrs, child geometry, branch sizes, ESS, confusion", {

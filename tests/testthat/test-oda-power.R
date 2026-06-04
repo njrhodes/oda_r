@@ -222,7 +222,7 @@ test_that("oda_sample_size rejects n_max <= n_min", {
 })
 
 test_that("oda_sample_size errors when n_max power is below target", {
-  # Tiny n_max with very high target — should fail
+  # Tiny n_max with very high target - should fail
   expect_error(
     oda_sample_size(ess = 5, power_target = 0.99, n_max = 10L, nsim = 200L),
     "n_max"

@@ -1,7 +1,7 @@
 ###############################################################################
 # test-lort-fit.R
 #
-# Tests for lort_fit() — the preferred explicit entry point for the LORT
+# Tests for lort_fit() - the preferred explicit entry point for the LORT
 # workflow layer.
 #
 # Verifies:
@@ -77,7 +77,7 @@ test_that("cta_fit(recursive=TRUE) still works after lort_fit added (T4)", {
 })
 
 # ---------------------------------------------------------------------------
-# T5: mindenom is not a lort_fit parameter — errors
+# T5: mindenom is not a lort_fit parameter - errors
 # ---------------------------------------------------------------------------
 test_that("lort_fit: passing mindenom errors (T5)", {
   expect_error(
@@ -87,7 +87,7 @@ test_that("lort_fit: passing mindenom errors (T5)", {
 })
 
 # ---------------------------------------------------------------------------
-# T6: recursive is not a lort_fit parameter — errors
+# T6: recursive is not a lort_fit parameter - errors
 # ---------------------------------------------------------------------------
 test_that("lort_fit: passing recursive errors (T6)", {
   expect_error(

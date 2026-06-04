@@ -1,5 +1,5 @@
 ###############################################################################
-# test-cta-endpoint-counts.R — per-leaf class-count storage contract
+# test-cta-endpoint-counts.R - per-leaf class-count storage contract
 #
 # Verifies that .leaf_nd() stores class_counts_raw and class_counts_weighted
 # on every terminal node at fit time.
@@ -80,7 +80,7 @@ test_that("counts: stump leaves store class_counts correctly; zero-count preserv
   expect_equal(stored_1, sum(ct$n[ct$actual == 1L]))
 })
 
-test_that("counts: weighted leaves — raw counts are integer raw obs; differ from weighted", {
+test_that("counts: weighted leaves - raw counts are integer raw obs; differ from weighted", {
   tree <- .counts_weighted_fit()
   skip_if(isTRUE(tree$no_tree), "mc sampling missed")
   leaves <- .leaf_nodes(tree)
@@ -98,7 +98,7 @@ test_that("counts: weighted leaves — raw counts are integer raw obs; differ fr
 })
 
 # =============================================================================
-# Smoke: myeloma canon — internal storage reconciles with confusion table
+# Smoke: myeloma canon - internal storage reconciles with confusion table
 # =============================================================================
 
 .counts_load_myeloma <- function() {
@@ -126,7 +126,7 @@ test_that("counts: weighted leaves — raw counts are integer raw obs; differ fr
   }
 })
 
-test_that("counts: myeloma MINDENOM=1 — leaf storage names, sums, reconcile confusion (n=255)", {
+test_that("counts: myeloma MINDENOM=1 - leaf storage names, sums, reconcile confusion (n=255)", {
   skip_if_slow_tests_disabled("cta-endpoint-counts")
   tree   <- .counts_myeloma_fit()
   leaves <- .leaf_nodes(tree)

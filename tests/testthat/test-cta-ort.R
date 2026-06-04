@@ -1,13 +1,13 @@
 ###############################################################################
-# test-cta-ort.R — Tests for cta_fit(recursive = TRUE) / LORT
+# test-cta-ort.R - Tests for cta_fit(recursive = TRUE) / LORT
 #
 # Tier: CRAN-safe. All fits use mc_iter = 100L, mc_seed = 42L, loo = "off".
 ###############################################################################
 
 # ---------------------------------------------------------------------------
 # Synthetic two-level dataset (n=60, 2 attributes A and B)
-#   B perfectly separates: B>0.5 → all y=1; B<=0.5 → all y=0
-#   LORT produces depth=1 ORT: root at 0, terminal children at 1 → 3 strata
+#   B perfectly separates: B>0.5 -> all y=1; B<=0.5 -> all y=0
+#   LORT produces depth=1 ORT: root at 0, terminal children at 1 -> 3 strata
 # ---------------------------------------------------------------------------
 syn_X <- data.frame(
   A = c(rep(0, 20), rep(1, 20), rep(1, 20)),
@@ -34,7 +34,7 @@ syn_X_wide_reordered <- data.frame(C_extra = seq_len(60L), B = syn_X$B, A = syn_
 # Core contract tests
 # =============================================================================
 
-test_that("cta_ort: errors — mindenom with recursive, non-recursive is cta_tree not cta_ort", {
+test_that("cta_ort: errors - mindenom with recursive, non-recursive is cta_tree not cta_ort", {
   expect_error(cta_fit(syn_X, syn_y, recursive = TRUE, mindenom = 5L),
                regexp = "mindenom")
   tree <- cta_fit(syn_X, syn_y, recursive = FALSE, mindenom = 1L,
@@ -43,7 +43,7 @@ test_that("cta_ort: errors — mindenom with recursive, non-recursive is cta_tre
   expect_true(inherits(tree, "cta_tree"))
 })
 
-test_that("cta_ort: termination guards — min_n, max_depth, max_nodes", {
+test_that("cta_ort: termination guards - min_n, max_depth, max_nodes", {
   # min_n guard: 1 stratum with stop_reason "min_n"
   ort_mn <- cta_fit(syn_X, syn_y, recursive = TRUE,
                     min_n = nrow(syn_X) + 1L,
@@ -78,7 +78,7 @@ test_that("cta_ort: object identity, strata structure, settings, reproducibility
   expect_true(all(diff(ort$strata$prop_class1) >= 0))
   # Seed stored
   expect_equal(ort$ort_settings$mc_seed, 42L)
-  # Reproducibility: same seed → identical strata and predictions
+  # Reproducibility: same seed -> identical strata and predictions
   ort2 <- do.call(cta_fit, syn_ort_args)
   expect_equal(ort$strata$n,           ort2$strata$n)
   expect_equal(ort$strata$path,        ort2$strata$path)
@@ -90,7 +90,7 @@ test_that("cta_ort: object identity, strata structure, settings, reproducibility
   expect_equal(ort_b$ort_settings$mc_seed, 99L)
 })
 
-test_that("cta_ort: predict types — class/stratum/path/all; stratum counts match strata$n", {
+test_that("cta_ort: predict types - class/stratum/path/all; stratum counts match strata$n", {
   ort <- syn_ort
   # type="class"
   pc <- predict(ort, syn_X, type = "class")
@@ -112,9 +112,9 @@ test_that("cta_ort: predict types — class/stratum/path/all; stratum counts mat
   }
 })
 
-test_that("cta_ort: predict edge cases — NA root attribute, no-tree root majority class", {
+test_that("cta_ort: predict edge cases - NA root attribute, no-tree root majority class", {
   ort <- syn_ort
-  # NA in root-split attribute → NA with missing_action='na'
+  # NA in root-split attribute -> NA with missing_action='na'
   new_row <- syn_X[1L, ]; new_row$A <- NA_integer_
   pred_na <- predict(ort, new_row, type = "all", missing_action = "na")
   expect_true(is.na(pred_na$predicted_class[1L]))
@@ -147,7 +147,7 @@ test_that("cta_ort: print, summary, plot, ort_plot_data work without error", {
 # MC threading and family_max_steps
 # =============================================================================
 
-test_that("cta_ort: MC threading — mc_stop/mc_stopup stored; defaults set", {
+test_that("cta_ort: MC threading - mc_stop/mc_stopup stored; defaults set", {
   # Explicit values stored
   ort_mc <- do.call(cta_fit, modifyList(syn_ort_args,
                                         list(mc_stop = 99.0, mc_stopup = 10)))
@@ -158,7 +158,7 @@ test_that("cta_ort: MC threading — mc_stop/mc_stopup stored; defaults set", {
   expect_true(is.na(syn_ort$ort_settings$mc_stopup))
 })
 
-test_that("cta_ort: family_max_steps — stored, default=20, invalid errors, non-recursive errors", {
+test_that("cta_ort: family_max_steps - stored, default=20, invalid errors, non-recursive errors", {
   # Explicit stored
   ort_fms <- do.call(cta_fit, modifyList(syn_ort_args, list(family_max_steps = 5L)))
   expect_equal(ort_fms$ort_settings$family_max_steps, 5L)
@@ -242,7 +242,7 @@ test_that("LORT taxonomy: print output and summary metadata fields", {
 # cta_ort_node_table (T56-T63)
 # =============================================================================
 
-test_that("cta_ort_node_table: schema — rows, required columns, method/flags all rows", {
+test_that("cta_ort_node_table: schema - rows, required columns, method/flags all rows", {
   ort <- syn_ort
   tbl <- cta_ort_node_table(ort)
   expect_s3_class(tbl, "data.frame")
@@ -261,7 +261,7 @@ test_that("cta_ort_node_table: schema — rows, required columns, method/flags a
   expect_true(all(!tbl$sda_anchored))
 })
 
-test_that("cta_ort_node_table: structure — root NA parent, non-root int parent, split nodes, depth>=1", {
+test_that("cta_ort_node_table: structure - root NA parent, non-root int parent, split nodes, depth>=1", {
   ort <- syn_ort
   tbl <- cta_ort_node_table(ort)
   # Root has NA parent; others have integer parent

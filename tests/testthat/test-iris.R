@@ -1,6 +1,6 @@
 ###############################################################################
 # test-iris.R
-# MegaODA.exe gold regression — iris dataset, all 4 attributes, K=3.
+# MegaODA.exe gold regression - iris dataset, all 4 attributes, K=3.
 #
 # Gold values from MegaODA.exe output. Species recoded: setosa=1,
 # versicolor=2, virginica=3.  Boundary = right_closed, LOO = refit.

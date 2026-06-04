@@ -1,5 +1,5 @@
 # tests/testthat/test-novo-boot.R
-# Tests for novo_boot_ci() — novometric bootstrap CI from a fixed 2x2 confusion.
+# Tests for novo_boot_ci() - novometric bootstrap CI from a fixed 2x2 confusion.
 
 # ---- helpers -----------------------------------------------------------------
 

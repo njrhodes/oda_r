@@ -2,18 +2,18 @@
 # tests/testthat/helper-test-tier.R
 # Test tiering for slow canon / integration tests.
 #
-# Tier levels (ordered low → high):
-#   cran  — CRAN-safe unit/contract tests only (default when unset or on CRAN)
-#   fast  — same practical behavior as cran for slow fixtures; fast dev loop
-#   smoke — CTA/MDSA/reporting/graphics production validation (myeloma, LOO
+# Tier levels (ordered low -> high):
+#   cran  - CRAN-safe unit/contract tests only (default when unset or on CRAN)
+#   fast  - same practical behavior as cran for slow fixtures; fast dev loop
+#   smoke - CTA/MDSA/reporting/graphics production validation (myeloma, LOO
 #           STABLE, translation stack, myeloma graphics)
-#   full  — all MegaODA/CTA.exe fixture parity, mc_iter >= 10000, release gate
+#   full  - all MegaODA/CTA.exe fixture parity, mc_iter >= 10000, release gate
 #
 # Environment variable: ODACORE_TEST_TIER
-#   unset / "cran" → cran tier (CRAN-safe; default)
-#   "fast"         → fast dev loop (skips same slow tests as cran)
-#   "smoke"        → smoke + cran; skips full-only tests
-#   "full"         → runs all tests
+#   unset / "cran" -> cran tier (CRAN-safe; default)
+#   "fast"         -> fast dev loop (skips same slow tests as cran)
+#   "smoke"        -> smoke + cran; skips full-only tests
+#   "full"         -> runs all tests
 #
 # Usage commands:
 #   # CRAN-safe / default check (no env var):
@@ -29,9 +29,9 @@
 #   ODACORE_TEST_TIER=full Rscript --vanilla -e "devtools::test(reporter='progress')"
 #
 # Guards:
-#   skip_if_not_smoke(reason) — skip unless tier >= smoke; always skip on CRAN
-#   skip_if_not_full(reason)  — skip unless tier == full; always skip on CRAN
-#   skip_if_slow_tests_disabled(reason) — backward-compatible alias for
+#   skip_if_not_smoke(reason) - skip unless tier >= smoke; always skip on CRAN
+#   skip_if_not_full(reason)  - skip unless tier == full; always skip on CRAN
+#   skip_if_slow_tests_disabled(reason) - backward-compatible alias for
 #                                         skip_if_not_smoke(); all existing
 #                                         slow guards now skip by default/cran
 ###############################################################################
@@ -45,7 +45,7 @@
     "fast"  = 2L,
     "smoke" = 3L,
     "full"  = 4L,
-    1L  # unknown value → cran-safe
+    1L  # unknown value -> cran-safe
   )
 }
 

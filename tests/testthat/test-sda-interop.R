@@ -1,5 +1,5 @@
 ###############################################################################
-# test-sda-interop.R — SDA-2 CTA interop accessor tests
+# test-sda-interop.R - SDA-2 CTA interop accessor tests
 #
 # Tier: CRAN-safe. All fits use small mc_iter on synthetic data.
 ###############################################################################
@@ -177,6 +177,6 @@ test_that("sda -> cta_fit: selected candidates are the only CTA columns", {
   sel    <- sda_selected_attributes(.sda_iop_fit)
   X_cta  <- as_cta_candidates(.sda_iop_fit, .sda_iop_X)
   expect_equal(colnames(X_cta), sel)
-  # CTA receives exactly the SDA-constrained frame — no extra columns
+  # CTA receives exactly the SDA-constrained frame - no extra columns
   expect_equal(ncol(X_cta), length(sel))
 })

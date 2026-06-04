@@ -1,5 +1,5 @@
 ###############################################################################
-# test-cta-family-reporting.R — cta_family_table(), summary.cta_family(),
+# test-cta-family-reporting.R - cta_family_table(), summary.cta_family(),
 #                                print.cta_family_summary(), print.cta_family()
 ###############################################################################
 
@@ -123,7 +123,7 @@
 })
 
 # =============================================================================
-# 1. cta_family_table — schema and column contract
+# 1. cta_family_table - schema and column contract
 # =============================================================================
 
 test_that("cta_family_table schema: data.frame with exact columns", {
@@ -136,7 +136,7 @@ test_that("cta_family_table schema: data.frame with exact columns", {
 })
 
 # =============================================================================
-# 2. cta_family_table — value contract
+# 2. cta_family_table - value contract
 # =============================================================================
 
 test_that("cta_family_table values: rows, index, mindenoms, selected_min_d, no-tree fields, next_mindenom, empty", {
@@ -178,7 +178,7 @@ test_that("cta_family_table values: rows, index, mindenoms, selected_min_d, no-t
 })
 
 # =============================================================================
-# 3. summary.cta_family — class, fields, values
+# 3. summary.cta_family - class, fields, values
 # =============================================================================
 
 test_that("summary.cta_family: class, required fields, and correct values", {
@@ -208,7 +208,7 @@ test_that("summary.cta_family: class, required fields, and correct values", {
 })
 
 # =============================================================================
-# 4. print methods — output contract (CRAN-safe)
+# 4. print methods - output contract (CRAN-safe)
 # =============================================================================
 
 test_that("print.cta_family and print.cta_family_summary: output contract and invisible return", {
@@ -231,7 +231,7 @@ test_that("print.cta_family and print.cta_family_summary: output contract and in
 })
 
 # =============================================================================
-# 5. Myeloma slow smoke — cta_family_table values
+# 5. Myeloma slow smoke - cta_family_table values
 # =============================================================================
 
 test_that("myeloma family table: 3 rows, mindenoms {1,30,56}, chain, terminal, selected_min_d, has_weights; summary shape", {
@@ -264,7 +264,7 @@ test_that("myeloma family table: 3 rows, mindenoms {1,30,56}, chain, terminal, s
 })
 
 # =============================================================================
-# 6. Myeloma slow smoke — summary and print
+# 6. Myeloma slow smoke - summary and print
 # =============================================================================
 
 test_that("myeloma summary: n_members=3, min_d_idx=1, has_weights=TRUE; print shows WESS", {

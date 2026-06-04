@@ -1,7 +1,7 @@
 ###############################################################################
-# test-cta-endpoint-count-table.R — cta_endpoint_counts()
+# test-cta-endpoint-count-table.R - cta_endpoint_counts()
 #
-# Per-endpoint × class count table.
+# Per-endpoint x class count table.
 # Reads stored leaf$class_counts_raw and leaf$class_counts_weighted only.
 ###############################################################################
 
@@ -32,7 +32,7 @@
   )
 }
 
-# Synthetic 3-leaf tree (constructed) — stable anchor for known values.
+# Synthetic 3-leaf tree (constructed) - stable anchor for known values.
 # node2: 4 obs class-0 only; node4: 3 obs class-0; node5: 3 obs class-1.
 .ect_3leaf_tree <- function() {
   node1 <- list(
@@ -115,7 +115,7 @@
 # Contract tests
 # =============================================================================
 
-test_that("ect: schema — data.frame, correct columns/types, no-tree zero rows", {
+test_that("ect: schema - data.frame, correct columns/types, no-tree zero rows", {
   df <- cta_endpoint_counts(.ect_no_tree_fit())
   expect_s3_class(df, "data.frame")
   expect_equal(nrow(df), 0L)
@@ -133,7 +133,7 @@ test_that("ect: schema — data.frame, correct columns/types, no-tree zero rows"
   expect_true(!any(forbidden %in% names(df)))
 })
 
-test_that("ect: stump — 4 rows, class labels, zero-count preserved, totals reconcile", {
+test_that("ect: stump - 4 rows, class labels, zero-count preserved, totals reconcile", {
   tree <- .ect_stump_fit()
   skip_if(isTRUE(tree$no_tree), "mc sampling missed")
   df   <- cta_endpoint_counts(tree)
@@ -154,7 +154,7 @@ test_that("ect: stump — 4 rows, class labels, zero-count preserved, totals rec
   expect_equal(raw_totals, epsum$denominator)
 })
 
-test_that("ect: weighted stump — n_weighted differs from n_raw", {
+test_that("ect: weighted stump - n_weighted differs from n_raw", {
   tree <- .ect_weighted_fit()
   skip_if(isTRUE(tree$no_tree), "mc sampling missed")
   df <- cta_endpoint_counts(tree)
@@ -166,7 +166,7 @@ test_that("ect: missing class_counts_raw on valid tree errors with message", {
                "endpoint class counts are unavailable")
 })
 
-test_that("ect: synthetic 3-leaf — known node values correct", {
+test_that("ect: synthetic 3-leaf - known node values correct", {
   df   <- cta_endpoint_counts(.ect_3leaf_tree())
   expect_equal(nrow(df), 6L)
   sub2 <- df[df$endpoint_node_id == 2L, ]
@@ -207,10 +207,10 @@ test_that("ect: synthetic 3-leaf — known node values correct", {
   }
 })
 
-test_that("ect: myeloma — rows/totals/confusion reconciliation for MINDENOM=1/30/56", {
+test_that("ect: myeloma - rows/totals/confusion reconciliation for MINDENOM=1/30/56", {
   skip_if_slow_tests_disabled("cta-endpoint-count-table")
 
-  # MINDENOM=1: 3 endpoints × 2 classes = 6 rows, total 255 obs
+  # MINDENOM=1: 3 endpoints x 2 classes = 6 rows, total 255 obs
   t1 <- .ect_myeloma_fit(1L)
   df1 <- cta_endpoint_counts(t1)
   expect_equal(nrow(df1), 6L)
@@ -219,7 +219,7 @@ test_that("ect: myeloma — rows/totals/confusion reconciliation for MINDENOM=1/
   expect_equal(sum(df1$n_raw[df1$class == "0"]), sum(ct1$n[ct1$actual == 0L]))
   expect_equal(sum(df1$n_raw[df1$class == "1"]), sum(ct1$n[ct1$actual == 1L]))
 
-  # MINDENOM=30: 2 endpoints (stump) × 2 classes = 4 rows, total 186 obs
+  # MINDENOM=30: 2 endpoints (stump) x 2 classes = 4 rows, total 186 obs
   t30 <- .ect_myeloma_fit(30L)
   df30 <- cta_endpoint_counts(t30)
   expect_equal(nrow(df30), 4L)
@@ -228,7 +228,7 @@ test_that("ect: myeloma — rows/totals/confusion reconciliation for MINDENOM=1/
   expect_equal(sum(df30$n_raw[df30$class == "0"]), sum(ct30$n[ct30$actual == 0L]))
   expect_equal(sum(df30$n_raw[df30$class == "1"]), sum(ct30$n[ct30$actual == 1L]))
 
-  # MINDENOM=56: no-tree → zero rows with correct columns
+  # MINDENOM=56: no-tree -> zero rows with correct columns
   df56 <- cta_endpoint_counts(.ect_myeloma_fit(56L))
   expect_equal(nrow(df56), 0L)
   expect_equal(names(df56), c("endpoint_id", "endpoint_node_id", "path",

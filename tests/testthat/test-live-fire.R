@@ -1,9 +1,9 @@
 # tests/testthat/test-live-fire.R
-# Slice T — Live-fire public API release rehearsal
+# Slice T - Live-fire public API release rehearsal
 #
 # End-to-end operator workflows using tiny synthetic data.
 # Each test_that block is a complete workflow, not an isolated unit test.
-# Assert object shapes, field presence, and non-NA evidence — not exact values.
+# Assert object shapes, field presence, and non-NA evidence - not exact values.
 #
 # All tests skip at cran tier; gated at fast tier and above.
 

@@ -1,5 +1,5 @@
 ###############################################################################
-# test-cta-summary.R — summary.cta_tree and print.cta_tree footer
+# test-cta-summary.R - summary.cta_tree and print.cta_tree footer
 ###############################################################################
 
 # ---- Helpers ----------------------------------------------------------------
@@ -75,7 +75,7 @@ test_that("summary.cta_tree: class is cta_tree_summary; all required fields pres
 })
 
 # =============================================================================
-# 2. No-tree status — all scalar fields
+# 2. No-tree status - all scalar fields
 # =============================================================================
 
 test_that("summary.cta_tree no-tree: status='no_tree', NA scalars, integer(0) endpoints", {
@@ -91,7 +91,7 @@ test_that("summary.cta_tree no-tree: status='no_tree', NA scalars, integer(0) en
 })
 
 # =============================================================================
-# 3. Stump status — all value fields
+# 3. Stump status - all value fields
 # =============================================================================
 
 test_that("summary.cta_tree stump: status, strata, endpoints, root_attr, counts, ess, d, params", {
@@ -133,7 +133,7 @@ test_that("summary.cta_tree synthetic valid_tree: status, strata=3, ess=75, d=1,
 })
 
 # =============================================================================
-# 5. print methods — output contract
+# 5. print methods - output contract
 # =============================================================================
 
 test_that("print.cta_tree_summary and print.cta_tree: output labels and invisible return", {
@@ -194,7 +194,7 @@ test_that("print.cta_tree_summary and print.cta_tree: output labels and invisibl
 })
 
 # =============================================================================
-# 6. Myeloma slow smoke — valid_tree, stump, no_tree status
+# 6. Myeloma slow smoke - valid_tree, stump, no_tree status
 # =============================================================================
 
 test_that("myeloma summary: MINDENOM=1 valid_tree+weights; MINDENOM=30 stump; MINDENOM=56 no_tree", {

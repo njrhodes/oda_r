@@ -1,5 +1,5 @@
 ###############################################################################
-# test-fixture-myeloma-cta.R — gold regression vs CTA.exe (MODEL1/30/56.TXT)
+# test-fixture-myeloma-cta.R - gold regression vs CTA.exe (MODEL1/30/56.TXT)
 #
 # Source: fixtures/myeloma/data.txt (256 obs, space-delimited, no header)
 # Command: EX V2=0; MISSING ALL (-9); WEIGHT V2; MC ITER 5000 STOP 99.9;
@@ -13,7 +13,7 @@
 # MINDENOM=30 canon (MODEL30.TXT): V17 stump, n=186, confusion [[101,34],[30,21]]
 #   OVERALL ESS=15.99%, WEIGHTED ESS=16.51%
 #
-# MINDENOM=56 canon (MODEL56.TXT): no admissible root → leaf only.
+# MINDENOM=56 canon (MODEL56.TXT): no admissible root -> leaf only.
 ###############################################################################
 
 # ---- fixture helpers ---------------------------------------------------------
@@ -96,10 +96,10 @@
 })
 
 # =============================================================================
-# 1. MINDENOM=1 — tree structure
+# 1. MINDENOM=1 - tree structure
 # =============================================================================
 
-test_that("myeloma MINDENOM=1: root V14/cut0.5/n255/WESS≈14.06%/STABLE; node2 V15/n211/WESS≈20.71%/STABLE; all STABLE", {
+test_that("myeloma MINDENOM=1: root V14/cut0.5/n255/WESS~=14.06%/STABLE; node2 V15/n211/WESS~=20.71%/STABLE; all STABLE", {
   skip_if_slow_tests_disabled("fixture-myeloma-cta")
   if (!.myeloma_fixtures_ok()) skip("myeloma fixture files missing")
   tree <- .myeloma_fit1()
@@ -130,10 +130,10 @@ test_that("myeloma MINDENOM=1: root V14/cut0.5/n255/WESS≈14.06%/STABLE; node2 
 })
 
 # =============================================================================
-# 2. MINDENOM=1 — training performance
+# 2. MINDENOM=1 - training performance
 # =============================================================================
 
-test_that("myeloma MINDENOM=1: confusion [[146,40],[36,33]] and WEIGHTED ESS ≈ 27.69%", {
+test_that("myeloma MINDENOM=1: confusion [[146,40],[36,33]] and WEIGHTED ESS ~= 27.69%", {
   skip_if_slow_tests_disabled("fixture-myeloma-cta")
   if (!.myeloma_fixtures_ok()) skip("myeloma fixture files missing")
   d    <- .load_myeloma()
@@ -173,10 +173,10 @@ test_that("myeloma MINDENOM=1: confusion [[146,40],[36,33]] and WEIGHTED ESS ≈
 })
 
 # =============================================================================
-# 3. MINDENOM=30 — V17 stump, n=186, confusion, OVERALL and WEIGHTED ESS
+# 3. MINDENOM=30 - V17 stump, n=186, confusion, OVERALL and WEIGHTED ESS
 # =============================================================================
 
-test_that("myeloma MINDENOM=30: V17 stump, n=186, confusion [[101,34],[30,21]], OVERALL≈15.99%, WEIGHTED≈16.51%", {
+test_that("myeloma MINDENOM=30: V17 stump, n=186, confusion [[101,34],[30,21]], OVERALL~=15.99%, WEIGHTED~=16.51%", {
   # Path-local scoring: V17 stump (n=186, WESS=16.51%) wins ENUMERATE over
   # V14 stump (n=255, WESS=14.06%). 69 V17-missing obs excluded by NA prediction.
   skip_if_slow_tests_disabled("fixture-myeloma-cta")
@@ -235,10 +235,10 @@ test_that("myeloma MINDENOM=30: V17 stump, n=186, confusion [[101,34],[30,21]], 
 })
 
 # =============================================================================
-# 4. MINDENOM=56 — no admissible root → no tree
+# 4. MINDENOM=56 - no admissible root -> no tree
 # =============================================================================
 
-test_that("myeloma MINDENOM=56: all candidates fail MINDENOM gate → no tree", {
+test_that("myeloma MINDENOM=56: all candidates fail MINDENOM gate -> no tree", {
   skip_if_slow_tests_disabled("fixture-myeloma-cta")
   if (!.myeloma_fixtures_ok()) skip("myeloma fixture files missing")
   d   <- .load_myeloma()

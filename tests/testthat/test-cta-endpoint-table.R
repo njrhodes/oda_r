@@ -1,5 +1,5 @@
 ###############################################################################
-# test-cta-endpoint-table.R — cta_endpoint_table() + cta_node_table()
+# test-cta-endpoint-table.R - cta_endpoint_table() + cta_node_table()
 ###############################################################################
 
 # ---- Helpers ----------------------------------------------------------------
@@ -20,7 +20,7 @@
   )
 }
 
-# Synthetic 3-leaf tree — stable anchor for known structural values.
+# Synthetic 3-leaf tree - stable anchor for known structural values.
 #   node1 (split, x<=4.5): left->node2(leaf,class0), right->node3(split)
 #   node3 (split, x<=6.5): left->node4(leaf,class0), right->node5(leaf,class1)
 .synthetic_3leaf_tree <- function() {
@@ -85,7 +85,7 @@
 # Contract tests
 # =============================================================================
 
-test_that("eptable: schema — data.frame, zero rows for no-tree, required columns", {
+test_that("eptable: schema - data.frame, zero rows for no-tree, required columns", {
   df <- cta_endpoint_table(.eptest_no_tree_fit())
   expect_s3_class(df, "data.frame")
   expect_equal(nrow(df), 0L)
@@ -100,7 +100,7 @@ test_that("eptable: schema — data.frame, zero rows for no-tree, required colum
               info = paste("missing:", paste(setdiff(required, names(df)), collapse = ", ")))
 })
 
-test_that("eptable: stump — 2 rows, structural and count contracts", {
+test_that("eptable: stump - 2 rows, structural and count contracts", {
   tree <- .eptest_stump_fit()
   skip_if(isTRUE(tree$no_tree), "mc sampling missed")
   df <- cta_endpoint_table(tree)
@@ -141,7 +141,7 @@ test_that("eptable: stump — 2 rows, structural and count contracts", {
   expect_true(all(df$parent_split_ess > 0))
 })
 
-test_that("eptable: synthetic 3-leaf — node IDs, paths, depths, predictions, lineage", {
+test_that("eptable: synthetic 3-leaf - node IDs, paths, depths, predictions, lineage", {
   df <- cta_endpoint_table(.synthetic_3leaf_tree())
   expect_equal(nrow(df), 3L)
   expect_equal(sort(df$leaf_node_id), c(2L, 4L, 5L))
@@ -222,7 +222,7 @@ test_that("nodetable: required columns, model strings, ess/p on split nodes", {
   }
 })
 
-test_that("eptable: myeloma — rows/paths/n for MINDENOM=1/30/56", {
+test_that("eptable: myeloma - rows/paths/n for MINDENOM=1/30/56", {
   skip_if_slow_tests_disabled("cta-endpoint-table")
 
   # MINDENOM=1: 3 endpoints, V14 in all paths, n=255
@@ -236,7 +236,7 @@ test_that("eptable: myeloma — rows/paths/n for MINDENOM=1/30/56", {
   expect_equal(nrow(df30), 2L)
   expect_true(all(grepl("V17", df30$path, fixed = TRUE)))
 
-  # MINDENOM=56: no-tree → zero rows with 'path' column
+  # MINDENOM=56: no-tree -> zero rows with 'path' column
   df56 <- cta_endpoint_table(.eptest_myeloma_fit(56L))
   expect_equal(nrow(df56), 0L)
   expect_true("path" %in% names(df56))

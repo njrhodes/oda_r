@@ -1,5 +1,5 @@
 ###############################################################################
-# test-oda-predict.R — Phase 2A tests: S3 class, predict, print, summary,
+# test-oda-predict.R - Phase 2A tests: S3 class, predict, print, summary,
 # and accessor behavior for oda_fit() results.
 ###############################################################################
 
@@ -95,7 +95,7 @@ test_that("miss_codes stored on fit", {
 })
 
 # =============================================================================
-# 3. predict.oda_fit — binary
+# 3. predict.oda_fit - binary
 # =============================================================================
 
 test_that("predict.oda_fit binary returns correct labels for simple separable data", {
@@ -142,7 +142,7 @@ test_that("predict.oda_fit binary: multi-column data.frame rejected", {
 })
 
 # =============================================================================
-# 4. predict.oda_fit — multiclass
+# 4. predict.oda_fit - multiclass
 # =============================================================================
 
 test_that("predict.oda_fit multiclass returns only valid classes", {
@@ -164,7 +164,7 @@ test_that("predict.oda_fit multiclass returns integer", {
 })
 
 # =============================================================================
-# 5. predict.oda_fit — failed fit
+# 5. predict.oda_fit - failed fit
 # =============================================================================
 
 test_that("predict.oda_fit failed fit returns all NA with warning", {
@@ -181,7 +181,7 @@ test_that("predict.oda_fit failed fit returns all NA with warning", {
 
 test_that("predict(fit$rule) is not a defined S3 generic on rule objects", {
   fit <- .bin_fit()
-  # rule is a plain list, not classed — predict() on a list falls through
+  # rule is a plain list, not classed - predict() on a list falls through
   # to the default which does not know what to do. We simply verify no
   # predict.rule or predict.ordered_cut method exists.
   expect_null(getS3method("predict", "rule", optional = TRUE))
@@ -371,7 +371,7 @@ test_that("binary LOO summary p_method is Fisher exact (2x2) and p_value is not 
     expect_equal(s$loo$p_status, "computed")
     expect_false(is.na(s$loo$p_value))   # p_value must be present when status=computed
   } else {
-    skip("LOO not allowed for this fit — skip p_method check")
+    skip("LOO not allowed for this fit - skip p_method check")
   }
 })
 
@@ -383,7 +383,7 @@ test_that("binary LOO metrics p_method is Fisher exact (2x2) and p_value is not 
     expect_equal(m$p_status, "computed")
     expect_false(is.na(m$p_value))
   } else {
-    skip("LOO not allowed for this fit — skip p_method check")
+    skip("LOO not allowed for this fit - skip p_method check")
   }
 })
 
@@ -409,7 +409,7 @@ test_that("multiclass LOO summary p_status is not_computed", {
     expect_equal(s$loo$p_method, "none")
     expect_match(s$loo$p_reason, "not reported")
   } else {
-    skip("LOO not allowed for this multiclass fit — skip p_status check")
+    skip("LOO not allowed for this multiclass fit - skip p_status check")
   }
 })
 
@@ -421,7 +421,7 @@ test_that("multiclass LOO metrics p_status is not_computed", {
     expect_equal(m$p_status, "not_computed")
     expect_true(is.na(m$p_value))
   } else {
-    skip("LOO not allowed for this multiclass fit — skip p_status check")
+    skip("LOO not allowed for this multiclass fit - skip p_status check")
   }
 })
 

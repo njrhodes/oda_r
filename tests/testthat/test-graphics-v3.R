@@ -44,23 +44,23 @@ gv3_X <- data.frame(
 )
 gv3_y <- c(rep(0L, 40), rep(1L, 20))
 
-# CTA fit — non-recursive (used for T1, T2, T5, T7, T8)
+# CTA fit - non-recursive (used for T1, T2, T5, T7, T8)
 gv3_cta <- cta_fit(gv3_X, gv3_y, mindenom = 5L,
                     mc_iter = 200L, mc_seed = 42L, loo = "off")
 
-# cta_plot_data output — used for T2
+# cta_plot_data output - used for T2
 gv3_cpd <- cta_plot_data(gv3_cta, target_class = 1L)
 
-# no_tree CTA — alpha_split = 0 forces no splits accepted
+# no_tree CTA - alpha_split = 0 forces no splits accepted
 gv3_notree <- cta_fit(gv3_X, gv3_y, mindenom = 5L,
                        mc_iter = 50L, mc_seed = 42L, loo = "off",
                        alpha_split = 0)
 
-# LORT fit — used for T3, T4, T6, T10
+# LORT fit - used for T3, T4, T6, T10
 gv3_lort <- lort_fit(gv3_X, gv3_y,
                       mc_iter = 200L, mc_seed = 42L, loo = "off", min_n = 5L)
 
-# ort_plot_data output — used for T4
+# ort_plot_data output - used for T4
 gv3_opd <- ort_plot_data(gv3_lort, target_class = 1L)
 
 # ---------------------------------------------------------------------------
@@ -142,7 +142,7 @@ test_that("plot_cta_tree / plot_lort_tree: wrong input class errors (T8)", {
 })
 
 # ---------------------------------------------------------------------------
-# T9: plot functions do not accept group/X/y — no fitting path exposed
+# T9: plot functions do not accept group/X/y - no fitting path exposed
 # ---------------------------------------------------------------------------
 test_that("plot_cta_tree / plot_lort_tree: no fitting args in signature (T9)", {
   gg_skip()
@@ -169,33 +169,33 @@ test_that("plot_lort_tree: color_by target_rate / prediction / none (T10)", {
 })
 
 ###############################################################################
-# v3C2 — Balance renderer fixtures and tests
+# v3C2 - Balance renderer fixtures and tests
 ###############################################################################
 
 # ---- Module-level balance fixtures ----------------------------------------- #
 
 # Reuse gv3_X / gv3_y from v3C1 above (same data, group = gv3_y).
-# ODA balance table — mcarlo=FALSE for speed (testing renderer, not p-values)
+# ODA balance table - mcarlo=FALSE for speed (testing renderer, not p-values)
 gv3_bt  <- oda_balance_table(gv3_y, gv3_X,
                                mcarlo  = FALSE,
                                mc_iter = 50L)
 
-# oda_balance_plot_data (no SMD join — keeps it simple and self-contained)
+# oda_balance_plot_data (no SMD join - keeps it simple and self-contained)
 gv3_obal_pd <- oda_balance_plot_data(gv3_bt)
 
 # SMD table
 gv3_smd_tbl <- smd_balance_table(gv3_y, gv3_X)
 
-# CTA balance table — valid tree (B perfectly separates groups)
+# CTA balance table - valid tree (B perfectly separates groups)
 gv3_ctb_disc <- cta_balance_table(gv3_y, gv3_X,
                                     mindenom = 5L,
                                     mc_iter  = 200L,
                                     mc_seed  = 42L)
 
-# CTA balance plot_data — valid tree
+# CTA balance plot_data - valid tree
 gv3_cbal_pd <- cta_balance_plot_data(gv3_ctb_disc)
 
-# CTA balance plot_data — no_tree (alpha_split=0 forces rejection of all splits)
+# CTA balance plot_data - no_tree (alpha_split=0 forces rejection of all splits)
 gv3_ctb_notree <- cta_balance_table(gv3_y, gv3_X,
                                       mindenom    = 5L,
                                       mc_iter     = 50L,
@@ -483,7 +483,7 @@ test_that("evidence renderers: no fitting args in signatures (E10)", {
 })
 
 ###############################################################################
-# v3C5 — LORT path navigation API (L-series)
+# v3C5 - LORT path navigation API (L-series)
 #  L1   lort_index_path() returns correct path data.frame
 #  L2   lort_local_tree() returns cta_tree for non-terminal nodes
 #  L3   at least one local CTA on path has >2 leaves

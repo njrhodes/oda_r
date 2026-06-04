@@ -1,5 +1,5 @@
 ###############################################################################
-# test-auto-sda-plan.R — SDA-3 auto_sda_plan() tests
+# test-auto-sda-plan.R - SDA-3 auto_sda_plan() tests
 #
 # Tier: CRAN-safe. No fitting; only planning/validation. Synthetic data only.
 ###############################################################################
@@ -8,15 +8,15 @@
 # Synthetic test frame
 #
 # 40 rows, binary outcome (y), 8 candidate columns covering all edge cases:
-#   A: numeric ordered predictor — clean
-#   B: integer binary predictor  — clean
-#   C: character predictor       — clean (categorical)
-#   D: factor predictor          — clean (2 levels → binary)
-#   E: constant (zero variance)  — should be excluded
-#   F: all-NA                    — should be excluded
-#   G: list column               — should be excluded (invalid type)
-#   H: exact duplicate of A      — collinear with A; should be flagged
-#   id_col: ID column            — declared via role_map
+#   A: numeric ordered predictor - clean
+#   B: integer binary predictor  - clean
+#   C: character predictor       - clean (categorical)
+#   D: factor predictor          - clean (2 levels -> binary)
+#   E: constant (zero variance)  - should be excluded
+#   F: all-NA                    - should be excluded
+#   G: list column               - should be excluded (invalid type)
+#   H: exact duplicate of A      - collinear with A; should be flagged
+#   id_col: ID column            - declared via role_map
 # ---------------------------------------------------------------------------
 
 set.seed(1)
@@ -33,7 +33,7 @@ set.seed(1)
   stringsAsFactors = FALSE
 )
 # Add list column and exact duplicate after data.frame construction
-.asp_df$G_list <- as.list(seq_len(.asp_n))   # list column — invalid type
+.asp_df$G_list <- as.list(seq_len(.asp_n))   # list column - invalid type
 .asp_df$H      <- .asp_df$A                  # exact duplicate of A
 
 # ---------------------------------------------------------------------------
@@ -135,7 +135,7 @@ test_that("auto_sda_plan: role_map, time_map, stage_map preserved", {
 # ---------------------------------------------------------------------------
 # Test 9: role_map "id" excludes the column; unknown map names go to warnings
 # ---------------------------------------------------------------------------
-test_that("auto_sda_plan: role_map id excluded; unknown names → warnings", {
+test_that("auto_sda_plan: role_map id excluded; unknown names -> warnings", {
   plan <- auto_sda_plan(.asp_df, outcome = "y",
                         role_map = list(id_col = "id",
                                         does_not_exist = "leakage"))
@@ -144,18 +144,18 @@ test_that("auto_sda_plan: role_map id excluded; unknown names → warnings", {
   reason_row <- plan$exclusion_reasons[
     plan$exclusion_reasons$name == "id_col", ]
   expect_equal(reason_row$reason, "role_id")
-  # unknown name → warning
+  # unknown name -> warning
   expect_true(any(grepl("does_not_exist", plan$warnings)))
 })
 
-test_that("auto_sda_plan: time_map unknown names → warnings field", {
+test_that("auto_sda_plan: time_map unknown names -> warnings field", {
   plan <- auto_sda_plan(.asp_df, outcome = "y",
                         candidates = c("A", "B"),
                         time_map = c(A = 1, ghost_var = 99))
   expect_true(any(grepl("ghost_var", plan$warnings)))
 })
 
-test_that("auto_sda_plan: stage_map unknown names → warnings field", {
+test_that("auto_sda_plan: stage_map unknown names -> warnings field", {
   plan <- auto_sda_plan(.asp_df, outcome = "y",
                         candidates = c("A", "B"),
                         stage_map = c(A = 1L, phantom = 2L))

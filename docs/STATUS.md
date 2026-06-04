@@ -18,7 +18,7 @@ the Windows executables; any divergence on a covered fixture is a bug in odacore
 | SDA | `sda_fit()` | Novometric `min_d` and legacy `unioda_max_ess` modes; SDA-1 through SDA-4B complete |
 | MDSA descendant family | `cta_descendant_family()` / `cta_family_table()` | D parsimony, family comparison |
 | Novometric bootstrap | `novo_boot_ci()` | S3 generic; ODA / CTA / LORT dispatch |
-| Power / sample-size planning | `oda_power()` / `oda_sample_size()` | Unit-weighted binary 2×2 only; Fisher exact isomorphism (Rhodes 2020) |
+| Power / sample-size planning | `oda_power()` / `oda_sample_size()` | Unit-weighted binary 2x2 only; Fisher exact isomorphism (Rhodes 2020) |
 
 ### Adjacent workflow-layer (uses canon components)
 

@@ -101,9 +101,9 @@ test_that("C-2/C-3: numeric and 'pvalue' loo both produce loo_status='PVALUE' on
   expect_equal(t2$nodes[[t2$root_id]]$loo_status, "PVALUE")
 })
 
-test_that("C-4: weighted CTA ordered path — loo=0.99 passes (PVALUE); loo=1e-9 rejects (no_tree)", {
+test_that("C-4: weighted CTA ordered path - loo=0.99 passes (PVALUE); loo=1e-9 rejects (no_tree)", {
   y <- c(rep(0L, 10L), rep(1L, 10L))
-  w <- c(rep(2, 10), rep(1, 10))    # non-uniform → CTA-specific weighted path
+  w <- c(rep(2, 10), rep(1, 10))    # non-uniform -> CTA-specific weighted path
   X <- data.frame(V1 = 1:20)
   # C-4a: loo=0.99 passes
   ta <- cta_fit(X, y, w = w, loo = 0.99, mc_iter = 1000L, mc_seed = 1L, prune_alpha = 1.0)
@@ -159,7 +159,7 @@ test_that("C-6: LOO called only for MC-significant generic_oda candidates", {
 # CRAN-safe: CTA family LOO gate inherits MC-before-LOO
 # =============================================================================
 
-test_that("C-7: CTA family LOO gate — family enumeration inherits MC-before-LOO", {
+test_that("C-7: CTA family LOO gate - family enumeration inherits MC-before-LOO", {
   y_c7 <- c(rep(0L, 10L), rep(1L, 10L))
   X_c7 <- data.frame(V_signal = 1:20, V_noise = rep(c(0L, 1L), 10L))
   de <- new.env(parent = emptyenv())
@@ -199,7 +199,7 @@ test_that("C-7: CTA family LOO gate — family enumeration inherits MC-before-LO
 # CRAN-safe: LORT LOO gate inherits MC-before-LOO
 # =============================================================================
 
-test_that("C-8: LORT LOO gate — local CTA recursion inherits MC-before-LOO", {
+test_that("C-8: LORT LOO gate - local CTA recursion inherits MC-before-LOO", {
   set.seed(NULL)
   y_c8 <- c(rep(0L, 15L), rep(1L, 15L))
   X_c8 <- data.frame(V_signal = 1:30, V_noise = rep(c(0L, 1L), 15L))

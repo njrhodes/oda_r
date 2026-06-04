@@ -13,7 +13,7 @@ Visual reference: ODA Journal articles and MPE book (Yarnold & Soltysik 2016)
 chapter figures. Target: figures that could appear in a journal submission
 without post-processing.
 
-### CTA tree — publication standard
+### CTA tree - publication standard
 
 **Split nodes** (internal):
 - Content: attribute name, cut value, n at node, ESS or WESS
@@ -26,22 +26,22 @@ without post-processing.
 - Fill: gradient by target rate (low = light, high = dark red); or discrete by prediction
 
 **Edges**:
-- Label: **short only** — just the branch condition at THIS split, not the full path
+- Label: **short only** - just the branch condition at THIS split, not the full path
 - Correct: `<= 0.5` or `> 0.5`
 - Incorrect: `x3 <= 0.5` (attribute already shown in parent) or compound `x3>0.5 AND x1>25` (path belongs in companion table)
 - The full root-to-leaf path logic is the job of a companion table (e.g., `cta_endpoint_table()`), not the diagram edges
 
 **Title**:
-- Format: `CTA — n=N, K endpoints, ESS=XX.X%, D=X.XXXX`
+- Format: `CTA - n=N, K endpoints, ESS=XX.X%, D=X.XXXX`
 - The D-statistic and global ESS/WESS belong in the title, not buried in nodes
 
 **v3 failures corrected in v4:**
-1. Fixed `half_h = 0.28` — cramped boxes for 4-line terminal labels → replaced with adaptive height from max line count
-2. No auto-title with ESS/D/n → added default auto-title
-3. Edge labels included attribute name prefix (`V14<=0.5`) → now stripped to `<=0.5` by default
-4. No stage IDs on terminal nodes → `cta_plot_data()` already adds Stage N; renderer exposes it
+1. Fixed `half_h = 0.28` - cramped boxes for 4-line terminal labels -> replaced with adaptive height from max line count
+2. No auto-title with ESS/D/n -> added default auto-title
+3. Edge labels included attribute name prefix (`V14<=0.5`) -> now stripped to `<=0.5` by default
+4. No stage IDs on terminal nodes -> `cta_plot_data()` already adds Stage N; renderer exposes it
 
-### LORT tree — publication standard
+### LORT tree - publication standard
 
 LORT is a **sequence of CTA sub-trees**, one per stratum. It is NOT a single
 composite CTA tree. The visual must reflect this:
@@ -54,14 +54,14 @@ composite CTA tree. The visual must reflect this:
 
 **Edge labels:**
 - Each edge connects a stratum block to its child stratum (through a CTA endpoint)
-- Label: the branch condition at the CTA endpoint split only — NOT the full path
+- Label: the branch condition at the CTA endpoint split only - NOT the full path
 - `path_conditions` is a vector; the last element may be a compound string from multi-split CTA sub-trees; strip to the final `AND` segment
 
 **v3 failures corrected in v4:**
-1. Used same `.render_tree_gg()` as CTA — LORT looked like a malformed CTA plot → now uses LORT-specific visual differentiation (depth bands + dashed terminal borders)
-2. Edge labels were compound paths (`V17>0.5 AND V15>0.5`) from multi-level sub-trees → fixed in `ort_plot_data()` to extract final segment
+1. Used same `.render_tree_gg()` as CTA - LORT looked like a malformed CTA plot -> now uses LORT-specific visual differentiation (depth bands + dashed terminal borders)
+2. Edge labels were compound paths (`V17>0.5 AND V15>0.5`) from multi-level sub-trees -> fixed in `ort_plot_data()` to extract final segment
 
-### Balance plots — publication standard
+### Balance plots - publication standard
 
 **SMD lollipop / Love plot** (`plot_smd_balance`, `plot_balance_love`):
 - Had the right diagnostic intent in v3 but failed public visual review
@@ -72,7 +72,7 @@ composite CTA tree. The visual must reflect this:
 - v4: same as v3, no major change needed
 
 **CTA balance no-tree** (`plot_cta_balance`, `status = "no_tree"`):
-- v3 failure: `.gg_message_panel()` produced a blank void canvas with floating text — looked like an error screen or software crash
+- v3 failure: `.gg_message_panel()` produced a blank void canvas with floating text - looked like an error screen or software crash
 - v4 target: styled result card with:
   - Bordered box panel (not void canvas)
   - Clear positive header: "No Discriminating Tree Found"
@@ -99,7 +99,7 @@ the quantitative evidence. Never overload a single plot.
 Replace rnorm-based random `dat` in guide with a fully deterministic 4-block dataset:
 
 ```r
-# 96 obs × 4 blocks × 24, no randomness, exact 4-stage CTA tree structure
+# 96 obs x 4 blocks x 24, no randomness, exact 4-stage CTA tree structure
 # x1 (binary, root split): x1=15 for obs 1-24 and 49-72, x1=35 for obs 25-48 and 73-96
 # x3 (binary, child split): x3=0 for obs 1-48, x3=1 for obs 49-96
 # y (binary outcome): controlled target rates per (x1,x3) block
@@ -108,10 +108,10 @@ dat_guide <- local({
   x3    <- c(rep(0L, 48), rep(1L, 48))
   x1    <- c(rep(15L, 24), rep(35L, 24), rep(15L, 24), rep(35L, 24))
   y     <- c(
-    rep(c(0L, 1L), times = c(22L, 2L)),   # Stage 1: x1=15,x3=0 →  2/24 =  8.3%
-    rep(c(0L, 1L), times = c(14L,10L)),   # Stage 2: x1=15,x3=1 → 10/24 = 41.7%
-    rep(c(0L, 1L), times = c(10L,14L)),   # Stage 3: x1=35,x3=0 → 14/24 = 58.3%
-    rep(c(0L, 1L), times = c(2L, 22L))    # Stage 4: x1=35,x3=1 → 22/24 = 91.7%
+    rep(c(0L, 1L), times = c(22L, 2L)),   # Stage 1: x1=15,x3=0 ->  2/24 =  8.3%
+    rep(c(0L, 1L), times = c(14L,10L)),   # Stage 2: x1=15,x3=1 -> 10/24 = 41.7%
+    rep(c(0L, 1L), times = c(10L,14L)),   # Stage 3: x1=35,x3=0 -> 14/24 = 58.3%
+    rep(c(0L, 1L), times = c(2L, 22L))    # Stage 4: x1=35,x3=1 -> 22/24 = 91.7%
   )
   x2    <- rep(c(25L, 30L, 35L, 40L, 45L, 50L), length.out = 96L)
   treat <- rep(c(0L, 1L), times = 48L)
@@ -120,8 +120,8 @@ dat_guide <- local({
 ```
 
 Expected CTA tree: root split on x1 (binary: {15} vs {35}), then x3 split (cut 0.5)
-in each x1 branch, yielding 4 terminal endpoints (Stages 1–4) with rates
-8%/42%/58%/92%, ESS ≈ 50%, D = 4.0.
+in each x1 branch, yielding 4 terminal endpoints (Stages 1-4) with rates
+8%/42%/58%/92%, ESS ~= 50%, D = 4.0.
 
 Note: x1 and x3 are both binary attributes. CTA uses binary_map rule for each.
 x2 uses a 6-cycle pattern to break row-order correlation with y.

@@ -10,8 +10,8 @@
 #     Software for Windows. Washington, DC: APA Books.
 #
 # Exported:
-#   oda_power()        — power of a 2-class ODA model via simulation.
-#   oda_sample_size()  — minimum n achieving a target power (bisection).
+#   oda_power()        - power of a 2-class ODA model via simulation.
+#   oda_sample_size()  - minimum n achieving a target power (bisection).
 #   print.oda_power
 #   print.oda_sample_size
 ###############################################################################

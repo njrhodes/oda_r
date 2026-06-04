@@ -1,8 +1,8 @@
 ###############################################################################
-# test-sda-novometric.R  —  SDA-4B: sda_fit(mode = "novometric_min_d") tests
+# test-sda-novometric.R  -  SDA-4B: sda_fit(mode = "novometric_min_d") tests
 #
 # Tier: CRAN-safe. Synthetic data only. No data-raw artifacts.
-# All tests from §4A.7 of docs/SDA_AUTO_SDA_PLAN.md.
+# All tests from S.4A.7 of docs/SDA_AUTO_SDA_PLAN.md.
 #
 # CTA split nodes preserve MC counters p_mc, ge_count, and iter_used;
 # novometric SDA candidate tables extract them from the selected member's
@@ -12,20 +12,20 @@
 # ---------------------------------------------------------------------------
 # Shared synthetic data  (n = 180, balanced)
 #
-# Two-attribute design for N1 (min-D winner ≠ max-ESS winner):
+# Two-attribute design for N1 (min-D winner != max-ESS winner):
 #
 #   A_attr (binary, S=2): 76 C1 at A=0, 14 C1 at A=1; 14 C2 at A=0, 76 C2 at A=1.
-#           UniODA-ESS ≈ 68.9%, CTA-ESS ≈ 68.9%, D ≈ 0.903.
+#           UniODA-ESS ~= 68.9%, CTA-ESS ~= 68.9%, D ~= 0.903.
 #
 #   B_attr (4-level non-monotone, S=4): the non-monotone class signal forces
 #           CTA to produce a 4-strata tree.
-#           CTA-ESS ≈ 80%, D = 1.0.
-#           UniODA single-cut ESS ≈ 53% (poor single cut on non-monotone data).
+#           CTA-ESS ~= 80%, D = 1.0.
+#           UniODA single-cut ESS ~= 53% (poor single cut on non-monotone data).
 #
 # In novometric mode CTA is used for both candidates:
-#   D(A)=0.903 < D(B)=1.0  → A wins min-D.
-#   CTA-ESS(B)=80% > CTA-ESS(A)=68.9% → B would win max-CTA-ESS.
-#   → min-D winner (A) ≠ max-CTA-ESS winner (B)  [N1 design point]
+#   D(A)=0.903 < D(B)=1.0  -> A wins min-D.
+#   CTA-ESS(B)=80% > CTA-ESS(A)=68.9% -> B would win max-CTA-ESS.
+#   -> min-D winner (A) != max-CTA-ESS winner (B)  [N1 design point]
 # ---------------------------------------------------------------------------
 
 .sn_n    <- 180L
@@ -44,7 +44,7 @@
 
 .sn_X    <- data.frame(A = .sn_A, B = .sn_B)
 
-# Pre-fitted novometric model — reused across multiple tests.
+# Pre-fitted novometric model - reused across multiple tests.
 # mindenom=10: each of the 4 strata has >=10 obs.
 .sn_fit  <- sda_fit(.sn_X, .sn_y,
                     mode     = "novometric_min_d",
@@ -53,7 +53,7 @@
                     mc_seed  = 42L)
 
 # ---------------------------------------------------------------------------
-# N1 — min-D winner ≠ max-ESS winner
+# N1 - min-D winner != max-ESS winner
 # ---------------------------------------------------------------------------
 test_that("N1: novometric selects min-D candidate when it has lower ESS than a competitor", {
   expect_true(length(.sn_fit$steps) >= 1L)
@@ -84,7 +84,7 @@ test_that("N1: novometric selects min-D candidate when it has lower ESS than a c
 })
 
 # ---------------------------------------------------------------------------
-# N2 — mindenom missing → canon error
+# N2 - mindenom missing -> canon error
 # ---------------------------------------------------------------------------
 test_that("N2: missing mindenom errors with canon MPE guidance", {
   err <- tryCatch(
@@ -96,11 +96,11 @@ test_that("N2: missing mindenom errors with canon MPE guidance", {
 })
 
 # ---------------------------------------------------------------------------
-# N3 — p-gate failure → ineligible
+# N3 - p-gate failure -> ineligible
 # ---------------------------------------------------------------------------
 test_that("N3: p-gate failure marks candidate ineligible with p_gate reason", {
   # Use tiny n to force MC p > alpha for one or more candidates.
-  # n=20 balanced, alpha=0.001 (very strict) → at least one attribute should fail p.
+  # n=20 balanced, alpha=0.001 (very strict) -> at least one attribute should fail p.
   set.seed(99)
   n_tiny <- 20L
   y_tiny <- c(rep(1L, 10L), rep(2L, 10L))
@@ -140,7 +140,7 @@ test_that("N3: p-gate failure marks candidate ineligible with p_gate reason", {
 })
 
 # ---------------------------------------------------------------------------
-# N4 — MINDENOM gate failure → ineligible with "axiom1"
+# N4 - MINDENOM gate failure -> ineligible with "axiom1"
 # ---------------------------------------------------------------------------
 test_that("N4: MINDENOM failure marks candidate ineligible with axiom1 reason", {
   # Use tiny n (n=10) with large mindenom (=8) so stump leaves fail MINDENOM.
@@ -153,7 +153,7 @@ test_that("N4: MINDENOM failure marks candidate ineligible with axiom1 reason", 
   fit_ax <- tryCatch(
     sda_fit(X_ax, y_ax,
             mode     = "novometric_min_d",
-            mindenom = 8L,          # each leaf must have >= 8 obs; stump leaves ~5 → fail
+            mindenom = 8L,          # each leaf must have >= 8 obs; stump leaves ~5 -> fail
             mc_iter  = 500L,
             mc_seed  = 42L),
     error = function(e) NULL
@@ -174,9 +174,9 @@ test_that("N4: MINDENOM failure marks candidate ineligible with axiom1 reason", 
 })
 
 # ---------------------------------------------------------------------------
-# N5 — no eligible candidate → stop reason p_gate or axiom1_violated
+# N5 - no eligible candidate -> stop reason p_gate or axiom1_violated
 # ---------------------------------------------------------------------------
-test_that("N5: all candidates fail → stop reason is p_gate or axiom1_violated", {
+test_that("N5: all candidates fail -> stop reason is p_gate or axiom1_violated", {
   # Construct data where MINDENOM is too large for any valid tree.
   n5 <- 14L
   y5 <- c(rep(1L, 7L), rep(2L, 7L))
@@ -200,7 +200,7 @@ test_that("N5: all candidates fail → stop reason is p_gate or axiom1_violated"
 })
 
 # ---------------------------------------------------------------------------
-# N6 — selected attribute removed from next step's candidate pool
+# N6 - selected attribute removed from next step's candidate pool
 # ---------------------------------------------------------------------------
 test_that("N6: selected attribute absent from step 2 candidate table", {
   skip_if(length(.sn_fit$steps) < 2L, "need at least 2 SDA steps")
@@ -212,7 +212,7 @@ test_that("N6: selected attribute absent from step 2 candidate table", {
 })
 
 # ---------------------------------------------------------------------------
-# N7 — correctly classified observations removed between steps
+# N7 - correctly classified observations removed between steps
 # ---------------------------------------------------------------------------
 test_that("N7: step 2 n_in = step 1 n_in - step 1 n_correct", {
   skip_if(length(.sn_fit$steps) < 2L, "need at least 2 SDA steps")
@@ -223,7 +223,7 @@ test_that("N7: step 2 n_in = step 1 n_in - step 1 n_correct", {
 })
 
 # ---------------------------------------------------------------------------
-# N8 — candidate table records all evaluated candidates
+# N8 - candidate table records all evaluated candidates
 # ---------------------------------------------------------------------------
 test_that("N8: candidate table has one row per evaluated attribute", {
   for (stp in .sn_fit$steps) {
@@ -255,13 +255,13 @@ test_that("N8: candidate table has one row per evaluated attribute", {
 })
 
 # ---------------------------------------------------------------------------
-# N9 — tie case: both candidates record tied_objective = TRUE; first in
+# N9 - tie case: both candidates record tied_objective = TRUE; first in
 # column order wins
 # ---------------------------------------------------------------------------
 test_that("N9: tied D yields tied_objective=TRUE; column-order tie-break is deterministic", {
   # Construct data where two IDENTICAL attributes produce the same D.
-  # A and B are exact copies → both should produce identical families.
-  # Column order: A is first → A should win the tie-break.
+  # A and B are exact copies -> both should produce identical families.
+  # Column order: A is first -> A should win the tie-break.
   set.seed(7)
   n9   <- 80L
   y9   <- c(rep(1L, 40L), rep(2L, 40L))
@@ -289,7 +289,7 @@ test_that("N9: tied D yields tied_objective=TRUE; column-order tie-break is dete
   A_row <- ctab[ctab$attribute == "A", ]
   B_row <- ctab[ctab$attribute == "B", ]
 
-  # Both eligible → both in tie pool
+  # Both eligible -> both in tie pool
   skip_if(!A_row$eligible || !B_row$eligible, "both must be eligible for tie test")
   expect_true(A_row$tied_objective)
   expect_true(B_row$tied_objective)
@@ -299,7 +299,7 @@ test_that("N9: tied D yields tied_objective=TRUE; column-order tie-break is dete
 })
 
 # ---------------------------------------------------------------------------
-# N10 — predict.sda_fit works on novometric fit
+# N10 - predict.sda_fit works on novometric fit
 # ---------------------------------------------------------------------------
 test_that("N10: predict.sda_fit(type='class') works on novometric fit", {
   preds <- predict(.sn_fit, .sn_X, type = "class")
@@ -317,7 +317,7 @@ test_that("N10: predict.sda_fit(type='class') works on novometric fit", {
 })
 
 # ---------------------------------------------------------------------------
-# N11 — CTA interop: as_cta_candidates works on novometric fit
+# N11 - CTA interop: as_cta_candidates works on novometric fit
 # ---------------------------------------------------------------------------
 test_that("N11: as_cta_candidates works on a novometric fit", {
   X_cta <- as_cta_candidates(.sn_fit, .sn_X)
@@ -328,10 +328,10 @@ test_that("N11: as_cta_candidates works on a novometric fit", {
 })
 
 # ---------------------------------------------------------------------------
-# N12 — axiom1_violated vs p_gate distinguishable
+# N12 - axiom1_violated vs p_gate distinguishable
 # ---------------------------------------------------------------------------
 test_that("N12: axiom1_violated and p_gate stop reasons are distinct", {
-  # Case 1: MINDENOM too large → axiom1_violated
+  # Case 1: MINDENOM too large -> axiom1_violated
   n12 <- 12L
   y12 <- c(rep(1L, 6L), rep(2L, 6L))
   A12 <- c(rep(0L, 5L), rep(1L, 1L), rep(0L, 1L), rep(1L, 5L))
@@ -374,14 +374,14 @@ test_that("N12: axiom1_violated and p_gate stop reasons are distinct", {
 })
 
 # ---------------------------------------------------------------------------
-# N13 — min_terminal_denom recorded in candidate table
+# N13 - min_terminal_denom recorded in candidate table
 # ---------------------------------------------------------------------------
 test_that("N13: min_terminal_denom in candidate table matches family object", {
   # Use .sn_fit where step 1 selected A (verified in N1).
   ctab <- .sn_fit$steps[[1L]]$candidate_table
   A_row <- ctab[ctab$attribute == "A", ]
 
-  # A is eligible → min_terminal_denom should be non-NA
+  # A is eligible -> min_terminal_denom should be non-NA
   expect_false(is.na(A_row$min_terminal_denom))
   expect_true(A_row$min_terminal_denom >= 10L)   # >= mindenom used
 

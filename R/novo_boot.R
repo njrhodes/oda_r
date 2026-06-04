@@ -474,7 +474,7 @@ novo_boot_ci.cta_ort <- function(x,
 #
 # cc            : named integer (or numeric) vector; names are string class
 #                 labels (e.g. c("0"=18, "1"=2)).
-# majority_class: integer (0 or 1) — the predicted class for every obs.
+# majority_class: integer (0 or 1) - the predicted class for every obs.
 # Returns a 2x2 integer matrix with rows = actual class, cols = predicted class.
 .node_counts_to_confusion <- function(cc, majority_class) {
   mc <- as.integer(majority_class)
