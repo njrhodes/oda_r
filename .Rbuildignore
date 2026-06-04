@@ -34,3 +34,4 @@
 ^tests/testthat/myeloma$
 ^tests/testthat/CTA_DEMO\.CSV$
 ^.*\.tar\.gz$
+^vignettes$
