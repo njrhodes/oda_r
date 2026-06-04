@@ -1,0 +1,30 @@
+-------------------------------------------------------------------------------
+Page 1                     Optimal Data Analysis           08:11:52  06-04-26
+ 
+OPEN IRIS_DATA.TXT;
+OUTPUT IRIS_CANON_ALL4.OUT;
+-------------------------------------------------------------------------------
+Page 1                     Optimal Data Analysis           08:12:17  06-04-26
+ 
+OPEN IRIS_DATA.TXT;
+OUTPUT IRIS_CANON_V2.OUT;
+-------------------------------------------------------------------------------
+Page 1                     Optimal Data Analysis           08:12:23  06-04-26
+ 
+OPEN IRIS_DATA.TXT;
+OUTPUT IRIS_CANON_V3.OUT;
+-------------------------------------------------------------------------------
+Page 1                     Optimal Data Analysis           08:12:31  06-04-26
+ 
+OPEN IRIS_DATA.TXT;
+OUTPUT IRIS_CANON_V4.OUT;
+-------------------------------------------------------------------------------
+Page 1                     Optimal Data Analysis           08:12:38  06-04-26
+ 
+OPEN IRIS_DATA.TXT;
+OUTPUT IRIS_CANON_V5.OUT;
+-------------------------------------------------------------------------------
+Page 1                     Optimal Data Analysis           08:17:17  06-04-26
+ 
+OPEN IRIS_DATA.TXT;
+OUTPUT IRIS_CANON_ALL4.OUT;

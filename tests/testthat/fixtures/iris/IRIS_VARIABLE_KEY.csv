@@ -1,0 +1,6 @@
+"oda_var","role","source_name","type"
+"V1","CLASS","Species recoded 1=setosa, 2=versicolor, 3=virginica","multiclass nominal class"
+"V2","ATTRIBUTE","Sepal.Length","ordered continuous attribute"
+"V3","ATTRIBUTE","Sepal.Width","ordered continuous attribute"
+"V4","ATTRIBUTE","Petal.Length","ordered continuous attribute"
+"V5","ATTRIBUTE","Petal.Width","ordered continuous attribute"

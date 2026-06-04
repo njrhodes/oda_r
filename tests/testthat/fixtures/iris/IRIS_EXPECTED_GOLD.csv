@@ -1,0 +1,5 @@
+"oda_attribute","source_name","expected_cut_1","expected_cut_2","expected_segment_classes","expected_train_overall_PAC","expected_LOO_overall_PAC"
+"V2","Sepal.Length",5.45,6.15,"1,2,3",74.67,73.33
+"V3","Sepal.Width",2.95,3.35,"2,3,1",59.33,59.33
+"V4","Petal.Length",2.45,4.75,"1,2,3",95.33,94
+"V5","Petal.Width",0.8,1.65,"1,2,3",96,95.33
