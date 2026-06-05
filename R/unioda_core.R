@@ -1229,11 +1229,32 @@ oda_univariate_core <- function(
     if (isTRUE(loo_out$allowed)) {
       if (loo == "stable") {
         stable <- isTRUE(all.equal(ess_obj, loo_out$ess_loo, tolerance = 1e-12))
-        if (!stable) return(list(ok=FALSE, reason="loo_not_stable", type="leaf"))
+        if (!stable) {
+          # Return full model so caller can inspect rule/confusion even when gated.
+          # ok=FALSE signals LOO instability; rule and confusion are still present.
+          return(list(
+            ok = FALSE, reason = "loo_not_stable", type = rule_best$type,
+            rule = rule_best, attr_type = attr_type, k_attr = k_attr,
+            n_eff = n_eff, weights = w,
+            confusion = conf_best_raw, confusion_wt = conf_best,
+            ess_class = ess_class, ess_attr = ess_attr, ess = ess_obj,
+            pac = pac, p_mc = p_mc, mc_info = mc_res, loo = loo_out
+          ))
+        }
       }
       if (loo == "pvalue") {
-        if (is.na(loo_out$p_value) || loo_out$p_value >= loo_alpha)
-          return(list(ok=FALSE, reason="loo_p_not_significant", type="leaf"))
+        if (is.na(loo_out$p_value) || loo_out$p_value >= loo_alpha) {
+          # Return full model so caller can inspect rule/confusion even when gated.
+          # ok=FALSE signals LOO p not significant; rule and confusion are still present.
+          return(list(
+            ok = FALSE, reason = "loo_p_not_significant", type = rule_best$type,
+            rule = rule_best, attr_type = attr_type, k_attr = k_attr,
+            n_eff = n_eff, weights = w,
+            confusion = conf_best_raw, confusion_wt = conf_best,
+            ess_class = ess_class, ess_attr = ess_attr, ess = ess_obj,
+            pac = pac, p_mc = p_mc, mc_info = mc_res, loo = loo_out
+          ))
+        }
       }
     }
   }

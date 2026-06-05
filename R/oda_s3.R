@@ -208,8 +208,12 @@ print.oda_fit <- function(x, ...) {
               eng, atyp, pr, n_eff, wt))
 
   if (!isTRUE(x$ok)) {
-    cat(sprintf("Status: FAILED  reason=%s\n\n", x$reason %||% "?"))
-    return(invisible(x))
+    if (is.null(x$rule)) {
+      cat(sprintf("Status: FAILED  reason=%s\n\n", x$reason %||% "?"))
+      return(invisible(x))
+    }
+    cat(sprintf("Status: LOO GATED  reason=%s\n", x$reason %||% "?"))
+    cat("(Model shown; not selected by LOO gate)\n")
   }
 
   cat("\nRule: ", .oda_fmt_rule(x$rule), "\n\n", sep = "")

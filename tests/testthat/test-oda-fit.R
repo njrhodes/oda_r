@@ -240,13 +240,19 @@ test_that("oda_fit: numeric loo=0.99 runs LOO and produces non-NULL fit$loo", {
 test_that("oda_fit: loo=1e-9 rejects via LOO p-value gate with correct reason", {
   # p_loo=1e-4 for this fixture; 1e-4 >= 1e-9 is TRUE -> gate rejects.
   # ok=FALSE with reason="loo_p_not_significant" proves the gate ran and rejected.
-  # This is behaviorally different from loo="off" which never runs the gate.
+  # Rule and confusion are present even when gated (ok=FALSE is not "no model").
   d   <- .loo_sem_xy()
   fit <- oda_fit(d$x, d$y, loo = 1e-9, mcarlo = TRUE, mc_iter = 1000L, mc_seed = 1L)
   expect_false(isTRUE(fit$ok),
                label = "loo=1e-9 must be rejected by LOO gate (p_loo=1e-4 >= 1e-9)")
   expect_equal(fit$reason, "loo_p_not_significant",
                label = "rejection reason must be 'loo_p_not_significant'")
+  expect_false(is.null(fit$rule),
+               label = "rule must be present even when LOO gated")
+  expect_false(is.null(fit$confusion),
+               label = "confusion must be present even when LOO gated")
+  expect_false(is.null(fit$loo),
+               label = "loo result must be present when LOO gated")
 })
 
 test_that("oda_fit: loo=0.99 and loo='pvalue' produce same LOO ESS (same computation, different threshold)", {

@@ -107,6 +107,14 @@ oda_fit <- function(
   direction     <- match.arg(direction)
   if (direction == "both") direction <- "off"  # canonical synonym
 
+  # Normalize mcarlo: numeric > 0 treated as TRUE with that many iterations.
+  # isTRUE(5000) is FALSE, so without this users passing a number get p_mc = NA.
+  if (is.numeric(mcarlo) && !is.logical(mcarlo) && length(mcarlo) == 1L &&
+      is.finite(mcarlo) && mcarlo > 0) {
+    mc_iter <- as.integer(mcarlo)
+    mcarlo  <- TRUE
+  }
+
   # Validate weights before any routing
   .validate_case_weights(w, length(x))
 
