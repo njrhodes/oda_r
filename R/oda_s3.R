@@ -422,6 +422,7 @@ summary.oda_fit <- function(object, ...) {
     n_eff          = object$n_eff,
     priors_on      = object$priors_on,
     has_weights    = object$has_weights,
+    classes        = object$classes,        # needed for multiclass LOO per-class display
     rule           = object$rule,
     rule_string    = if (!is.null(object$rule)) .oda_fmt_rule(object$rule) else NA_character_,
     objective      = object$ess,
