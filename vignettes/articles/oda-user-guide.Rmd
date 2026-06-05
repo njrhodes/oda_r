@@ -245,19 +245,17 @@ fit_miss <- oda_fit(
 )
 ```
 
-### 4.3 Leave-one-out (LOO) gate
+### 4.3 Leave-one-out (LOO)
 
-`loo = "stable"` applies the MegaODA LOO STABLE criterion: a rule is accepted
-only when the LOO ESS approximates the training ESS (|delta| <= 0.01 pp).
-Use `loo = "off"` (default) when computing power-conservative estimates; use
-`"stable"` for final confirmatory analyses.
+`loo = "on"` computes leave-one-out cross-validation and reports LOO ESS and
+LOO p alongside the training results.  Use `loo = "off"` (default) to skip LOO.
 
 ```{r oda-loo}
 fit_loo <- oda_fit(
   x         = dat$x1,
   y         = dat$y,
   attr_type = "ordered",
-  loo       = "stable",
+  loo       = "on",
   mc_iter   = 2000L,
   mc_seed   = 42L
 )

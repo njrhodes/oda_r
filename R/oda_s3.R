@@ -106,14 +106,14 @@
     if (!is.null(pv) && !is.na(pv)) {
       list(
         p_value  = pv,
-        p_method = "Fisher exact (2x2), one-tailed; MPE p.34",
+        p_method = "Fisher exact (2x2), one-tailed",
         p_status = "computed",
         p_reason = NA_character_
       )
     } else {
       list(
         p_value  = NA_real_,
-        p_method = "Fisher exact (2x2), one-tailed; MPE p.34",
+        p_method = "Fisher exact (2x2), one-tailed",
         p_status = "not_computed",
         p_reason = "2x2 Fisher exact LOO p-value not available in fit object"
       )
