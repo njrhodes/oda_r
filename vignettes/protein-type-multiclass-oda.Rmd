@@ -69,8 +69,9 @@ identity mapping (amino acid type i -> biological type i) without searching
 other partitions. ODA evaluates the identity rule and conducts the MC
 permutation test under the same constraint  -  a directional hypothesis test
 consistent with MPE Chapter 4 categorical identity-map DIRECTIONAL (Phase 6C).
-Leave-one-out (LOO) jackknife is not conducted for multicategorical class
-variables.
+Leave-one-out (LOO) jackknife validity is requested via `loo = "on"`; LOO
+confusion and ESS are reported. No LOO p-value is given because no canonical
+Fisher-exact LOO p-value is defined for C > 2 multicategorical class problems.
 
 ```{r fit-canonical, eval=FALSE}
 # Canonical reference run (mc_iter = 25000L; not evaluated in CRAN vignette)
@@ -80,7 +81,7 @@ fit <- oda_fit(
   attr_type = "categorical",
   direction = "ascending",
   mc_iter   = 25000L,
-  loo       = "off"
+  loo       = "on"
 )
 ```
 
@@ -94,7 +95,7 @@ fit <- oda_fit(
   direction = "ascending",
   mc_iter   = 500L,
   mc_seed   = 42L,
-  loo       = "off"
+  loo       = "on"
 )
 ```
 
@@ -158,17 +159,25 @@ cat("  Type 4:", round(pv[4], 1), "%\n")
   2, ~56.2%; type 3, ~52.3%; type 4, ~66.2%. All predictive values exceed
   chance.
 
-## Monte Carlo validity
+## Monte Carlo and LOO validity
 
-The directional MC p-value is shown in the `summary` output above.
+The directional MC p-value and LOO results are shown in the `print` and
+`summary` output above.
 
 - **MC p-value:** The printed `p(MC)` is a directional Fisher-randomization
   p-value. Because `direction = "ascending"` constrains each permutation to
   evaluate only the identity mapping, the p-value is one-tailed  -  consistent
   with the *a priori* convergent-validity hypothesis. Interpret by decision
   threshold (e.g., p < 0.05).
-- **LOO:** Leave-one-out jackknife is not conducted for multicategorical class
-  variables.
+- **LOO jackknife:** Leave-one-out ESS and Mean PAC are shown. Each fold
+  holds out one observation, refits on the remaining n-1 observations
+  (non-directional, equal priors), and classifies the held-out case. LOO ESS
+  equal to or near training ESS indicates the model is stable  -  no single
+  observation drives the result.
+- **LOO p-value:** No LOO Fisher-exact p-value is reported for multicategorical
+  (C > 2) class problems. No canonical reference distribution is defined for
+  the C×C LOO confusion matrix in this context. For binary class ODA, a
+  one-tailed Fisher exact p-value is available (MPE p. 34).
 
 ## Notes on reproducibility
 

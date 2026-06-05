@@ -58,7 +58,11 @@
     "<categorical/binary rule>"
 
   } else if (tp == "multiclass_nominal") {
-    "<nominal multiclass rule>"
+    levs <- rule$levels %||% character(0)
+    cls  <- rule$level_class %||% integer(0)
+    if (length(levs) == 0L) return("<nominal multiclass rule>")
+    parts <- sprintf("%s --> %d", levs, cls)
+    paste(parts, collapse = "   |   ")
 
   } else {
     sprintf("<rule type=%s>", tp)
