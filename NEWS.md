@@ -7,8 +7,9 @@
 * Improved `print()` and `summary()` for ODA fits so rule-bearing models show the learned rule, training evidence, and LOO evidence.
 * Enabled unweighted multiclass / multicategorical LOO reporting when `loo = "on"` is requested.
 * Clarified that multicategorical LOO reports LOO confusion and ESS but does not report a LOO p-value because there is no canon-aligned C x C Fisher p-value.
-* Aligned binary LOO Fisher p-values with MPE hold-out canon: one-tailed replication p-value.
-* Improved MC vs LOO p-value labels in output.
+* Clarified p-value directionality: MC permutation p-values are two-tailed;
+  binary LOO Fisher p-values are one-tailed (MPE hold-out canon). Output
+  labels now reflect the distinction.
 * Fixed nominal multiclass rule display.
 * Fixed multiclass summary output so class-level LOO PAC is visible.
 * Fixed PAC percentage formatting to avoid double-scaling percent values.
