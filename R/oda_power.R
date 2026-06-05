@@ -329,11 +329,13 @@ print.oda_power <- function(x, digits = 3L, ...) {
 #'   with Software for Windows.} Washington, DC: APA Books.
 #'
 #' @examples
-#' # Minimum n for ESS = 48%, 80% power (CRAN-safe nsim; use 10000L for publication)
-#' oda_sample_size(ess = 48, nsim = 500L, mc_seed = 42L)
+#' # Minimum n for ESS = 48%, 80% power (use nsim >= 500L for publication-quality estimates)
+#' oda_sample_size(ess = 48, nsim = 200L, mc_seed = 42L)
 #'
-#' # 90% power target
+#' \donttest{
+#' # 90% power target (publication-quality nsim)
 #' oda_sample_size(ess = 48, power_target = 0.90, nsim = 500L, mc_seed = 42L)
+#' }
 #'
 #' @export
 oda_sample_size <- function(power_target = 0.80,
