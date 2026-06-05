@@ -1,6 +1,6 @@
 Package: oda
 Title: Pure-R Core Engine for Optimal Data Analysis (ODA / MultiODA)
-Version: 0.1.0
+Version: 0.1.1
 Authors@R: c(
     person("Nathaniel", "Rhodes", role = c("aut","cre"),
            email = "nrhode@midwestern.edu"),
