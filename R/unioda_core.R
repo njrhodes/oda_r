@@ -1244,7 +1244,8 @@ oda_univariate_core <- function(
             n_eff = n_eff, weights = w,
             confusion = conf_best_raw, confusion_wt = conf_best,
             ess_class = ess_class, ess_attr = ess_attr, ess = ess_obj,
-            pac = pac, p_mc = p_mc, mc_info = mc_res, loo = loo_out
+            pac = pac, p_mc = p_mc, mc_info = mc_res, loo = loo_out,
+            direction = direction
           ))
         }
       }
@@ -1258,7 +1259,8 @@ oda_univariate_core <- function(
             n_eff = n_eff, weights = w,
             confusion = conf_best_raw, confusion_wt = conf_best,
             ess_class = ess_class, ess_attr = ess_attr, ess = ess_obj,
-            pac = pac, p_mc = p_mc, mc_info = mc_res, loo = loo_out
+            pac = pac, p_mc = p_mc, mc_info = mc_res, loo = loo_out,
+            direction = direction
           ))
         }
       }
@@ -1284,6 +1286,7 @@ oda_univariate_core <- function(
     p_mc      = p_mc,
     mc_info   = mc_res,
     loo       = loo_out,
+    direction = direction,
     tie_block = cand_df
   )
 }

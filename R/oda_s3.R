@@ -357,6 +357,7 @@ summary.oda_fit <- function(object, ...) {
         sensitivity        = if (!is.null(conf)) conf$sensitivity    else NA_real_,
         specificity        = if (!is.null(conf)) conf$specificity    else NA_real_,
         p_mc               = object$p_mc,
+        mc_direction       = object$direction %||% "off",
         mc_info            = object$mc_info
       )
     } else {
@@ -367,6 +368,7 @@ summary.oda_fit <- function(object, ...) {
         mean_pac           = object$mean_pac,
         pac_by_class       = object$pac_by_class,
         p_mc               = object$p_mc,
+        mc_direction       = object$direction %||% "off",
         mc_info            = object$mc_info
       )
     }
@@ -472,8 +474,11 @@ print.oda_fit_summary <- function(x, ...) {
                   if (!is.na(ep)) ep else NA_real_))
     }
     p_mc <- tr$p_mc
-    if (!is.null(p_mc) && !is.na(p_mc))
-      cat(sprintf("    p(MC): %s  [MC permutation, two-tailed]\n", .fmt_p(p_mc)))
+    if (!is.null(p_mc) && !is.na(p_mc)) {
+      mc_tail <- if (identical(tr$mc_direction %||% "off", "off"))
+                   "two-tailed" else "one-tailed"
+      cat(sprintf("    p(MC): %s  [MC permutation, %s]\n", .fmt_p(p_mc), mc_tail))
+    }
   }
 
   lo <- x$loo

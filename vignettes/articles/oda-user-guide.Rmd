@@ -234,8 +234,10 @@ Pass numeric missing codes to `miss_codes`; those values are excluded from
 the fit and scored as `NA` in predictions:
 
 ```{r oda-miss, eval = FALSE}
+# Inject sentinel missing codes so miss_codes actually excludes observations.
+x1_miss <- replace(dat$x1, c(3L, 47L), -9L)
 fit_miss <- oda_fit(
-  x          = dat$x1,
+  x          = x1_miss,
   y          = dat$y,
   miss_codes = c(-9, -99),
   mc_iter    = 2000L,
