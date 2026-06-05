@@ -559,7 +559,11 @@ oda_loo_multiclass <- function(
     x, y, w0, attr_type, priors_on_eff, weighted_requested,
     degen, K_segments, miss_codes = NULL
 ) {
-  if (isTRUE(priors_on_eff) || isTRUE(weighted_requested))
+  # Block only on actual non-unit case weights. priors_on_eff is an objective
+  # weighting device; it does not invalidate the LOO math (each fold refit
+  # uses priors_on = FALSE). Blocking on priors_on_eff wrongly suppresses
+  # categorical multiclass LOO for all unweighted fits. (MULTICAT-LOO1 fix)
+  if (any(as.numeric(w0) != 1))
     return(list(allowed = FALSE,
                 reason  = "categorical_weighted_loo_not_allowed"))
 

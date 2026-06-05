@@ -293,19 +293,22 @@ print.oda_fit <- function(x, ...) {
 
     lo <- x$loo
     if (!is.null(lo) && isTRUE(lo$allowed)) {
-      lc <- lo$confusion
+      # Categorical LOO stores $confusion; ordered LOO stores $confusion_raw.
+      lc <- lo$confusion %||% lo$confusion_raw
       cat("\n  -- LOO --\n")
       if (!is.null(lc)) {
         pb <- lc$pac_by_class %||% NULL
         if (!is.null(pb) && !is.null(x$classes)) {
           cat(sprintf("  CLASS  %6s\n", "PAC"))
           for (i in seq_along(x$classes))
-            cat(sprintf("  %5s  %5.1f%%\n", x$classes[i], pb[i] %||% NA_real_))
+            cat(sprintf("  %5s  %5.1f%%\n", x$classes[i], pb[i] * 100))
           cat("\n")
         }
-        mp          <- lc$mean_pac
-        ess_loo_val <- lo$ess_loo
-        ess_loo_str <- if (!is.null(ess_loo_val) && !is.na(ess_loo_val))
+        mp      <- lc$mean_pac   # proportion scale from oda_confusion_multiclass
+        C_loo   <- length(lc$classes %||% x$classes)
+        ess_loo_val <- if (!is.null(mp) && !is.na(mp) && C_loo >= 2L)
+                         oda_ess_from_mean(mp, C_loo) else NA_real_
+        ess_loo_str <- if (!is.na(ess_loo_val))
                          sprintf("   LOO ESS: %.2f%%", ess_loo_val) else ""
         if (!is.null(mp) && !is.na(mp))
           cat(sprintf("  LOO Mean PAC: %.2f%%%s\n", mp * 100, ess_loo_str))
@@ -384,17 +387,22 @@ summary.oda_fit <- function(object, ...) {
           p_reason  = p_info$p_reason
         )
       } else {
-        # Multiclass: loo$confusion is an oda_confusion_multiclass result list
-        lc <- lo$confusion
+        # Multiclass: categorical LOO stores $confusion; ordered stores $confusion_raw.
+        lc <- lo$confusion %||% lo$confusion_raw
+        mp      <- if (!is.null(lc)) lc$mean_pac else NULL   # proportion
+        C_loo   <- length(if (!is.null(lc)) lc$classes else object$classes)
+        ess_loo <- if (!is.null(mp) && !is.na(mp) && C_loo >= 2L)
+                     oda_ess_from_mean(mp, C_loo) else NA_real_
         loo_section <- list(
-          allowed   = TRUE,
-          confusion = if (!is.null(lc)) lc$confusion else NULL,
-          mean_pac  = if (!is.null(lc) && !is.null(lc$mean_pac))
-                        lc$mean_pac * 100 else NA_real_,
-          p_value   = p_info$p_value,
-          p_method  = p_info$p_method,
-          p_status  = p_info$p_status,
-          p_reason  = p_info$p_reason
+          allowed      = TRUE,
+          confusion    = if (!is.null(lc)) lc$confusion else NULL,
+          pac_by_class = if (!is.null(lc)) lc$pac_by_class else NULL,
+          mean_pac     = if (!is.null(mp)) mp * 100 else NA_real_,
+          ess_loo      = ess_loo,
+          p_value      = p_info$p_value,
+          p_method     = p_info$p_method,
+          p_status     = p_info$p_status,
+          p_reason     = p_info$p_reason
         )
       }
     } else {
@@ -504,15 +512,14 @@ print.oda_fit_summary <- function(x, ...) {
           cat("    p(LOO): not applicable\n")
         }
       } else {
-        # Multiclass: lc is an oda_confusion_multiclass result (confusion matrix + mean_pac)
-        if (!is.null(lc)) {
-          pb <- if (!is.null(lc$pac_by_class)) lc$pac_by_class else NULL
-          cls <- x[["classes"]] %||% NULL   # classes not stored in summary — use NULL gracefully
-          if (!is.null(pb) && !is.null(cls)) {
-            cat(sprintf("    CLASS  %6s\n", "PAC"))
-            for (i in seq_along(cls))
-              cat(sprintf("    %5s  %5.1f%%\n", cls[i], pb[i] %||% NA_real_))
-          }
+        # Multiclass: loo_section fields extracted by summary.oda_fit.
+        # pac_by_class is proportion scale; mean_pac and ess_loo are percent scale.
+        pb  <- lo$pac_by_class   # proportion
+        cls <- x[["classes"]] %||% NULL   # classes not stored in summary — use NULL gracefully
+        if (!is.null(pb) && !is.null(cls)) {
+          cat(sprintf("    CLASS  %6s\n", "PAC"))
+          for (i in seq_along(cls))
+            cat(sprintf("    %5s  %5.1f%%\n", cls[i], pb[i] * 100))
         }
         if (!is.null(lo$ess_loo) && !is.na(lo$ess_loo))
           cat(sprintf("    LOO ESS: %.2f%%\n", lo$ess_loo))
