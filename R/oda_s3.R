@@ -473,7 +473,7 @@ print.oda_fit_summary <- function(x, ...) {
     }
     p_mc <- tr$p_mc
     if (!is.null(p_mc) && !is.na(p_mc))
-      cat(sprintf("    p(MC): %s  [MC permutation, one-tailed]\n", .fmt_p(p_mc)))
+      cat(sprintf("    p(MC): %s  [MC permutation, two-tailed]\n", .fmt_p(p_mc)))
   }
 
   lo <- x$loo
