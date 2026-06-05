@@ -385,10 +385,10 @@ test_that("DIRECTION: categorical + direction != 'off' returns explicit failure"
 
 # ---- Phase 6B: LOO Fisher alternative conditional on direction --------------
 
-test_that("Phase 6B: direction='off' stores and uses 'two.sided' Fisher alternative", {
-  # Non-directional analysis should use two-sided Fisher for the LOO p-value.
-  # loo_alpha=1.0 forces the LOO gate to always pass so fit$loo is populated
-  # regardless of the p-value magnitude (same pattern as Phase 6A LOO test).
+test_that("Phase 6B: direction='off' stores 'greater' Fisher alternative (MPE p.34 canon)", {
+  # LOO p-value is always one-tailed per MPE p.34: "Hold-out p is one-tailed."
+  # The directional constraint governs fold refits, not the Fisher alternative.
+  # loo_alpha=1.0 forces the LOO gate to always pass so fit$loo is populated.
   x <- c(1, 2, 3, 4, 5, 6, 7, 8)
   y <- c(0L, 0L, 0L, 0L, 1L, 1L, 1L, 1L)
 
@@ -397,7 +397,7 @@ test_that("Phase 6B: direction='off' stores and uses 'two.sided' Fisher alternat
 
   expect_false(is.null(fit$loo),                      label = "6B off: loo not NULL")
   expect_true(isTRUE(fit$loo$allowed),                label = "6B off: loo allowed")
-  expect_equal(fit$loo$alternative, "two.sided",      label = "6B off: alternative is two.sided")
+  expect_equal(fit$loo$alternative, "greater",        label = "6B off: alternative is greater (MPE p.34)")
 })
 
 test_that("Phase 6B: direction='greater' stores and uses 'greater' Fisher alternative", {

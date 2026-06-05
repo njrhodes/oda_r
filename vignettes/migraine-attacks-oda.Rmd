@@ -155,18 +155,35 @@ cat("PV Treatment 2 (1):", round(pv_t2 * 100, 1), "%\n")
 
 ## Monte Carlo and LOO validity
 
-The nondirectional MC p-value and LOO result are shown in the `summary` output
-above.
+The MC p-value and LOO result are shown in the `summary` output above.
 
-- **MC p-value:** The printed `p(MC)` is a nondirectional Fisher-randomization
-  p-value. The MegaODA reference value is p ~ 0.086 (not significant at alpha =
-  0.05). Interpret by decision threshold. No exact match to the reference value
-  is guaranteed (see Notes).
+- **MC p-value (one-tailed, non-directional permutation):** Each Monte Carlo
+  permutation randomly shuffles class labels and refits ODA searching *both*
+  directions, exactly as in the training analysis. The reported p is the
+  proportion of permuted ESS values that equal or exceed the observed ESS.
+  Because the permutation distribution accounts for optimizing over both
+  directions, the MC p is more conservative for a non-directional analysis.
+  The MegaODA reference value is p ≈ 0.086 (not significant at α = 0.05).
 - **LOO stability:** The leave-one-out ESS equals the training ESS (24.69%),
-  indicating the rule is completely stable  -  no single observation materially
+  indicating the rule is completely stable — no single observation materially
   alters the model.
-- **LOO Fisher exact p < .05:** Statistical significance is confirmed in holdout
-  analysis, consistent with Appleton's one-tailed Fisher test.
+- **LOO Fisher exact p (one-tailed):** Per MPE p. 34, hold-out p is always
+  one-tailed: "the null hypothesis is that the training model will not replicate
+  when it is used to classify observations in the hold-out sample." The Fisher
+  exact test (alternative = "greater") tests whether the LOO confusion matrix
+  reflects above-chance classification. This test does *not* adjust for the
+  direction search performed during training. Statistical significance is
+  confirmed in LOO, consistent with Appleton's original one-tailed Fisher test.
+
+**Why MC p and LOO p diverge for non-directional analyses:** MC permutation
+p is more conservative than LOO Fisher p when the analysis is non-directional.
+The MC test accounts for the fact that training optimized over both directions
+(making the permutation baseline harder to beat); the LOO Fisher test does not
+apply that adjustment. Both values are valid for their respective purposes:
+MC p assesses training model significance with direction-search adjustment;
+LOO Fisher p assesses replication of the fixed training rule in held-out
+data. The divergence narrows or disappears when a directional hypothesis is
+declared *a priori* (see Notes).
 
 ## Notes on reproducibility and current scope
 

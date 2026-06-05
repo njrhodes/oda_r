@@ -157,7 +157,7 @@ Implementation scope (Phase 6A/6B  -  complete):
 - Candidate filter: only directions matching the constraint are evaluated.
 - MC permutation: directional constraint applied identically in each permutation refit.
 - LOO fold refits: directional constraint applied identically in each fold refit.
-- LOO Fisher `alternative`: `"two.sided"` for `"both"`/`"off"`; `"greater"` for directional.
+- LOO Fisher `alternative`: always `"greater"` (one-tailed). Canon anchor: MPE p. 34 — "Hold-out p is one-tailed: the null hypothesis is that the training model will not replicate." The directional constraint governs each LOO fold refit, not the Fisher alternative. For non-directional analyses, MC p is more conservative than LOO Fisher p because MC permutations also optimize over both directions; LOO Fisher does not adjust for direction selection — this divergence is expected and correct.
 
 Binary class errors: `"ascending"` and `"descending"` are rejected for binary class
 (Chapter 4 semantics require multiclass). Use `"greater"` or `"less"` instead.

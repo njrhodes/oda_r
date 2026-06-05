@@ -77,17 +77,23 @@
 
 # Build the four-field LOO p-value info block.
 #
-# Rules (MPE canon):
+# Canon (MPE p.34): "Hold-out p is one-tailed: the null hypothesis is that the
+# training model will not replicate when it is used to classify observations in
+# the hold-out sample."  LOO Fisher alternative is therefore always "greater",
+# regardless of whether the training direction was specified or not.
+#
+# Note: for non-directional analyses, MC p is more conservative than LOO p
+# because each MC permutation also searches both directions; LOO Fisher does not
+# adjust for direction selection.  MC p and LOO p legitimately diverge.
+#
+# Rules:
 #   Binary 2x2 LOO, p_value stored and not NA:
-#     p_method="Fisher exact (2x2)", p_status="computed".
+#     p_method="Fisher exact (2x2), one-tailed [MPE p.34]", p_status="computed".
 #   Binary 2x2 LOO, p_value absent or NA:
-#     p_method="Fisher exact (2x2)", p_status="not_computed",
-#     p_reason="2x2 Fisher exact LOO p-value not available in fit object".
+#     p_status="not_computed", p_reason="...not available in fit object".
 #   Multiclass/polychotomous:
 #     p_value=NA, p_method="none", p_status="not_computed",
 #     p_reason="LOO p-value is not reported for multicategorical/polychotomous ODA".
-#   Directional mxm equal-category: p_status="not_applicable" if metadata is
-#   available; currently no such metadata is stored -> conservative not_computed.
 #
 # lo must be the $loo list from fit (caller confirms allowed=TRUE before calling).
 .loo_p_info <- function(fit, lo) {
@@ -96,14 +102,14 @@
     if (!is.null(pv) && !is.na(pv)) {
       list(
         p_value  = pv,
-        p_method = "Fisher exact (2x2)",
+        p_method = "Fisher exact (2x2), one-tailed; MPE p.34",
         p_status = "computed",
         p_reason = NA_character_
       )
     } else {
       list(
         p_value  = NA_real_,
-        p_method = "Fisher exact (2x2)",
+        p_method = "Fisher exact (2x2), one-tailed; MPE p.34",
         p_status = "not_computed",
         p_reason = "2x2 Fisher exact LOO p-value not available in fit object"
       )
@@ -453,7 +459,8 @@ print.oda_fit_summary <- function(x, ...) {
                   if (!is.na(ep)) ep else NA_real_))
     }
     p_mc <- tr$p_mc
-    if (!is.null(p_mc) && !is.na(p_mc)) cat(sprintf("    p(MC): %s\n", .fmt_p(p_mc)))
+    if (!is.null(p_mc) && !is.na(p_mc))
+      cat(sprintf("    p(MC): %s  [MC permutation, one-tailed]\n", .fmt_p(p_mc)))
   }
 
   lo <- x$loo
