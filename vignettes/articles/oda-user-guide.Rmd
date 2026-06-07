@@ -437,7 +437,7 @@ print(lort)
 ```
 
 ```{r lort-strata}
-cta_strata(lort)         # one row per leaf
+cta_strata(lort)         # integer count of terminal leaf endpoints
 ```
 
 ```{r lort-predict}
@@ -675,7 +675,7 @@ print(ci_cta)
 Node-level bootstrap (single terminal endpoint):
 
 ```{r novoboot-cta-node}
-ep_ids <- cta_strata(tree)$endpoint_node_id
+ep_ids <- cta_endpoint_table(tree)$leaf_node_id
 if (length(ep_ids) >= 1L) {
   ci_node <- novo_boot_ci(tree, node_id = ep_ids[1L],
                           nboot = 1000L, seed = 42L)
