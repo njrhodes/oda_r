@@ -18,14 +18,20 @@
 
 #' Number of terminal leaf endpoints in a CTA tree
 #'
-#' Counts the terminal (leaf) nodes in a fitted \code{cta_tree}.  Returns
+#' Returns the \emph{count} of terminal leaf nodes in a fitted
+#' \code{cta_tree} (an integer scalar, not a table).  Returns
 #' \code{NA_integer_} for no-tree fits (where \code{tree$no_tree} is
 #' \code{TRUE}).
 #'
+#' To obtain endpoint details (node IDs, path labels, class counts,
+#' predicted class), use \code{\link{cta_endpoint_table}}.
+#'
 #' @param tree A \code{cta_tree} from \code{\link{oda_cta_fit}}.
-#' @return Integer count of terminal leaf nodes, or \code{NA_integer_} for
-#'   no-tree fits.
-#' @seealso \code{\link{cta_endpoint_denominators}},
+#' @return Integer scalar: number of terminal leaf nodes, or
+#'   \code{NA_integer_} for no-tree fits.  This is a count, not a
+#'   data frame — use \code{\link{cta_endpoint_table}} for per-endpoint rows.
+#' @seealso \code{\link{cta_endpoint_table}},
+#'   \code{\link{cta_endpoint_denominators}},
 #'   \code{\link{cta_min_terminal_denom}}
 #' @export
 cta_strata <- function(tree) {
