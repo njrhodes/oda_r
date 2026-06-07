@@ -649,7 +649,7 @@ oda_loo_binary_map_counts <- function(x, y, w, priors_on, rule) {
 #' @param ...  Additional args forwarded to oda_univariate_core for each fold.
 #' @return List with \code{allowed}, \code{confusion}, \code{ess_loo},
 #'   \code{p_value}, and \code{alternative} (always \code{"greater"}:
-#'   the LOO p-value is one-tailed per MPE p.34 — "Hold-out p is one-tailed:
+#'   the LOO p-value is one-tailed per MPE p.34 - "Hold-out p is one-tailed:
 #'   the null hypothesis is that the training model will not replicate."
 #'   The directional constraint governs each fold refit, not the Fisher
 #'   alternative.  Note: MC p-value for non-directional analyses is more
@@ -817,7 +817,7 @@ oda_loo_for_rule <- function(
   ess_loo      <- oda_ess_from_meanpac(conf_loo$mean_pac, chance)
 
   # Fisher's exact test on raw (unit-weight) counts  -  requires integer inputs.
-  # Always one-tailed ("greater"): MPE p.34 — "Hold-out p is one-tailed."
+  # Always one-tailed ("greater"): MPE p.34 - "Hold-out p is one-tailed."
   # The directional constraint governs fold refits, not the Fisher alternative.
   conf_loo_r <- oda_confusion_binary(y, y_pred_loo)   # unit weights
   tab <- matrix(c(conf_loo_r$TP, conf_loo_r$FP,

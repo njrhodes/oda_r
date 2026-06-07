@@ -583,7 +583,7 @@ has_gg <- requireNamespace("ggplot2", quietly = TRUE)
 
 ### 11.1 CTA tree diagram
 
-Default rendering is B/W with no color or legend — suitable for direct journal
+Default rendering is B/W with no color or legend - suitable for direct journal
 submission.  Pass `color_by = "target_rate"` or `color_by = "prediction"` for
 colored endpoint fills.
 

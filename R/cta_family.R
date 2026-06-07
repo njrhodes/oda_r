@@ -29,7 +29,7 @@
 #' @param tree A \code{cta_tree} from \code{\link{oda_cta_fit}}.
 #' @return Integer scalar: number of terminal leaf nodes, or
 #'   \code{NA_integer_} for no-tree fits.  This is a count, not a
-#'   data frame — use \code{\link{cta_endpoint_table}} for per-endpoint rows.
+#'   data frame - use \code{\link{cta_endpoint_table}} for per-endpoint rows.
 #' @seealso \code{\link{cta_endpoint_table}},
 #'   \code{\link{cta_endpoint_denominators}},
 #'   \code{\link{cta_min_terminal_denom}}

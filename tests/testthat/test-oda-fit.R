@@ -298,7 +298,7 @@ test_that("oda_fit: loo=Inf errors", {
   expect_error(oda_fit(x, y, loo = Inf), regexp = "strictly in .0, 1.")
 })
 
-# ---- summary(multiclass LOO) — per-class PAC visible in print output ----
+# ---- summary(multiclass LOO) - per-class PAC visible in print output ----
 #
 # Requirement: summary.oda_fit must carry 'classes' so that
 # print.oda_fit_summary can render the LOO CLASS/PAC table for multiclass

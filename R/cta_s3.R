@@ -596,7 +596,7 @@ as_confusion_matrix <- function(df) {
 #' Returns \code{NULL} invisibly when \code{tree$no_tree} is \code{TRUE}.
 #'
 #' @param tree A \code{cta_tree} from \code{\link{oda_cta_fit}}.
-#' @return A 2x2 integer matrix (actual × predicted) or \code{NULL} when no
+#' @return A 2x2 integer matrix (actual x predicted) or \code{NULL} when no
 #'   tree was found.
 #' @seealso \code{\link{cta_confusion_table}}, \code{\link{as_confusion_matrix}}
 #' @examples

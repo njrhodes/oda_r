@@ -533,7 +533,7 @@ print.oda_fit_summary <- function(x, ...) {
         # Multiclass: loo_section fields extracted by summary.oda_fit.
         # pac_by_class is proportion scale; mean_pac and ess_loo are percent scale.
         pb  <- lo$pac_by_class   # proportion
-        cls <- x[["classes"]] %||% NULL   # classes not stored in summary — use NULL gracefully
+        cls <- x[["classes"]] %||% NULL   # classes not stored in summary - use NULL gracefully
         if (!is.null(pb) && !is.null(cls)) {
           cat(sprintf("    CLASS  %6s\n", "PAC"))
           for (i in seq_along(cls))

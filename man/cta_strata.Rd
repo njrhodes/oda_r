@@ -12,7 +12,7 @@ cta_strata(tree)
 \value{
 Integer scalar: number of terminal leaf nodes, or
   \code{NA_integer_} for no-tree fits.  This is a count, not a
-  data frame — use \code{\link{cta_endpoint_table}} for per-endpoint rows.
+  data frame - use \code{\link{cta_endpoint_table}} for per-endpoint rows.
 }
 \description{
 Returns the \emph{count} of terminal leaf nodes in a fitted

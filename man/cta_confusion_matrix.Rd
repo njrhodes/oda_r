@@ -10,7 +10,7 @@ cta_confusion_matrix(tree)
 \item{tree}{A \code{cta_tree} from \code{\link{oda_cta_fit}}.}
 }
 \value{
-A 2x2 integer matrix (actual × predicted) or \code{NULL} when no
+A 2x2 integer matrix (actual x predicted) or \code{NULL} when no
   tree was found.
 }
 \description{
