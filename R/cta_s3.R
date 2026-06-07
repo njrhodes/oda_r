@@ -582,6 +582,37 @@ as_confusion_matrix <- function(df) {
 }
 
 # =============================================================================
+# cta_confusion_matrix()  -  one-step 2x2 matrix from a cta_tree
+# =============================================================================
+
+#' Extract training confusion matrix from a fitted CTA tree
+#'
+#' Convenience wrapper: returns the 2x2 integer training confusion matrix for a
+#' binary \code{\link{oda_cta_fit}} result directly, without the intermediate
+#' tidy long-format step required by \code{\link{cta_confusion_table}} and
+#' \code{\link{as_confusion_matrix}}.
+#'
+#' Rows are actual class (0/1), columns are predicted class (0/1).
+#' Returns \code{NULL} invisibly when \code{tree$no_tree} is \code{TRUE}.
+#'
+#' @param tree A \code{cta_tree} from \code{\link{oda_cta_fit}}.
+#' @return A 2x2 integer matrix (actual × predicted) or \code{NULL} when no
+#'   tree was found.
+#' @seealso \code{\link{cta_confusion_table}}, \code{\link{as_confusion_matrix}}
+#' @examples
+#' data(mtcars)
+#' X    <- mtcars[, c("cyl", "disp", "hp", "wt")]
+#' y    <- as.integer(mtcars$am)
+#' tree <- oda_cta_fit(X, y, mindenom = 5L, mc_iter = 500L, mc_seed = 42L)
+#' if (!isTRUE(tree$no_tree)) cta_confusion_matrix(tree)
+#' @export
+cta_confusion_matrix <- function(tree) {
+  stopifnot(inherits(tree, "cta_tree"))
+  if (isTRUE(tree$no_tree)) return(invisible(NULL))
+  as_confusion_matrix(cta_confusion_table(tree))
+}
+
+# =============================================================================
 # cta_endpoint_summary()  -  conservative endpoint reporting accessor
 # =============================================================================
 

@@ -116,6 +116,11 @@ sda_candidate_table <- function(fit, step = NULL) {
 #' @export
 as_cta_candidates <- function(fit, X) {
   .sda_check_class(fit)
+  if (missing(X))
+    stop(paste0(
+      "as_cta_candidates() requires the original data frame X as second argument.\n",
+      "Typical workflow: as_cta_candidates(sda_fit, X) ",
+      "or sda_to_cta_data(sda_fit, X, y)."), call. = FALSE)
   sel <- sda_selected_attributes(fit)
   if (length(sel) == 0L)
     stop("sda_fit has no selected attributes; cannot subset X.", call. = FALSE)

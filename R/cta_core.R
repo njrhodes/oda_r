@@ -476,6 +476,10 @@ oda_cta_fit <- function(
   if (is.null(attr_names))
     attr_names <- colnames(X) %||% paste0("V", seq_len(ncol(X)))
   n_attrs      <- ncol(X)
+  if (length(attr_names) != n_attrs)
+    stop(sprintf(
+      "attr_names length (%d) does not match number of attributes in X (%d).",
+      length(attr_names), n_attrs), call. = FALSE)
   C            <- 2L
   class_levels <- c(0L, 1L)
   loo_arg <- if (is.numeric(loo)) "pvalue" else as.character(loo)

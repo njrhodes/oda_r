@@ -55,7 +55,15 @@
     paste(parts, collapse = "   |   ")
 
   } else if (tp %in% c("binary_map", "nominal_cut")) {
-    "<categorical/binary rule>"
+    dir   <- rule$direction %||% "0->1"
+    l0    <- rule$label_0 %||% "0"
+    l1    <- rule$label_1 %||% "1"
+    left  <- paste(rule$left_levels,  collapse = ", ")
+    right <- paste(rule$right_levels, collapse = ", ")
+    if (identical(dir, "0->1"))
+      sprintf("{%s} --> %s   |   {%s} --> %s", left, l0, right, l1)
+    else
+      sprintf("{%s} --> %s   |   {%s} --> %s", left, l1, right, l0)
 
   } else if (tp == "multiclass_nominal") {
     levs <- rule$levels %||% character(0)
