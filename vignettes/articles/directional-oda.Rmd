@@ -141,6 +141,19 @@ each permutation evaluates the same fixed partition.
 - The training ESS and confusion are identical to the nondirectional result
   when the fixed partition happens to be the global optimum  -  which it is here.
 
+**LOO reporting for categorical directional fits:**
+
+With `loo = "on"`, binary fixed-map categorical ODA reports the held-out
+confusion, LOO ESS, and a binary one-tailed Fisher LOO p-value. The one-tailed
+Fisher LOO p comes from the 2x2 held-out classification table (MPE p. 34); it
+is not the MC p-value. MC p and LOO p are separate calculations  -  MC p
+permutes *y* labels under the fixed mapping; LOO p comes from the hold-out
+table. They are directionally consistent but are not numerically identical.
+
+For multicategorical fits (`direction = "ascending"` or nondirectional with
+C > 2 classes), `loo = "on"` reports held-out confusion and ESS but no LOO
+p-value. There is no canon-aligned C x C Fisher LOO p for multiclass ODA.
+
 ## Chapter 4: categorical identity map (`direction = "ascending"`)
 
 When the attribute has exactly k = C categories matching C class values,
@@ -184,8 +197,12 @@ nondirectional analysis; the p-value is smaller (one-tailed).
   equals C (number of class values). If they differ, an error is raised.
 - `direction = "descending"` reverses the mapping (attribute value k -> class 1,
   attribute value 1 -> class C).
-- For multiclass categorical, LOO is not computed (`loo = "off"` is appropriate
-  here because LOO for multiclass categorical is not supported).
+- Multiclass categorical LOO is supported (`loo = "on"`). LOO reports held-out
+  confusion and ESS but no Fisher LOO p-value (undefined for C > 2). LOO folds
+  search nondirectionally regardless of the `direction` setting; for this dataset
+  every fold recovers the identity map, so LOO ESS equals training ESS. This
+  example omits LOO for brevity; see `protein-type-multiclass-oda` for the full
+  LOO analysis.
 
 ## When NOT to use directional: nondirectional default
 

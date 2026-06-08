@@ -20,6 +20,12 @@
 
 ## Tests and release hygiene
 
+* Added fixture tests for directional categorical LOO: binary fixed `direction_map`
+  (LOO ESS, Fisher p one-tailed, p < 0.001) and multiclass `direction = "ascending"`
+  (LOO ESS, confusion, no LOO Fisher p, print states "not reported").
+* Corrected directional-oda article: multiclass categorical LOO is supported with
+  `loo = "on"`; clarified that MC p and LOO p are separate calculations.
+
 * Fixed binary and categorical rule display - was showing `<categorical/binary rule>` placeholder. Now shows actual level-to-class mappings, e.g. `{low} --> 0 | {high} --> 1`.
 * Added `cta_confusion_matrix(tree)` convenience wrapper that returns the 2x2 integer training confusion matrix directly from a `cta_tree` (previously required two-step `cta_confusion_table()` + `as_confusion_matrix()` call).
 * Added `attr_names` length guard in `oda_cta_fit()` - error when supplied names do not match number of attributes.
