@@ -111,3 +111,56 @@ test_that("B-4: .cta_predictions_degenerate() returns FALSE when two classes pre
   # Longer vector
   expect_false(degen(c(1L, 1L, 0L, 1L, 0L)))
 })
+
+# =============================================================================
+# B-5 / B-6  attr_names length guard
+# =============================================================================
+
+test_that("B-5: attr_names length mismatch raises an error", {
+  X <- data.frame(v1 = c(1,2,3,4,5,6,7,8,9,10),
+                  v2 = c(0,1,0,1,0,1,0,1,0,1))
+  y <- c(0L,0L,0L,0L,0L,1L,1L,1L,1L,1L)
+  expect_error(
+    oda_cta_fit(X, y, attr_names = c("a", "b", "c"), mc_iter = 50L, mindenom = 3L),
+    regexp = "attr_names length \\(3\\) does not match number of attributes in X \\(2\\)",
+    fixed  = FALSE
+  )
+})
+
+test_that("B-6: correct attr_names length is accepted and stored", {
+  X <- data.frame(v1 = c(1,2,3,4,5,6,7,8,9,10),
+                  v2 = c(0,1,0,1,0,1,0,1,0,1))
+  y <- c(0L,0L,0L,0L,0L,1L,1L,1L,1L,1L)
+  fit <- oda_cta_fit(X, y, attr_names = c("x1", "x2"), mc_iter = 50L, mindenom = 3L)
+  expect_equal(fit$attr_names, c("x1", "x2"))
+})
+
+# =============================================================================
+# B-7 / B-8 / B-9  attr_names + vector X
+# =============================================================================
+# When X is a bare numeric vector, as.data.frame() coerces it to a 1-column
+# frame.  attr_names must accept NULL or length-1, and must reject length > 1.
+
+test_that("B-7: vector X + NULL attr_names auto-names the column", {
+  v <- c(1,2,3,4,5,6,7,8,9,10)
+  y <- c(0L,0L,0L,0L,0L,1L,1L,1L,1L,1L)
+  fit <- oda_cta_fit(v, y, mc_iter = 50L, mindenom = 3L)
+  expect_length(fit$attr_names, 1L)
+})
+
+test_that("B-8: vector X + length-1 attr_names is stored", {
+  v <- c(1,2,3,4,5,6,7,8,9,10)
+  y <- c(0L,0L,0L,0L,0L,1L,1L,1L,1L,1L)
+  fit <- oda_cta_fit(v, y, attr_names = "score", mc_iter = 50L, mindenom = 3L)
+  expect_equal(fit$attr_names, "score")
+})
+
+test_that("B-9: vector X + attr_names length > 1 errors", {
+  v <- c(1,2,3,4,5,6,7,8,9,10)
+  y <- c(0L,0L,0L,0L,0L,1L,1L,1L,1L,1L)
+  expect_error(
+    oda_cta_fit(v, y, attr_names = c("a", "b"), mc_iter = 50L, mindenom = 3L),
+    regexp = "attr_names length \\(2\\) does not match number of attributes in X \\(1\\)",
+    fixed  = FALSE
+  )
+})

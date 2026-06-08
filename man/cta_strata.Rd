@@ -10,15 +10,22 @@ cta_strata(tree)
 \item{tree}{A \code{cta_tree} from \code{\link{oda_cta_fit}}.}
 }
 \value{
-Integer count of terminal leaf nodes, or \code{NA_integer_} for
-  no-tree fits.
+Integer scalar: number of terminal leaf nodes, or
+  \code{NA_integer_} for no-tree fits.  This is a count, not a
+  data frame - use \code{\link{cta_endpoint_table}} for per-endpoint rows.
 }
 \description{
-Counts the terminal (leaf) nodes in a fitted \code{cta_tree}.  Returns
+Returns the \emph{count} of terminal leaf nodes in a fitted
+\code{cta_tree} (an integer scalar, not a table).  Returns
 \code{NA_integer_} for no-tree fits (where \code{tree$no_tree} is
 \code{TRUE}).
 }
+\details{
+To obtain endpoint details (node IDs, path labels, class counts,
+predicted class), use \code{\link{cta_endpoint_table}}.
+}
 \seealso{
-\code{\link{cta_endpoint_denominators}},
+\code{\link{cta_endpoint_table}},
+  \code{\link{cta_endpoint_denominators}},
   \code{\link{cta_min_terminal_denom}}
 }

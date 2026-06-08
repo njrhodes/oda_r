@@ -149,12 +149,13 @@ model is refit on the remaining n - 1 cases, and the held-out observation is
 predicted by the refitted rule.
 
 ```{r loo}
-cat("Training ESS:", round(fit$ess,     2), "%\n")
-cat("LOO ESS:     ", round(fit$loo_ess, 2), "%\n")
-cat("LOO status:  ", fit$loo_status,        "\n")
+cat("Training ESS:", round(fit$ess,          2), "%\n")
+cat("LOO ESS:     ", round(fit$loo$ess_loo,  2), "%\n")
+loo_stable <- isTRUE(all.equal(fit$ess, fit$loo$ess_loo, tolerance = 1e-4))
+cat("LOO status:  ", if (loo_stable) "STABLE" else "UNSTABLE", "\n")
 ```
 
-`loo_status = "STABLE"` means the LOO ESS matches the training ESS (within a
+`LOO status: STABLE` means the LOO ESS matches the training ESS (within a
 small numerical tolerance). Complete LOO stability means no single observation
 drives the rule  -  the model generalises.
 

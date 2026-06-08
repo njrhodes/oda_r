@@ -62,24 +62,20 @@ table(adjustment, motivation,
 
 ## Fit the ODA model
 
-Adjustment type is a four-category nominal variable. Because the directional
-hypothesis specifies *a priori* that Ridges and Shifting predict Community
-motivation and Relocation and Intensified Cultivation predict Individual
-motivation, a fixed-partition `direction_map` is supplied. ODA evaluates only
-this mapping; no partition search is performed. This is MPE Chapter 4
-categorical fixed-partition DIRECTIONAL (Phase 6C). Leave-one-out (LOO)
-jackknife validity analysis is included; because the mapping is fixed, LOO
-predictions are invariant across folds (trivially stable by construction).
+Adjustment type is a four-category nominal variable. ODA searches all possible
+binary partitions of the four categories and selects the partition that maximises
+ESS. No *a priori* direction is supplied; the search is nondirectional
+(`Hypothesis: NONDIRECTIONAL` in MegaODA output). Leave-one-out (LOO) jackknife
+validity analysis is included.
 
 ```{r fit-canonical, eval=FALSE}
 # Canonical reference run (mc_iter = 25000L; not evaluated in CRAN vignette)
 fit <- oda_fit(
-  x             = adjustment,
-  y             = motivation,
-  attr_type     = "categorical",
-  direction_map = c("1" = 1L, "2" = 1L, "3" = 0L, "4" = 0L),
-  mc_iter       = 25000L,
-  loo           = "on"
+  x         = adjustment,
+  y         = motivation,
+  attr_type = "categorical",
+  mc_iter   = 25000L,
+  loo       = "on"
 )
 ```
 
@@ -87,13 +83,12 @@ fit <- oda_fit(
 # CRAN-safe run: mc_iter = 500L for vignette rendering speed.
 # Training rule, ESS, and confusion matrix are identical to the canonical run.
 fit <- oda_fit(
-  x             = adjustment,
-  y             = motivation,
-  attr_type     = "categorical",
-  direction_map = c("1" = 1L, "2" = 1L, "3" = 0L, "4" = 0L),
-  mc_iter       = 500L,
-  mc_seed       = 42L,
-  loo           = "on"
+  x         = adjustment,
+  y         = motivation,
+  attr_type = "categorical",
+  mc_iter   = 500L,
+  mc_seed   = 42L,
+  loo       = "on"
 )
 ```
 
@@ -103,12 +98,15 @@ fit <- oda_fit(
 print(fit)
 ```
 
-ODA identified a binary partition of the four adjustment categories:
+ODA's nondirectional search identified the optimal binary partition:
 
 - If adjustment in {1, 2} (Ridges or Shifting) -> predict motivation = Community (1)
 - If adjustment in {3, 4} (Relocation or Intensified) -> predict motivation = Individual (0)
 
-This rule is consistent with the directional hypothesis.
+This recovered mapping is substantively consistent with the adjustment/motivation
+hypothesis: adjustments requiring collective action (Ridges, Shifting) predict
+Community motivation; adjustments undertaken individually (Relocation, Intensified
+Cultivation) predict Individual motivation.
 
 ```{r confusion}
 # Confusion matrix: actual motivation (rows) x predicted motivation (cols)
@@ -151,16 +149,18 @@ cat("PV Community  (1):", round(pv_comm  * 100, 1), "%\n")
 
 The MC p-value and LOO result are shown in the `summary` output above.
 
-- **LOO stability:** Because the prediction rule is fixed *a priori* by
-  `direction_map`, every LOO fold applies the same mapping to the same x
-  values. LOO ESS equals the training ESS (56.30%) by construction  - 
-  trivially stable.
+- **LOO stability:** Each LOO fold independently searches for the optimal
+  nondirectional categorical partition on n - 1 observations. Because the
+  {1,2} -> 1 / {3,4} -> 0 mapping is the globally optimal partition for these
+  data, every fold recovers the same rule. LOO ESS equals training ESS (56.30%)
+  and LOO confusion equals the training confusion matrix.
 - **LOO Fisher exact p < .001:** Statistical significance confirmed in holdout
   analysis.
-- **MC p-value:** The fixed partition is evaluated on each permuted y vector,
-  yielding a directional Fisher-randomization p-value. The `p(MC)` shown
-  is expected to be small (MegaODA reports p = 0.000000); the 500-iteration
-  CRAN run may show p = 0.0. Use `mc_iter = 25000L` for publication results.
+- **MC p-value:** Each permutation evaluates the best nondirectional partition
+  of the permuted labels, yielding a nondirectional Fisher-randomization p-value.
+  The `p(MC)` shown is expected to be very small (MegaODA reports p = 0.000000
+  at 25000 iterations); the 500-iteration CRAN run may show p = 0.0. Use
+  `mc_iter = 25000L` for publication results.
 
 ## Notes on reproducibility
 
@@ -175,9 +175,16 @@ accurately (STOP fires early). Use the canonical run with `mc_iter = 25000L`
 (chunk `fit-canonical`, `eval=FALSE`) for publication-quality results.
 Training ESS and confusion matrix are unaffected by `mc_iter`.
 
-**Directional analysis.** `direction_map = c("1"=1, "2"=1, "3"=0, "4"=0)`
-specifies a fixed categorical partition *a priori*: adjustment types 1 and 2
-predict Community motivation; types 3 and 4 predict Individual motivation.
-ODA evaluates only this mapping (no partition search) and conducts the MC
-permutation test under the same fixed rule  -  a directional hypothesis test
-consistent with MPE Chapter 4 categorical/table DIRECTIONAL (Phase 6C).
+**Nondirectional search.** No `direction_map` is supplied. ODA evaluates all
+possible binary partitions of the four adjustment categories and selects the
+one that maximises ESS. The MC permutation test is nondirectional: each
+permutation selects the best partition for the permuted labels. This matches
+the MegaODA.exe gold run (`Hypothesis: NONDIRECTIONAL`).
+
+**Optional constrained analysis.** A researcher with an *a priori* hypothesis
+specifying exactly which categories predict which class can supply
+`direction_map = c("1"=1L, "2"=1L, "3"=0L, "4"=0L)` for a fixed-partition
+directional analysis (MPE Chapter 4 Phase 6C). For this dataset the two
+analyses yield identical ESS and confusion because the *a priori* mapping
+happens to be the global optimum; they differ in MC interpretation (directional
+vs. nondirectional p-value).

@@ -140,6 +140,24 @@ oda_fit <- function(
            has_weights = !is.null(w) && any(w != 1)),
       class = c("oda_fit_failed", "oda_fit")))
 
+  # Pre-flight: weighted categorical LOO is out of scope (MPE Ch.2/Ch.4).
+  # Weighted LOO is canonical only for ordered attributes.  Error early so the
+  # caller gets a clear message rather than a silent loo$allowed = FALSE result.
+  # Guard length(loo)==1 so that invalid loo vectors still fall through to the
+  # existing validator in the C==2 branch.
+  if (length(loo) == 1L && loo != "off" && !is.null(w) && any(as.numeric(w) != 1)) {
+    attr_type_pf <- oda_resolve_attr_type(clean$x, attr_type)
+    # Multiclass engine remaps "binary" attributes to "categorical" internally
+    is_cat_pf <- attr_type_pf == "categorical" ||
+                 (C >= 3L && attr_type_pf == "binary")
+    if (is_cat_pf)
+      stop(
+        "LOO is not supported for categorical attributes with non-unit case weights. ",
+        "Weighted LOO is available only for ordered attributes.",
+        call. = FALSE
+      )
+  }
+
   if (C == 2L) {
     # ascending/descending are Chapter 4 multiclass; error for binary
     if (direction %in% c("ascending", "descending"))

@@ -86,7 +86,7 @@ rdy$attr_types
 
 ```{r clean-missing, eval = FALSE}
 # Replace -9 with NA in all columns
-X_clean <- oda_clean_missing_codes(X, codes = -9)
+X_clean <- oda_clean_missing_codes(X, miss_codes = -9)
 ```
 
 `oda_infer_attr_types()` returns a named character vector of inferred ODA
@@ -211,8 +211,8 @@ oda_confusion(fit1)    # raw confusion matrix
 Apply the fitted rule to new data with `predict()`:
 
 ```{r oda-predict}
-preds <- predict(fit1, newdata = dat$x1)
-table(predicted = preds, actual = dat$y)
+preds <- predict(fit1, newdata = dat$x1) 
+table(actual = dat$y, predicted = preds)
 ```
 
 ### 4.1 Binary attribute
@@ -233,33 +233,40 @@ print(fit_bin)
 Pass numeric missing codes to `miss_codes`; those values are excluded from
 the fit and scored as `NA` in predictions:
 
-```{r oda-miss, eval = FALSE}
+```{r oda-miss}
+# Inject sentinel missing codes so miss_codes actually excludes observations.
+x1_miss <- replace(dat$x1, c(3L, 47L), -9L)
 fit_miss <- oda_fit(
-  x          = dat$x1,
+  x          = x1_miss,
   y          = dat$y,
   miss_codes = c(-9, -99),
   mc_iter    = 2000L,
   mc_seed    = 42L
 )
+# Positions 3 and 47 were set to -9; predictions there are NA.
+predict(fit_miss, x1_miss)[c(3L, 47L)] 
+yhat <- predict(fit_miss, x1_miss)
+table(actual = as.integer(dat$y), predicted = yhat)
+sum(sum(table(actual = as.integer(dat$y), predicted = yhat))) # 98 confirmed
 ```
 
-### 4.3 Leave-one-out (LOO) gate
+### 4.3 Leave-one-out (LOO)
 
-`loo = "stable"` applies the MegaODA LOO STABLE criterion: a rule is accepted
-only when the LOO ESS approximates the training ESS (|delta| <= 0.01 pp).
-Use `loo = "off"` (default) when computing power-conservative estimates; use
-`"stable"` for final confirmatory analyses.
+`loo = "on"` computes leave-one-out cross-validation and reports LOO ESS and
+LOO p alongside the training results.  Use `loo = "off"` (default) to skip LOO.
 
 ```{r oda-loo}
 fit_loo <- oda_fit(
   x         = dat$x1,
   y         = dat$y,
   attr_type = "ordered",
-  loo       = "stable",
+  loo       = "on",
   mc_iter   = 2000L,
   mc_seed   = 42L
 )
+print(fit_loo)
 oda_metrics(fit_loo)
+summary(fit_loo)
 ```
 
 ---
@@ -290,7 +297,7 @@ oda_metrics(petal_fit)
 
 ```{r multiclass-predict}
 petal_preds <- predict(petal_fit, newdata = iris$Petal.Length)
-table(predicted = petal_preds, actual = as.integer(iris$Species))
+table(actual = as.integer(iris$Species), predicted = petal_preds)
 ```
 
 Multiclass categorical example -- predict iris species from the species column
@@ -302,9 +309,12 @@ petal_cat <- oda_fit(
   y         = as.integer(iris$Species),
   attr_type = "ordered",
   mc_iter   = 2000L,
-  mc_seed   = 42L
+  mc_seed   = 42L,
+  loo = "on"
 )
+print(petal_cat)
 oda_metrics(petal_cat)
+summary(petal_cat)
 ```
 
 ---
@@ -347,7 +357,7 @@ cta_node_table(tree)
 ```
 
 ```{r cta-confusion}
-cta_confusion_table(tree)
+cta_confusion_table(tree)   # tidy long format; use cta_confusion_matrix() for the 2x2 matrix
 ```
 
 ```{r cta-d}
@@ -356,7 +366,7 @@ cta_d_stat(tree)     # D = number of terminal endpoints - 1
 
 ```{r cta-predict}
 preds_cta <- predict(tree, newdata = X)
-table(predicted = preds_cta, actual = dat$y)
+table(actual = dat$y, predicted = preds_cta)
 ```
 
 ### 6.1 MINDENOM family
@@ -371,7 +381,7 @@ fam <- cta_descendant_family(
   y          = dat$y,
   mc_iter    = 300L,
   mc_seed    = 42L,
-  max_steps  = 5L    # increase for production
+  max_steps  = 10L    # increase to 10 for production
 )
 cta_family_table(fam)
 ```
@@ -430,19 +440,20 @@ lort <- lort_fit(
   min_n            = 20L,
   max_depth        = 4L,     # safety cap for illustration
   family_max_steps = 5L,     # limit MDSA depth per node for illustration
-  loo              = "off",  # "stable" recommended for production
+  loo              = "stable",  # "stable" recommended for production
   verbose          = FALSE
 )
 print(lort)
+plot_lort_tree(lort,index=1)
 ```
 
 ```{r lort-strata}
-cta_strata(lort)         # one row per leaf
+cta_strata(lort)         # integer count of terminal leaf endpoints
 ```
 
 ```{r lort-predict}
 lort_preds <- predict(lort, newdata = X)
-table(predicted = lort_preds, actual = dat$y)
+table(actual = dat$y, predicted = lort_preds)
 ```
 
 ```{r lort-node-table}
@@ -524,7 +535,7 @@ head(cta_data$X_cta)
 ```
 
 ```{r as-cta-candidates}
-candidates <- as_cta_candidates(sda)
+candidates <- as_cta_candidates(sda, X = X)
 print(candidates)
 ```
 
@@ -583,7 +594,7 @@ has_gg <- requireNamespace("ggplot2", quietly = TRUE)
 
 ### 11.1 CTA tree diagram
 
-Default rendering is B/W with no color or legend — suitable for direct journal
+Default rendering is B/W with no color or legend - suitable for direct journal
 submission.  Pass `color_by = "target_rate"` or `color_by = "prediction"` for
 colored endpoint fills.
 
@@ -675,7 +686,7 @@ print(ci_cta)
 Node-level bootstrap (single terminal endpoint):
 
 ```{r novoboot-cta-node}
-ep_ids <- cta_strata(tree)$endpoint_node_id
+ep_ids <- cta_endpoint_table(tree)$leaf_node_id
 if (length(ep_ids) >= 1L) {
   ci_node <- novo_boot_ci(tree, node_id = ep_ids[1L],
                           nboot = 1000L, seed = 42L)
@@ -702,12 +713,15 @@ print(ci_mat)
 
 `as_confusion_matrix()` converts a tidy confusion data frame (e.g., from
 `cta_confusion_table()`) to the 2x2 matrix form required by the default
-method:
+method.  `cta_confusion_matrix()` wraps the two-step form for convenience:
 
 ```{r as-confusion-matrix}
 ct  <- cta_confusion_table(tree)
 m2  <- as_confusion_matrix(ct)
 print(m2)
+
+# One-step convenience wrapper (equivalent):
+cta_confusion_matrix(tree)
 ```
 
 ---

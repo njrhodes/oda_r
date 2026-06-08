@@ -297,3 +297,144 @@ test_that("oda_fit: loo=Inf errors", {
   x <- 1:8; y <- c(0L,0L,0L,0L,1L,1L,1L,1L)
   expect_error(oda_fit(x, y, loo = Inf), regexp = "strictly in .0, 1.")
 })
+
+# ---- weighted categorical LOO guard ----------------------------------------
+#
+# Weighted LOO is out of scope for categorical/binary attributes (MPE canon).
+# oda_fit() must error early rather than silently returning loo$allowed = FALSE.
+
+test_that("oda_fit: weighted binary-class categorical LOO errors", {
+  x <- c("a","b","a","b","a","b","a","b")
+  y <- c(0L,0L,0L,0L,1L,1L,1L,1L)
+  w <- c(1,2,1,2,1,2,1,2)
+  expect_error(
+    oda_fit(x, y, w = w, attr_type = "categorical", loo = "on", mcarlo = FALSE),
+    regexp = "LOO is not supported for categorical"
+  )
+})
+
+test_that("oda_fit: weighted multiclass categorical LOO errors", {
+  x <- c("a","b","c","a","b","c","a","b","c")
+  y <- c(1L,2L,3L,1L,2L,3L,1L,2L,3L)
+  w <- runif(9, 0.5, 2)
+  expect_error(
+    oda_fit(x, y, w = w, attr_type = "categorical", loo = "on", mcarlo = FALSE),
+    regexp = "LOO is not supported for categorical"
+  )
+})
+
+test_that("oda_fit: unweighted categorical LOO does NOT error", {
+  # Regression: unweighted categorical LOO must still be allowed
+  x <- c("a","b","a","b","a","b","a","b")
+  y <- c(0L,0L,0L,0L,1L,1L,1L,1L)
+  expect_no_error(
+    oda_fit(x, y, attr_type = "categorical", loo = "on", mcarlo = FALSE)
+  )
+})
+
+test_that("oda_fit: weighted ORDERED LOO does NOT error", {
+  # Regression: weighted ordered LOO is canonical and must not be blocked
+  x <- 1:8; y <- c(0L,0L,0L,0L,1L,1L,1L,1L)
+  w <- c(1,2,1,2,1,2,1,2)
+  expect_no_error(
+    oda_fit(x, y, w = w, attr_type = "ordered", loo = "on", mcarlo = FALSE)
+  )
+})
+
+# ---- summary(multiclass LOO) - per-class PAC visible in print output ----
+#
+# Requirement: summary.oda_fit must carry 'classes' so that
+# print.oda_fit_summary can render the LOO CLASS/PAC table for multiclass
+# and multicategorical fits.  Tests lock this behaviour for both ordered
+# and categorical multiclass paths.
+
+test_that("summary: iris ordered multiclass LOO includes classes and per-class PAC", {
+  data(iris)
+  fit <- oda_fit(x = iris$Petal.Length, y = as.integer(iris$Species),
+                 attr_type = "ordered", loo = "on", mcarlo = FALSE)
+  s   <- summary(fit)
+
+  # classes carried into summary
+  expect_equal(s$classes, 1:3, label = "iris summary carries classes 1:3")
+
+  # LOO section present and allowed
+  expect_true(isTRUE(s$loo$allowed), label = "iris LOO allowed")
+
+  # per-class PAC present (proportion scale: 1, 0.88, 0.94).
+  # pac_by_class is a named vector (class labels as names); ignore_attr = TRUE.
+  pb <- s$loo$pac_by_class
+  expect_equal(length(pb), 3L, label = "iris LOO pac_by_class has 3 elements")
+  expect_equal(pb[[1]], 1.00, tolerance = 1e-6, ignore_attr = TRUE, label = "iris LOO PAC class 1 = 100%")
+  expect_equal(pb[[2]], 0.88, tolerance = 1e-6, ignore_attr = TRUE, label = "iris LOO PAC class 2 = 88%")
+  expect_equal(pb[[3]], 0.94, tolerance = 1e-6, ignore_attr = TRUE, label = "iris LOO PAC class 3 = 94%")
+
+  # aggregate LOO metrics (percent scale)
+  expect_equal(s$loo$mean_pac, 94.00, tolerance = 0.01, label = "iris LOO Mean PAC = 94%")
+  expect_equal(s$loo$ess_loo,  91.00, tolerance = 0.01, label = "iris LOO ESS = 91%")
+
+  # no LOO p-value for multicategorical
+  expect_equal(s$loo$p_status, "not_computed",
+               label = "iris LOO p_status not_computed (no canon C>2 Fisher p)")
+
+  # print output contains per-class table and p(LOO) note
+  out <- capture.output(print(s))
+  expect_true(any(grepl("CLASS.*PAC", out)),        label = "iris summary print: CLASS/PAC header")
+  expect_true(any(grepl("1.*100\\.0%", out)),        label = "iris summary print: class 1 = 100%")
+  expect_true(any(grepl("2.*88\\.0%",  out)),        label = "iris summary print: class 2 = 88%")
+  expect_true(any(grepl("3.*94\\.0%",  out)),        label = "iris summary print: class 3 = 94%")
+  expect_true(any(grepl("LOO ESS.*91", out)),        label = "iris summary print: LOO ESS = 91%")
+  expect_true(any(grepl("p\\(LOO\\).*not reported", out)),
+              label = "iris summary print: p(LOO) not reported note")
+})
+
+test_that("summary: protein categorical multiclass LOO includes classes, rule, per-class PAC", {
+  biological_type <- c(
+    rep(1L, 98), rep(2L, 13), rep(3L,  6), rep(4L,  7),
+    rep(1L, 16), rep(2L, 50), rep(3L,  4), rep(4L, 19),
+    rep(1L,  5), rep(2L,  2), rep(3L, 23), rep(4L, 14),
+    rep(1L,  3), rep(2L,  8), rep(3L, 12), rep(4L, 45)
+  )
+  amino_acid_type <- c(rep(1L, 124), rep(2L, 89), rep(3L, 44), rep(4L, 68))
+
+  fit <- oda_fit(x = amino_acid_type, y = biological_type,
+                 attr_type = "categorical", direction = "ascending",
+                 mc_iter = 500L, mc_seed = 42L, loo = "on")
+  s   <- summary(fit)
+
+  # classes carried into summary
+  expect_equal(s$classes, 1:4, label = "protein summary carries classes 1:4")
+
+  # rule renders as identity mapping (not placeholder)
+  expect_true(grepl("1 --> 1", s$rule_string), label = "protein rule_string contains identity map")
+  expect_false(grepl("<nominal", s$rule_string), label = "protein rule_string not placeholder")
+
+  # LOO section present and allowed
+  expect_true(isTRUE(s$loo$allowed), label = "protein LOO allowed")
+
+  # per-class PAC present (proportion scale).
+  # pac_by_class is a named vector (class labels as names); ignore_attr = TRUE.
+  pb <- s$loo$pac_by_class
+  expect_equal(length(pb), 4L, label = "protein LOO pac_by_class has 4 elements")
+  expect_equal(pb[[1]], 98/122, tolerance = 1e-4, ignore_attr = TRUE, label = "protein LOO PAC class 1")
+  expect_equal(pb[[2]], 50/73,  tolerance = 1e-4, ignore_attr = TRUE, label = "protein LOO PAC class 2")
+  expect_equal(pb[[3]], 23/45,  tolerance = 1e-4, ignore_attr = TRUE, label = "protein LOO PAC class 3")
+  expect_equal(pb[[4]], 45/85,  tolerance = 1e-4, ignore_attr = TRUE, label = "protein LOO PAC class 4")
+
+  # aggregate LOO metrics (percent scale)
+  expect_equal(s$loo$mean_pac, 63.22, tolerance = 0.01, label = "protein LOO Mean PAC")
+  expect_equal(s$loo$ess_loo,  50.96, tolerance = 0.01, label = "protein LOO ESS")
+
+  # no LOO p-value
+  expect_equal(s$loo$p_status, "not_computed",
+               label = "protein LOO p_status not_computed")
+
+  # print output contains per-class table and p(LOO) note
+  out <- capture.output(print(s))
+  expect_true(any(grepl("CLASS.*PAC", out)),              label = "protein summary print: CLASS/PAC header")
+  expect_true(any(grepl("1.*80\\.3%", out)),              label = "protein summary print: class 1 = 80.3%")
+  expect_true(any(grepl("2.*68\\.5%", out)),              label = "protein summary print: class 2 = 68.5%")
+  expect_true(any(grepl("3.*51\\.1%", out)),              label = "protein summary print: class 3 = 51.1%")
+  expect_true(any(grepl("4.*52\\.9%", out)),              label = "protein summary print: class 4 = 52.9%")
+  expect_true(any(grepl("p\\(LOO\\).*not reported", out)),
+              label = "protein summary print: p(LOO) not reported note")
+})

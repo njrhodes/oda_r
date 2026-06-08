@@ -55,10 +55,22 @@
     paste(parts, collapse = "   |   ")
 
   } else if (tp %in% c("binary_map", "nominal_cut")) {
-    "<categorical/binary rule>"
+    dir   <- rule$direction %||% "0->1"
+    l0    <- rule$label_0 %||% "0"
+    l1    <- rule$label_1 %||% "1"
+    left  <- paste(rule$left_levels,  collapse = ", ")
+    right <- paste(rule$right_levels, collapse = ", ")
+    if (identical(dir, "0->1"))
+      sprintf("{%s} --> %s   |   {%s} --> %s", left, l0, right, l1)
+    else
+      sprintf("{%s} --> %s   |   {%s} --> %s", left, l1, right, l0)
 
   } else if (tp == "multiclass_nominal") {
-    "<nominal multiclass rule>"
+    levs <- rule$levels %||% character(0)
+    cls  <- rule$level_class %||% integer(0)
+    if (length(levs) == 0L) return("<nominal multiclass rule>")
+    parts <- sprintf("%s --> %d", levs, cls)
+    paste(parts, collapse = "   |   ")
 
   } else {
     sprintf("<rule type=%s>", tp)
@@ -77,17 +89,23 @@
 
 # Build the four-field LOO p-value info block.
 #
-# Rules (MPE canon):
+# Canon (MPE p.34): "Hold-out p is one-tailed: the null hypothesis is that the
+# training model will not replicate when it is used to classify observations in
+# the hold-out sample."  LOO Fisher alternative is therefore always "greater",
+# regardless of whether the training direction was specified or not.
+#
+# Note: for non-directional analyses, MC p is more conservative than LOO p
+# because each MC permutation also searches both directions; LOO Fisher does not
+# adjust for direction selection.  MC p and LOO p legitimately diverge.
+#
+# Rules:
 #   Binary 2x2 LOO, p_value stored and not NA:
-#     p_method="Fisher exact (2x2)", p_status="computed".
+#     p_method="Fisher exact (2x2), one-tailed [MPE p.34]", p_status="computed".
 #   Binary 2x2 LOO, p_value absent or NA:
-#     p_method="Fisher exact (2x2)", p_status="not_computed",
-#     p_reason="2x2 Fisher exact LOO p-value not available in fit object".
+#     p_status="not_computed", p_reason="...not available in fit object".
 #   Multiclass/polychotomous:
 #     p_value=NA, p_method="none", p_status="not_computed",
 #     p_reason="LOO p-value is not reported for multicategorical/polychotomous ODA".
-#   Directional mxm equal-category: p_status="not_applicable" if metadata is
-#   available; currently no such metadata is stored -> conservative not_computed.
 #
 # lo must be the $loo list from fit (caller confirms allowed=TRUE before calling).
 .loo_p_info <- function(fit, lo) {
@@ -96,14 +114,14 @@
     if (!is.null(pv) && !is.na(pv)) {
       list(
         p_value  = pv,
-        p_method = "Fisher exact (2x2)",
+        p_method = "Fisher exact (2x2), one-tailed",
         p_status = "computed",
         p_reason = NA_character_
       )
     } else {
       list(
         p_value  = NA_real_,
-        p_method = "Fisher exact (2x2)",
+        p_method = "Fisher exact (2x2), one-tailed",
         p_status = "not_computed",
         p_reason = "2x2 Fisher exact LOO p-value not available in fit object"
       )
@@ -212,17 +230,17 @@ print.oda_fit <- function(x, ...) {
       cat(sprintf("Status: FAILED  reason=%s\n\n", x$reason %||% "?"))
       return(invisible(x))
     }
-    cat(sprintf("Status: LOO GATED  reason=%s\n", x$reason %||% "?"))
-    cat("(Model shown; not selected by LOO gate)\n")
+    # ok=FALSE but rule present means LOO said not significant/stable.
+    # Show the model in full; note LOO result below.
   }
 
   cat("\nRule: ", .oda_fmt_rule(x$rule), "\n\n", sep = "")
 
   if (eng == "binary") {
-    conf <- x$confusion   # oda_confusion_binary result: {TP,TN,FP,FN,sensitivity,specificity,mean_pac}
+    l0   <- x$rule$label_0 %||% 0L
+    l1   <- x$rule$label_1 %||% 1L
+    conf <- x$confusion
     if (!is.null(conf)) {
-      l0  <- x$rule$label_0 %||% 0L
-      l1  <- x$rule$label_1 %||% 1L
       n0  <- conf$TN + conf$FP
       n1  <- conf$TP + conf$FN
       p0  <- if (!is.null(conf$specificity) && !is.na(conf$specificity))
@@ -242,12 +260,30 @@ print.oda_fit <- function(x, ...) {
                   sprintf("  p(MC): %s", .fmt_p(x$p_mc)) else ""
     cat(sprintf("  %s   %s%s\n", pac_str, ess_str, p_str))
 
-    # LOO line
     lo <- x$loo
     if (!is.null(lo) && isTRUE(lo$allowed)) {
+      lc <- lo$confusion
+      if (!is.null(lc)) {
+        cat("\n  -- LOO --\n")
+        # LOO binary confusion stores rates (0-1), not counts.
+        # Use training n per class; PAC from LOO rates.
+        ln0 <- if (!is.null(conf)) conf$TN + conf$FP else NA_integer_
+        ln1 <- if (!is.null(conf)) conf$TP + conf$FN else NA_integer_
+        lp0 <- if (!is.null(lc$specificity) && !is.na(lc$specificity))
+                 sprintf("%.1f%%", lc$specificity * 100) else "NA"
+        lp1 <- if (!is.null(lc$sensitivity) && !is.na(lc$sensitivity))
+                 sprintf("%.1f%%", lc$sensitivity * 100) else "NA"
+        cat(sprintf("  CLASS  %6s  %6s\n", "n", "PAC"))
+        cat(sprintf("  %5s  %6s  %6s\n", l0, ln0, lp0))
+        cat(sprintf("  %5s  %6s  %6s\n", l1, ln1, lp1))
+        cat("\n")
+      }
       ess_loo_str <- if (!is.null(lo$ess_loo) && !is.na(lo$ess_loo))
-                       sprintf("  LOO ESS: %.2f%%", lo$ess_loo) else ""
-      cat(sprintf("  LOO: available%s\n", ess_loo_str))
+                       sprintf("LOO ESS: %.2f%%", lo$ess_loo) else ""
+      p_loo <- lo$p_value
+      p_loo_str <- if (!is.null(p_loo) && !is.na(p_loo))
+                     sprintf("  p(LOO): %s", .fmt_p(p_loo)) else ""
+      cat(sprintf("  %s%s\n", ess_loo_str, p_loo_str))
     }
 
   } else {
@@ -268,7 +304,29 @@ print.oda_fit <- function(x, ...) {
     cat(sprintf("  %s   %s%s\n", pac_str, ess_str, p_str))
 
     lo <- x$loo
-    if (!is.null(lo) && isTRUE(lo$allowed)) cat("  LOO: available\n")
+    if (!is.null(lo) && isTRUE(lo$allowed)) {
+      # Categorical LOO stores $confusion; ordered LOO stores $confusion_raw.
+      lc <- lo$confusion %||% lo$confusion_raw
+      cat("\n  -- LOO --\n")
+      if (!is.null(lc)) {
+        pb <- lc$pac_by_class %||% NULL
+        if (!is.null(pb) && !is.null(x$classes)) {
+          cat(sprintf("  CLASS  %6s\n", "PAC"))
+          for (i in seq_along(x$classes))
+            cat(sprintf("  %5s  %5.1f%%\n", x$classes[i], pb[i] * 100))
+          cat("\n")
+        }
+        mp      <- lc$mean_pac   # proportion scale from oda_confusion_multiclass
+        C_loo   <- length(lc$classes %||% x$classes)
+        ess_loo_val <- if (!is.null(mp) && !is.na(mp) && C_loo >= 2L)
+                         oda_ess_from_mean(mp, C_loo) else NA_real_
+        ess_loo_str <- if (!is.na(ess_loo_val))
+                         sprintf("   LOO ESS: %.2f%%", ess_loo_val) else ""
+        if (!is.null(mp) && !is.na(mp))
+          cat(sprintf("  LOO Mean PAC: %.2f%%%s\n", mp * 100, ess_loo_str))
+      }
+      cat("  p(LOO): not reported for multicategorical ODA\n")
+    }
   }
 
   cat("\n")
@@ -289,11 +347,13 @@ print.oda_fit <- function(x, ...) {
 #' @export
 summary.oda_fit <- function(object, ...) {
   eng    <- object$engine %||% "?"
-  status <- if (isTRUE(object$ok)) "valid" else "failed"
+  status <- if (isTRUE(object$ok)) "valid" else
+              if (!is.null(object$rule)) object$reason %||% "loo_not_significant"
+              else "failed"
 
   # ---- train section -------------------------------------------------------
   train <- NULL
-  if (isTRUE(object$ok)) {
+  if (!is.null(object$rule)) {
     if (inherits(object, "oda_fit_binary")) {
       conf <- object$confusion    # oda_confusion_binary list
       train <- list(
@@ -305,6 +365,7 @@ summary.oda_fit <- function(object, ...) {
         sensitivity        = if (!is.null(conf)) conf$sensitivity    else NA_real_,
         specificity        = if (!is.null(conf)) conf$specificity    else NA_real_,
         p_mc               = object$p_mc,
+        mc_direction       = object$direction %||% "off",
         mc_info            = object$mc_info
       )
     } else {
@@ -315,6 +376,7 @@ summary.oda_fit <- function(object, ...) {
         mean_pac           = object$mean_pac,
         pac_by_class       = object$pac_by_class,
         p_mc               = object$p_mc,
+        mc_direction       = object$direction %||% "off",
         mc_info            = object$mc_info
       )
     }
@@ -339,17 +401,22 @@ summary.oda_fit <- function(object, ...) {
           p_reason  = p_info$p_reason
         )
       } else {
-        # Multiclass: loo$confusion is an oda_confusion_multiclass result list
-        lc <- lo$confusion
+        # Multiclass: categorical LOO stores $confusion; ordered stores $confusion_raw.
+        lc <- lo$confusion %||% lo$confusion_raw
+        mp      <- if (!is.null(lc)) lc$mean_pac else NULL   # proportion
+        C_loo   <- length(if (!is.null(lc)) lc$classes else object$classes)
+        ess_loo <- if (!is.null(mp) && !is.na(mp) && C_loo >= 2L)
+                     oda_ess_from_mean(mp, C_loo) else NA_real_
         loo_section <- list(
-          allowed   = TRUE,
-          confusion = if (!is.null(lc)) lc$confusion else NULL,
-          mean_pac  = if (!is.null(lc) && !is.null(lc$mean_pac))
-                        lc$mean_pac * 100 else NA_real_,
-          p_value   = p_info$p_value,
-          p_method  = p_info$p_method,
-          p_status  = p_info$p_status,
-          p_reason  = p_info$p_reason
+          allowed      = TRUE,
+          confusion    = if (!is.null(lc)) lc$confusion else NULL,
+          pac_by_class = if (!is.null(lc)) lc$pac_by_class else NULL,
+          mean_pac     = if (!is.null(mp)) mp * 100 else NA_real_,
+          ess_loo      = ess_loo,
+          p_value      = p_info$p_value,
+          p_method     = p_info$p_method,
+          p_status     = p_info$p_status,
+          p_reason     = p_info$p_reason
         )
       }
     } else {
@@ -365,8 +432,9 @@ summary.oda_fit <- function(object, ...) {
     n_eff          = object$n_eff,
     priors_on      = object$priors_on,
     has_weights    = object$has_weights,
+    classes        = object$classes,        # needed for multiclass LOO per-class display
     rule           = object$rule,
-    rule_string    = if (isTRUE(object$ok)) .oda_fmt_rule(object$rule) else NA_character_,
+    rule_string    = if (!is.null(object$rule)) .oda_fmt_rule(object$rule) else NA_character_,
     objective      = object$ess,
     train          = train,
     loo            = loo_section,
@@ -385,7 +453,7 @@ summary.oda_fit <- function(object, ...) {
 print.oda_fit_summary <- function(x, ...) {
   cat(sprintf("\nODA Summary (%s)  status=%s  n=%s\n",
               x$model_type, x$status, x$n_eff %||% NA_integer_))
-  if (x$status == "failed") {
+  if (x$status == "failed" && is.null(x$train)) {
     cat(sprintf("  reason: %s\n\n", x$reason %||% "?"))
     return(invisible(x))
   }
@@ -414,7 +482,11 @@ print.oda_fit_summary <- function(x, ...) {
                   if (!is.na(ep)) ep else NA_real_))
     }
     p_mc <- tr$p_mc
-    if (!is.null(p_mc) && !is.na(p_mc)) cat(sprintf("    p(MC): %s\n", .fmt_p(p_mc)))
+    if (!is.null(p_mc) && !is.na(p_mc)) {
+      mc_tail <- if (identical(tr$mc_direction %||% "off", "off"))
+                   "two-tailed" else "one-tailed"
+      cat(sprintf("    p(MC): %s  [MC permutation, %s]\n", .fmt_p(p_mc), mc_tail))
+    }
   }
 
   lo <- x$loo
@@ -423,21 +495,55 @@ print.oda_fit_summary <- function(x, ...) {
     if (!isTRUE(lo$allowed)) {
       cat(sprintf("    unavailable (%s)\n", lo$reason %||% "?"))
     } else {
-      if (!is.null(lo$ess_loo) && !is.na(lo$ess_loo))
-        cat(sprintf("    LOO ESS: %.2f%%\n", lo$ess_loo))
-      if (!is.null(lo$mean_pac) && !is.na(lo$mean_pac))
-        cat(sprintf("    LOO Mean PAC: %.2f%%\n", lo$mean_pac))
-      pv      <- lo$p_value
-      pstat   <- lo$p_status %||% "unknown"
-      pmethod <- lo$p_method %||% ""
-      if (pstat == "computed") {
-        cat(sprintf("    LOO p-value: %s  [%s]\n",
-                    .fmt_p(pv), pmethod))
-      } else if (pstat == "not_computed") {
-        reason <- lo$p_reason %||% "not computed"
-        cat(sprintf("    LOO p-value: NA  (%s)\n", reason))
-      } else if (pstat == "not_applicable") {
-        cat("    LOO p-value: not applicable\n")
+      lc <- lo$confusion
+      if (x$model_type == "binary") {
+        # lc is an oda_confusion_binary list (stores rates, not counts).
+        # Use training confusion for n per class.
+        if (!is.null(lc)) {
+          r  <- x$rule
+          l0 <- if (!is.null(r)) r$label_0 %||% 0L else 0L
+          l1 <- if (!is.null(r)) r$label_1 %||% 1L else 1L
+          tc <- if (!is.null(tr)) tr$confusion_raw else NULL
+          ln0 <- if (!is.null(tc)) (tc$TN %||% 0L) + (tc$FP %||% 0L) else NA_integer_
+          ln1 <- if (!is.null(tc)) (tc$TP %||% 0L) + (tc$FN %||% 0L) else NA_integer_
+          lp0 <- if (!is.null(lc$specificity) && !is.na(lc$specificity))
+                   sprintf("%.1f%%", lc$specificity * 100) else "NA"
+          lp1 <- if (!is.null(lc$sensitivity) && !is.na(lc$sensitivity))
+                   sprintf("%.1f%%", lc$sensitivity * 100) else "NA"
+          cat(sprintf("    CLASS  %6s  %6s\n", "n", "PAC"))
+          cat(sprintf("    %5s  %6s  %6s\n", l0, ln0, lp0))
+          cat(sprintf("    %5s  %6s  %6s\n", l1, ln1, lp1))
+        }
+        if (!is.null(lo$ess_loo) && !is.na(lo$ess_loo))
+          cat(sprintf("    LOO ESS: %.2f%%\n", lo$ess_loo))
+        if (!is.null(lo$mean_pac) && !is.na(lo$mean_pac))
+          cat(sprintf("    LOO Mean PAC: %.2f%%\n", lo$mean_pac))
+        pv      <- lo$p_value
+        pstat   <- lo$p_status %||% "unknown"
+        pmethod <- lo$p_method %||% ""
+        if (pstat == "computed") {
+          cat(sprintf("    p(LOO): %s  [%s]\n", .fmt_p(pv), pmethod))
+        } else if (pstat == "not_computed") {
+          reason <- lo$p_reason %||% "not computed"
+          cat(sprintf("    p(LOO): NA  (%s)\n", reason))
+        } else if (pstat == "not_applicable") {
+          cat("    p(LOO): not applicable\n")
+        }
+      } else {
+        # Multiclass: loo_section fields extracted by summary.oda_fit.
+        # pac_by_class is proportion scale; mean_pac and ess_loo are percent scale.
+        pb  <- lo$pac_by_class   # proportion
+        cls <- x[["classes"]] %||% NULL   # classes not stored in summary - use NULL gracefully
+        if (!is.null(pb) && !is.null(cls)) {
+          cat(sprintf("    CLASS  %6s\n", "PAC"))
+          for (i in seq_along(cls))
+            cat(sprintf("    %5s  %5.1f%%\n", cls[i], pb[i] * 100))
+        }
+        if (!is.null(lo$ess_loo) && !is.na(lo$ess_loo))
+          cat(sprintf("    LOO ESS: %.2f%%\n", lo$ess_loo))
+        if (!is.null(lo$mean_pac) && !is.na(lo$mean_pac))
+          cat(sprintf("    LOO Mean PAC: %.2f%%\n", lo$mean_pac))
+        cat("    p(LOO): not reported for multicategorical ODA\n")
       }
     }
   }

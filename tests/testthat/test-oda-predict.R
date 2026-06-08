@@ -367,7 +367,7 @@ test_that("binary LOO summary p_method is Fisher exact (2x2) and p_value is not 
   fit <- .bin_fit_loo()
   s   <- summary(fit)
   if (isTRUE(s$loo$allowed)) {
-    expect_equal(s$loo$p_method, "Fisher exact (2x2)")
+    expect_equal(s$loo$p_method, "Fisher exact (2x2), one-tailed")
     expect_equal(s$loo$p_status, "computed")
     expect_false(is.na(s$loo$p_value))   # p_value must be present when status=computed
   } else {
@@ -379,7 +379,7 @@ test_that("binary LOO metrics p_method is Fisher exact (2x2) and p_value is not 
   fit <- .bin_fit_loo()
   m   <- oda_metrics(fit, "loo")
   if (!is.null(m)) {
-    expect_equal(m$p_method, "Fisher exact (2x2)")
+    expect_equal(m$p_method, "Fisher exact (2x2), one-tailed")
     expect_equal(m$p_status, "computed")
     expect_false(is.na(m$p_value))
   } else {
@@ -394,7 +394,7 @@ test_that("binary LOO with NA p_value reports not_computed, not computed", {
   fit$loo$p_value <- NA_real_   # force absence
   s <- summary(fit)
   expect_equal(s$loo$p_status, "not_computed")
-  expect_equal(s$loo$p_method, "Fisher exact (2x2)")
+  expect_equal(s$loo$p_method, "Fisher exact (2x2), one-tailed")
   expect_true(is.na(s$loo$p_value))
   expect_match(s$loo$p_reason, "not available")
 })

@@ -147,6 +147,50 @@ and is not a package failure.
 
 ---
 
+## Recursive CTA work (LORT / SORT / GORT)
+
+These rules exist because the three methods have different scope and readiness,
+and confusion between them is a concrete architectural risk.
+
+**Classification**
+
+| Method | Status | Description |
+|--------|--------|-------------|
+| LORT   | Implemented | Greedy local min-D. `cta_fit(recursive = TRUE)`. |
+| SORT   | Reserved | Requires SDA source object as anchor. Not yet implemented. |
+| GORT   | Reserved | Global optimization. Requires approved design note. Not yet implemented. |
+
+**Rules before starting recursive CTA work**
+
+- Any task that touches recursive CTA must explicitly name LORT, SORT, or GORT.
+  Do not use "ORT" alone.
+- **LORT tasks:** Do not add lookahead, SDA anchoring, or global search to
+  `cta_fit(recursive = TRUE)`.  `ort_settings$method` must remain `"lort"`.
+- **SORT tasks:** Require an SDA source object (or equivalent explicit anchor)
+  before starting implementation.  Do not begin SORT without it.
+- **GORT tasks:** Require an approved design note before any code changes.
+  Do not modify LORT or SORT behavior as part of GORT work.
+- Do not export or stub `sort_fit`, `gort_fit`, or related names without
+  explicit approval.
+
+These rules are prompt-level guardrails in `CLAUDE.md`.  The test
+`test-scope-guardrails.R` provides mechanical protection for the export
+absence and lean-fit invariant dimensions.
+
+---
+
+## Release checklist
+
+Before merging a release branch or submitting to CRAN:
+
+- [ ] `ODA_TEST_TIER=smoke` full suite passes
+- [ ] `R CMD build .` completes with all vignettes rendered
+- [ ] `R CMD check --as-cran --no-manual` reports 0 errors / 0 warnings
+- [ ] Check result (including NOTE list) reviewed and accepted explicitly
+- [ ] Version bump in `DESCRIPTION` confirmed
+
+---
+
 ## Architecture notes
 
 See `CLAUDE.md` for engine internals, canon fixture locations, and terminology

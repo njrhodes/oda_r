@@ -172,23 +172,18 @@ test_that("LOO contract: explicit loo='pvalue' populates fit$loo with ess_loo pr
   expect_false(is.na(fit$loo$ess_loo))
 })
 
-test_that("LOO contract: weighted categorical LOO returns ok=TRUE with allowed=FALSE and canon reason", {
-  # Canon: weighted categorical LOO is explicitly forbidden
-  # (oda_loo_for_rule, allow_weighted_categorical_loo = FALSE by default).
-  # Non-uniform weights + categorical + loo != 'off' must produce:
-  #   fit$ok = TRUE     (training result valid; rejection is LOO-level only)
-  #   fit$loo$allowed = FALSE
-  #   fit$loo$reason  = "weighted_categorical_loo_not_supported"
-  # Probe-confirmed behavior (2026-05-14).
+test_that("LOO contract: weighted categorical LOO errors at oda_fit() with clear message", {
+  # Canon: weighted categorical LOO is explicitly forbidden (MPE Ch.2/Ch.4).
+  # oda_fit() must error early rather than silently returning loo$allowed = FALSE.
+  # Behavior change: previously returned ok=TRUE with loo$allowed=FALSE (silent no-op);
+  # now stops with a clear message so callers are not misled.
   x <- c(1L, 1L, 2L, 2L, 3L, 3L)
   y <- c(0L, 1L, 0L, 0L, 1L, 1L)
   w <- c(1.0, 2.0, 1.0, 2.0, 1.0, 2.0)  # non-uniform
-  fit <- oda_fit(x, y, w = w, attr_type = "categorical",
-                 mcarlo = FALSE, loo = "on")
-  expect_true(fit$ok)
-  expect_false(is.null(fit$loo))
-  expect_false(isTRUE(fit$loo$allowed))
-  expect_equal(fit$loo$reason, "weighted_categorical_loo_not_supported")
+  expect_error(
+    oda_fit(x, y, w = w, attr_type = "categorical", mcarlo = FALSE, loo = "on"),
+    regexp = "LOO is not supported for categorical"
+  )
 })
 
 test_that("LOO contract: absent category in ordinary prediction routes to right side (class 1)", {
@@ -385,10 +380,10 @@ test_that("DIRECTION: categorical + direction != 'off' returns explicit failure"
 
 # ---- Phase 6B: LOO Fisher alternative conditional on direction --------------
 
-test_that("Phase 6B: direction='off' stores and uses 'two.sided' Fisher alternative", {
-  # Non-directional analysis should use two-sided Fisher for the LOO p-value.
-  # loo_alpha=1.0 forces the LOO gate to always pass so fit$loo is populated
-  # regardless of the p-value magnitude (same pattern as Phase 6A LOO test).
+test_that("Phase 6B: direction='off' stores 'greater' Fisher alternative (MPE p.34 canon)", {
+  # LOO p-value is always one-tailed per MPE p.34: "Hold-out p is one-tailed."
+  # The directional constraint governs fold refits, not the Fisher alternative.
+  # loo_alpha=1.0 forces the LOO gate to always pass so fit$loo is populated.
   x <- c(1, 2, 3, 4, 5, 6, 7, 8)
   y <- c(0L, 0L, 0L, 0L, 1L, 1L, 1L, 1L)
 
@@ -397,7 +392,7 @@ test_that("Phase 6B: direction='off' stores and uses 'two.sided' Fisher alternat
 
   expect_false(is.null(fit$loo),                      label = "6B off: loo not NULL")
   expect_true(isTRUE(fit$loo$allowed),                label = "6B off: loo allowed")
-  expect_equal(fit$loo$alternative, "two.sided",      label = "6B off: alternative is two.sided")
+  expect_equal(fit$loo$alternative, "greater",        label = "6B off: alternative is greater (MPE p.34)")
 })
 
 test_that("Phase 6B: direction='greater' stores and uses 'greater' Fisher alternative", {
