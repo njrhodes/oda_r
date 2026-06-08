@@ -298,6 +298,49 @@ test_that("oda_fit: loo=Inf errors", {
   expect_error(oda_fit(x, y, loo = Inf), regexp = "strictly in .0, 1.")
 })
 
+# ---- weighted categorical LOO guard ----------------------------------------
+#
+# Weighted LOO is out of scope for categorical/binary attributes (MPE canon).
+# oda_fit() must error early rather than silently returning loo$allowed = FALSE.
+
+test_that("oda_fit: weighted binary-class categorical LOO errors", {
+  x <- c("a","b","a","b","a","b","a","b")
+  y <- c(0L,0L,0L,0L,1L,1L,1L,1L)
+  w <- c(1,2,1,2,1,2,1,2)
+  expect_error(
+    oda_fit(x, y, w = w, attr_type = "categorical", loo = "on", mcarlo = FALSE),
+    regexp = "LOO is not supported for categorical"
+  )
+})
+
+test_that("oda_fit: weighted multiclass categorical LOO errors", {
+  x <- c("a","b","c","a","b","c","a","b","c")
+  y <- c(1L,2L,3L,1L,2L,3L,1L,2L,3L)
+  w <- runif(9, 0.5, 2)
+  expect_error(
+    oda_fit(x, y, w = w, attr_type = "categorical", loo = "on", mcarlo = FALSE),
+    regexp = "LOO is not supported for categorical"
+  )
+})
+
+test_that("oda_fit: unweighted categorical LOO does NOT error", {
+  # Regression: unweighted categorical LOO must still be allowed
+  x <- c("a","b","a","b","a","b","a","b")
+  y <- c(0L,0L,0L,0L,1L,1L,1L,1L)
+  expect_no_error(
+    oda_fit(x, y, attr_type = "categorical", loo = "on", mcarlo = FALSE)
+  )
+})
+
+test_that("oda_fit: weighted ORDERED LOO does NOT error", {
+  # Regression: weighted ordered LOO is canonical and must not be blocked
+  x <- 1:8; y <- c(0L,0L,0L,0L,1L,1L,1L,1L)
+  w <- c(1,2,1,2,1,2,1,2)
+  expect_no_error(
+    oda_fit(x, y, w = w, attr_type = "ordered", loo = "on", mcarlo = FALSE)
+  )
+})
+
 # ---- summary(multiclass LOO) - per-class PAC visible in print output ----
 #
 # Requirement: summary.oda_fit must carry 'classes' so that

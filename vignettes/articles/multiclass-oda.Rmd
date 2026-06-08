@@ -149,9 +149,10 @@ fit3_loo <- oda_fit(
   mcarlo    = FALSE,
   loo       = "on"
 )
+s3 <- summary(fit3_loo)
 cat("Training ESS:", round(fit3_loo$ess, 2), "%\n")
-cat("LOO ESS:     ", round(fit3_loo$loo_ess, 2), "%\n")
-cat("LOO status:  ", fit3_loo$loo_status, "\n")
+cat("LOO ESS:     ", round(s3$loo$ess_loo, 2), "%\n")
+cat("LOO status:  ", if (isTRUE(s3$loo$allowed)) "stable" else "not allowed", "\n")
 ```
 
 ## Summary

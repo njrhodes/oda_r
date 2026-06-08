@@ -172,23 +172,18 @@ test_that("LOO contract: explicit loo='pvalue' populates fit$loo with ess_loo pr
   expect_false(is.na(fit$loo$ess_loo))
 })
 
-test_that("LOO contract: weighted categorical LOO returns ok=TRUE with allowed=FALSE and canon reason", {
-  # Canon: weighted categorical LOO is explicitly forbidden
-  # (oda_loo_for_rule, allow_weighted_categorical_loo = FALSE by default).
-  # Non-uniform weights + categorical + loo != 'off' must produce:
-  #   fit$ok = TRUE     (training result valid; rejection is LOO-level only)
-  #   fit$loo$allowed = FALSE
-  #   fit$loo$reason  = "weighted_categorical_loo_not_supported"
-  # Probe-confirmed behavior (2026-05-14).
+test_that("LOO contract: weighted categorical LOO errors at oda_fit() with clear message", {
+  # Canon: weighted categorical LOO is explicitly forbidden (MPE Ch.2/Ch.4).
+  # oda_fit() must error early rather than silently returning loo$allowed = FALSE.
+  # Behavior change: previously returned ok=TRUE with loo$allowed=FALSE (silent no-op);
+  # now stops with a clear message so callers are not misled.
   x <- c(1L, 1L, 2L, 2L, 3L, 3L)
   y <- c(0L, 1L, 0L, 0L, 1L, 1L)
   w <- c(1.0, 2.0, 1.0, 2.0, 1.0, 2.0)  # non-uniform
-  fit <- oda_fit(x, y, w = w, attr_type = "categorical",
-                 mcarlo = FALSE, loo = "on")
-  expect_true(fit$ok)
-  expect_false(is.null(fit$loo))
-  expect_false(isTRUE(fit$loo$allowed))
-  expect_equal(fit$loo$reason, "weighted_categorical_loo_not_supported")
+  expect_error(
+    oda_fit(x, y, w = w, attr_type = "categorical", mcarlo = FALSE, loo = "on"),
+    regexp = "LOO is not supported for categorical"
+  )
 })
 
 test_that("LOO contract: absent category in ordinary prediction routes to right side (class 1)", {

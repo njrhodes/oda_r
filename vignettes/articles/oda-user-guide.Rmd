@@ -86,7 +86,7 @@ rdy$attr_types
 
 ```{r clean-missing, eval = FALSE}
 # Replace -9 with NA in all columns
-X_clean <- oda_clean_missing_codes(X, codes = -9)
+X_clean <- oda_clean_missing_codes(X, miss_codes = -9)
 ```
 
 `oda_infer_attr_types()` returns a named character vector of inferred ODA
@@ -211,8 +211,8 @@ oda_confusion(fit1)    # raw confusion matrix
 Apply the fitted rule to new data with `predict()`:
 
 ```{r oda-predict}
-preds <- predict(fit1, newdata = dat$x1)
-table(predicted = preds, actual = dat$y)
+preds <- predict(fit1, newdata = dat$x1) 
+table(actual = dat$y, predicted = preds)
 ```
 
 ### 4.1 Binary attribute
@@ -244,7 +244,10 @@ fit_miss <- oda_fit(
   mc_seed    = 42L
 )
 # Positions 3 and 47 were set to -9; predictions there are NA.
-predict(fit_miss, x1_miss)[c(3L, 47L)]
+predict(fit_miss, x1_miss)[c(3L, 47L)] 
+yhat <- predict(fit_miss, x1_miss)
+table(actual = as.integer(dat$y), predicted = yhat)
+sum(sum(table(actual = as.integer(dat$y), predicted = yhat))) # 98 confirmed
 ```
 
 ### 4.3 Leave-one-out (LOO)
@@ -261,7 +264,9 @@ fit_loo <- oda_fit(
   mc_iter   = 2000L,
   mc_seed   = 42L
 )
+print(fit_loo)
 oda_metrics(fit_loo)
+summary(fit_loo)
 ```
 
 ---
@@ -292,7 +297,7 @@ oda_metrics(petal_fit)
 
 ```{r multiclass-predict}
 petal_preds <- predict(petal_fit, newdata = iris$Petal.Length)
-table(predicted = petal_preds, actual = as.integer(iris$Species))
+table(actual = as.integer(iris$Species), predicted = petal_preds)
 ```
 
 Multiclass categorical example -- predict iris species from the species column
@@ -304,9 +309,12 @@ petal_cat <- oda_fit(
   y         = as.integer(iris$Species),
   attr_type = "ordered",
   mc_iter   = 2000L,
-  mc_seed   = 42L
+  mc_seed   = 42L,
+  loo = "on"
 )
+print(petal_cat)
 oda_metrics(petal_cat)
+summary(petal_cat)
 ```
 
 ---
@@ -331,7 +339,7 @@ whose sub-tree does not improve full-tree ESS.
 | `priors_on` | TRUE | Balance classes in objective |
 
 ```{r cta-fit}
-tree <- cta_fit(
+tree <- cta_fit( # where is enumerate option? if enumerate is on then need to record that it was EO vs if not on it is merely HO if pruned and max ESS
   X           = X,
   y           = dat$y,
   mindenom    = 10L,
@@ -349,7 +357,7 @@ cta_node_table(tree)
 ```
 
 ```{r cta-confusion}
-cta_confusion_table(tree)
+cta_confusion_table(tree)   # tidy long format; use cta_confusion_matrix() for the 2x2 matrix
 ```
 
 ```{r cta-d}
@@ -358,7 +366,7 @@ cta_d_stat(tree)     # D = number of terminal endpoints - 1
 
 ```{r cta-predict}
 preds_cta <- predict(tree, newdata = X)
-table(predicted = preds_cta, actual = dat$y)
+table(actual = dat$y, predicted = preds_cta)
 ```
 
 ### 6.1 MINDENOM family
@@ -373,7 +381,7 @@ fam <- cta_descendant_family(
   y          = dat$y,
   mc_iter    = 300L,
   mc_seed    = 42L,
-  max_steps  = 5L    # increase for production
+  max_steps  = 10L    # increase to 10 for production
 )
 cta_family_table(fam)
 ```
@@ -432,10 +440,11 @@ lort <- lort_fit(
   min_n            = 20L,
   max_depth        = 4L,     # safety cap for illustration
   family_max_steps = 5L,     # limit MDSA depth per node for illustration
-  loo              = "off",  # "stable" recommended for production
+  loo              = "stable",  # "stable" recommended for production
   verbose          = FALSE
 )
 print(lort)
+plot_lort_tree(lort,index=1)
 ```
 
 ```{r lort-strata}
@@ -444,7 +453,7 @@ cta_strata(lort)         # integer count of terminal leaf endpoints
 
 ```{r lort-predict}
 lort_preds <- predict(lort, newdata = X)
-table(predicted = lort_preds, actual = dat$y)
+table(actual = dat$y, predicted = lort_preds)
 ```
 
 ```{r lort-node-table}
@@ -699,7 +708,7 @@ m <- matrix(c(40L, 10L, 8L, 42L), nrow = 2L,
             dimnames = list(actual    = c("0", "1"),
                             predicted = c("0", "1")))
 ci_mat <- novo_boot_ci(m, nboot = 2000L, seed = 42L)
-print(ci_mat)
+print(ci_mat) # this is correct matrix layout harmomize across examples
 ```
 
 `as_confusion_matrix()` converts a tidy confusion data frame (e.g., from
