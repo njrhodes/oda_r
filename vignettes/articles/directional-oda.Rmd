@@ -221,9 +221,11 @@ declared *before* the data are seen.
 
 - `vignettes/refugee-act-oda.Rmd`  -  full CRAN vignette for the binary ordered
   directional example
-- `vignettes/gully-adjustment-oda.Rmd`  -  full CRAN vignette for the
-  fixed-partition categorical directional example
-- `vignettes/protein-type-multiclass-oda.Rmd`  -  full CRAN vignette for the
-  identity-map multiclass directional example
+- `vignettes/gully-adjustment-oda.Rmd`  -  nondirectional MegaODA parity run
+  for the gully example; this article demonstrates the directional fixed-map
+  alternative
+- `vignettes/protein-type-multiclass-oda.Rmd`  -  nondirectional MegaODA
+  parity run for the protein example; this article demonstrates the directional
+  identity-map alternative
 - `articles/oda-basics`  -  ODA foundations (nondirectional)
 - `articles/multiclass-oda`  -  multiclass ODA

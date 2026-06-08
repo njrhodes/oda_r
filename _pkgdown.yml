@@ -22,7 +22,7 @@ home:
 # Reference
 # ---------------------------------------------------------------------------
 reference:
-  - title: "ODA — fitting and prediction"
+  - title: "ODA - fitting and prediction"
     desc: >
       Unified dispatcher, binary-class engine, multiclass engine, rule
       application, and performance metrics.
@@ -33,7 +33,7 @@ reference:
       - oda_rule_predict
       - oda_rule_predict_multiclass
 
-  - title: "ODA — S3 methods and accessors"
+  - title: "ODA - S3 methods and accessors"
     desc: >
       S3 methods for `oda_fit` objects; accessor functions for predictions,
       confusion, metrics, and D statistic.
@@ -46,7 +46,7 @@ reference:
       - oda_metrics
       - oda_d_stat
 
-  - title: "ODA — confusion and performance helpers"
+  - title: "ODA - confusion and performance helpers"
     contents:
       - oda_confusion_binary
       - oda_confusion_multiclass
@@ -54,7 +54,7 @@ reference:
       - oda_ess_from_meanpac
       - oda_ess_from_mean
 
-  - title: "CTA — fitting and prediction"
+  - title: "CTA - fitting and prediction"
     desc: >
       Classification Tree Analysis: public entry point, internal engine,
       prediction, and MDSA family fitting.
@@ -66,7 +66,7 @@ reference:
       - summary.cta_tree
       - cta_descendant_family
 
-  - title: "CTA — tree structure"
+  - title: "CTA - tree structure"
     contents:
       - cta_node_table
       - cta_strata
@@ -74,7 +74,7 @@ reference:
       - cta_min_terminal_denom
       - cta_d_stat
 
-  - title: "CTA — reporting and translation"
+  - title: "CTA - reporting and translation"
     desc: >
       On-demand translation functions for endpoints, staging, propensity
       weights, observation weights, and confusion tables. All computed on
@@ -89,14 +89,14 @@ reference:
       - cta_observation_weights
       - cta_confusion_table
 
-  - title: "MDSA — family summary"
+  - title: "MDSA - family summary"
     desc: >
       MINDENOM descendant family: sequence of progressively simpler trees,
       D-statistic complexity measure, and minimum-D model selection.
     contents:
       - cta_family_table
 
-  - title: "LORT — Locally Optimal Recursive Trees"
+  - title: "LORT - Locally Optimal Recursive Trees"
     desc: >
       Greedy recursive CTA: LORT builds a sequence of CTA models, one per
       stratum of a prior tree. `lort_fit()` is the convenience entry point;
@@ -110,7 +110,7 @@ reference:
       - cta_ort_node_table
       - ort_plot_data
 
-  - title: "SDA — Sequential Discriminant Analysis"
+  - title: "SDA - Sequential Discriminant Analysis"
     desc: >
       SDA fits a sequence of ODA models, removing correctly classified
       observations after each step. `auto_sda_plan()` produces a staged
@@ -139,7 +139,7 @@ reference:
       - cta_balance_table
       - cta_balance_plot_data
 
-  - title: "Graphics — base-R renderers"
+  - title: "Graphics - base-R renderers"
     desc: >
       `cta_plot_data()` and `ort_plot_data()` produce the renderer-independent
       tree diagram data contract. `plot.cta_tree()` and `plot.cta_ort()` are
@@ -150,7 +150,7 @@ reference:
       - plot.cta_tree
       - plot.cta_ort
 
-  - title: "Graphics v3 — ggplot2 renderers"
+  - title: "Graphics v3 - ggplot2 renderers"
     desc: >
       ggplot2-based tree diagrams and balance plots. Requires ggplot2 (in
       Suggests). All six functions are pure renderers: they never call fitting
@@ -172,33 +172,29 @@ reference:
 # Articles
 # ---------------------------------------------------------------------------
 articles:
-  - title: "Practitioner Guide"
-    navbar: Practitioner Guide
-    contents:
-      - articles/oda-user-guide
-
-  - title: "Part I — ODA Foundations"
+  - title: "Part I - ODA Foundations"
     navbar: ODA Foundations
     contents:
       - articles/oda-basics
       - articles/directional-oda
       - articles/multiclass-oda
 
-  - title: "Part II — CTA"
+  - title: "Part II - CTA"
     navbar: CTA
     contents:
       - articles/cta-basics
-      - articles/myeloma-cta
-
-  - title: "Part III — Translation, MDSA, and Graphics"
-    navbar: Translation & MDSA
-    contents:
-      - articles/cta-translation
-      - articles/mdsa-family
       - articles/cta-graphics
 
-  - title: "Part IV — Validation and Boundaries"
+  - title: "Part III - Validation and Boundaries"
     navbar: Validation
     contents:
       - articles/novoboot-ci
-      - articles/validation-tiers
+
+  # CRAN vignettes: built and accessible by URL; not shown in navbar
+  - title: "CRAN Vignettes"
+    navbar: ~
+    contents:
+      - gully-adjustment-oda
+      - migraine-attacks-oda
+      - protein-type-multiclass-oda
+      - refugee-act-oda

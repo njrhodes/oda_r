@@ -7,17 +7,6 @@ output: rmarkdown::html_vignette
 knitr::opts_chunk$set(collapse = TRUE, comment = "#>")
 ```
 
-<!-- TODO (Slice L artifact pipeline):
-  The ggplot2 target-enriched tree example and the myeloma plots depend on
-  inst/extdata/articles/myeloma_fits.rds. To unblock:
-    1. Build the artifact (see myeloma-cta.Rmd TODO).
-    2. Add live ggplot2 tree examples (plot_cta_tree with target_class,
-       color_by = "target_rate" vs "prediction") using the myeloma fit.
-    3. Update the "v3 renderers" section with full worked examples.
-
-  The synthetic example below is already live and demonstrates the v3 API.
--->
-
 `oda` provides two levels of CTA tree visualisation:
 
 - **Base-R renderers** (`plot.cta_tree`, `plot.cta_ort`): no external
@@ -69,7 +58,7 @@ plot(tree)
 `plot_cta_tree()` requires ggplot2 (in Suggests). The function accepts either
 the fit object or pre-computed plot-data. `color_by` controls terminal-node fill:
 
-- `"none"` (default): white fill — B/W, publication-ready with no legend.
+- `"none"` (default): white fill - B/W, publication-ready with no legend.
 - `"prediction"`: discrete fill by predicted class.
 - `"target_rate"`: continuous gradient by target-class proportion.
 
@@ -114,14 +103,6 @@ plot_lort_tree(lort, color_by = "prediction")
 # All sub-trees as a named list
 all_plots <- plot_lort_tree(lort, show_all = TRUE)
 ```
-
-## Myeloma examples
-
-*(To be expanded with artifact pipeline  -  see TODO at top of this file.)*
-
-With the myeloma fit loaded, the full target-enriched tree for MINDENOM=1 and
-the stump for MINDENOM=30 will be rendered here with `target_class = 1L` and
-`color_by = "target_rate"`.
 
 ## Further reading
 

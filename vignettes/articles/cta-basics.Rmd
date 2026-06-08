@@ -94,7 +94,8 @@ an ENUMERATE phase to evaluate every valid root candidate:
    wins.
 
 This ensures the selected root is globally best for the full-tree objective,
-not just locally best at the root node.
+not just locally best at the root node. ENUMERATE evaluates root candidates
+only; it does not exhaustively enumerate every possible recursive tree.
 
 ## LOO STABLE: generalisability gate
 
@@ -129,8 +130,9 @@ improve the full-tree ESS beyond what a Sidak-adjusted significance threshold
 requires. This is analogous to cost-complexity pruning in CART but uses ESS
 gain and the Sidak correction for the number of splits evaluated.
 
-The result stored in `$tree` is the **pruned** tree. The pre-pruning
-(enumerated) tree is not stored separately.
+The returned `cta_tree` represents the final **pruned** tree. The full
+pre-pruning HO tree is not stored as a separate public tree object; pruning
+provenance is summarized in `prune_info`.
 
 ## `predict.cta_tree()`: path-local missingness
 
@@ -174,9 +176,10 @@ plot_cta_tree(pd)
 
 ## Confusion table
 
-`cta_confusion_table()` extracts the training confusion from the fitted object
-without refitting. The confusion is stored as a C x C raw integer matrix at
-fit time:
+`cta_confusion_table()` returns the training confusion as a tidy long-format
+data frame (one row per actual x predicted cell), extracted from the stored
+confusion without refitting. For the raw 2 x 2 integer matrix directly, use
+`cta_confusion_matrix()`:
 
 ```{r confusion}
 cta_confusion_table(tree_loo)

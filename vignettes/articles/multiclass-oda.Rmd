@@ -100,13 +100,18 @@ fit4 <- oda_fit(
 print(fit4)
 ```
 
+This example demonstrates the directional identity-map API
+(`direction = "ascending"`). The nondirectional MegaODA parity run for these
+data  -  using nondirectional search to reproduce the gold EXE output  -  is in
+the package vignette `protein-type-multiclass-oda`.
+
 ## Interpreting per-class PAC at K > 2
 
 ```{r pac-k4}
 m <- oda_metrics(fit4)
 cat("Mean PAC:", round(m$mean_pac * 100, 2), "%  (chance = 25% for K=4)\n")
 cat("ESS:     ", round(m$ess, 2), "%\n")
-cat("PAC by class:", paste(round(m$pac_by_class * 100, 1), collapse = ", "), "%\n")
+cat("PAC by class:", paste(round(m$pac_by_class, 1), collapse = ", "), "%\n")
 ```
 
 All four PAC values must exceed the K-class chance benchmark (25%) for the
@@ -163,7 +168,7 @@ cat("LOO status:  ", if (isTRUE(s3$loo$allowed)) "stable" else "not allowed", "\
 | Chance benchmark | 50% | 100/K% |
 | Ordered rule | 1 cutpoint | C-1 cutpoints |
 | Confusion matrix | TN/FP/FN/TP | CxC integer matrix |
-| LOO | Supported | Ordered yes; weighted categorical: error |
+| LOO | Supported | Ordered and unweighted categorical supported; weighted categorical errors |
 
 ## Further reading
 

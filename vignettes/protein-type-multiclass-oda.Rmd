@@ -125,12 +125,12 @@ summary(fit)
 ```{r pac-pv}
 m <- oda_metrics(fit)
 
-# PAC (sensitivity) per class
+# PAC (sensitivity) per class - pac_by_class is already on percentage scale
 cat("PAC by biological type:\n")
-cat("  Type 1:", round(m$pac_by_class[1] * 100, 1), "%\n")
-cat("  Type 2:", round(m$pac_by_class[2] * 100, 1), "%\n")
-cat("  Type 3:", round(m$pac_by_class[3] * 100, 1), "%\n")
-cat("  Type 4:", round(m$pac_by_class[4] * 100, 1), "%\n")
+cat("  Type 1:", round(m$pac_by_class[1], 1), "%\n")
+cat("  Type 2:", round(m$pac_by_class[2], 1), "%\n")
+cat("  Type 3:", round(m$pac_by_class[3], 1), "%\n")
+cat("  Type 4:", round(m$pac_by_class[4], 1), "%\n")
 
 # Predictive value: diagonal / column sums
 pv <- diag(fit$confusion) / colSums(fit$confusion) * 100

@@ -22,7 +22,7 @@ characterises the true classification performance in the population.
 
 The **fixed-confusion** approach:
 
-1. Expands the C x C confusion matrix to a row-per-observation table of
+1. Expands the 2 x 2 confusion matrix to a row-per-observation table of
    (actual, predicted) pairs.
 2. On each bootstrap replicate, resamples *k* rows with replacement from that
    table (preserving the observed joint distribution).
@@ -140,7 +140,7 @@ does not adjust for the fact that a different sample would have selected a
 different rule.
 
 **Refit uncertainty:** No refitting occurs. For out-of-sample performance
-estimates, use LOO (`loo = "on"` in `oda_fit()` or `cta_fit()`) or held-out
+estimates, use LOO (`loo = "on"` in `oda_fit()` or `loo = "stable"` in `cta_fit()`) or held-out
 validation before calling `novo_boot_ci()` on the out-of-sample confusion.
 
 **Multi-class extension:** `novo_boot_ci()` operates on 2 x 2 confusion
