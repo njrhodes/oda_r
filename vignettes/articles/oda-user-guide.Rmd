@@ -339,7 +339,7 @@ whose sub-tree does not improve full-tree ESS.
 | `priors_on` | TRUE | Balance classes in objective |
 
 ```{r cta-fit}
-tree <- cta_fit( # where is enumerate option? if enumerate is on then need to record that it was EO vs if not on it is merely HO if pruned and max ESS
+tree <- cta_fit(
   X           = X,
   y           = dat$y,
   mindenom    = 10L,
@@ -708,7 +708,7 @@ m <- matrix(c(40L, 10L, 8L, 42L), nrow = 2L,
             dimnames = list(actual    = c("0", "1"),
                             predicted = c("0", "1")))
 ci_mat <- novo_boot_ci(m, nboot = 2000L, seed = 42L)
-print(ci_mat) # this is correct matrix layout harmomize across examples
+print(ci_mat)
 ```
 
 `as_confusion_matrix()` converts a tidy confusion data frame (e.g., from

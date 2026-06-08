@@ -61,17 +61,14 @@ table(amino_acid_type, biological_type,
 
 ## Fit the ODA model
 
-Amino acid type is a four-category nominal variable. Because the directional
-hypothesis is convergent validity  -  amino acid type codes equal biological type
-codes  -  and there are exactly as many attribute categories as class values
-(k = C = 4), `direction = "ascending"` is used. This constrains ODA to the
-identity mapping (amino acid type i -> biological type i) without searching
-other partitions. ODA evaluates the identity rule and conducts the MC
-permutation test under the same constraint  -  a directional hypothesis test
-consistent with MPE Chapter 4 categorical identity-map DIRECTIONAL (Phase 6C).
-Leave-one-out (LOO) jackknife validity is requested via `loo = "on"`; LOO
-confusion and ESS are reported. No LOO p-value is given because no canonical
-Fisher-exact LOO p-value is defined for C > 2 multicategorical class problems.
+Amino acid type is a four-category nominal variable. ODA searches all possible
+mappings from the four amino-acid-type categories to the four biological-type
+classes and selects the mapping that maximises ESS. No *a priori* direction is
+supplied; the search is nondirectional (`Hypothesis: NONDIRECTIONAL` in
+MegaODA output). Leave-one-out (LOO) jackknife validity is requested via
+`loo = "on"`; LOO confusion and ESS are reported. No LOO p-value is given
+because no canonical Fisher-exact LOO p-value is defined for C > 2
+multicategorical class problems.
 
 ```{r fit-canonical, eval=FALSE}
 # Canonical reference run (mc_iter = 25000L; not evaluated in CRAN vignette)
@@ -79,7 +76,6 @@ fit <- oda_fit(
   x         = amino_acid_type,
   y         = biological_type,
   attr_type = "categorical",
-  direction = "ascending",
   mc_iter   = 25000L,
   loo       = "on"
 )
@@ -92,7 +88,6 @@ fit <- oda_fit(
   x         = amino_acid_type,
   y         = biological_type,
   attr_type = "categorical",
-  direction = "ascending",
   mc_iter   = 500L,
   mc_seed   = 42L,
   loo       = "on"
@@ -105,8 +100,8 @@ fit <- oda_fit(
 print(fit)
 ```
 
-ODA identified the identity mapping across all four types  -  exactly as
-hypothesised *a priori*:
+ODA's nondirectional search identified the identity mapping as the optimal
+categorical partition:
 
 - If amino acid type = 1 -> predict biological type = 1
 - If amino acid type = 2 -> predict biological type = 2
@@ -161,25 +156,23 @@ cat("  Type 4:", round(pv[4], 1), "%\n")
 
 ## Monte Carlo and LOO validity
 
-The directional MC p-value and LOO results are shown in the `print` and
-`summary` output above.
+The MC p-value and LOO results are shown in the `print` and `summary` output
+above.
 
-- **MC p-value:** The printed `p(MC)` is a directional Fisher-randomization
-  p-value. Because `direction = "ascending"` constrains each permutation to
-  evaluate only the identity mapping, the p-value is one-tailed  -  consistent
-  with the *a priori* convergent-validity hypothesis. Interpret by decision
-  threshold (e.g., p < 0.05).
-- **LOO jackknife:** Leave-one-out ESS and Mean PAC are shown. Each fold
-  holds out one observation, searches for the optimal categorical mapping on
-  the remaining n-1 observations (non-directional, equal priors), and
-  classifies the held-out case using that fold's rule. Because the identity
-  mapping is the globally optimal partition for these data, every fold
-  recovers the same rule, and LOO ESS equals training ESS exactly. LOO ESS
-  near training ESS indicates the model is stable  -  no single observation
-  drives the result.
+- **MC p-value:** The printed `p(MC)` is a nondirectional Fisher-randomization
+  p-value. Each permutation searches for the best categorical mapping of the
+  permuted labels, matching the nondirectional search used for the training
+  model. Interpret by decision threshold (e.g., p < 0.05).
+- **LOO jackknife:** Leave-one-out ESS and Mean PAC are shown. Each fold holds
+  out one observation, searches for the optimal categorical mapping on the
+  remaining n-1 observations (nondirectional, equal priors), and classifies
+  the held-out case using that fold's rule. Because the identity mapping is the
+  globally optimal partition for these data, every fold recovers the same rule,
+  and LOO ESS equals training ESS exactly. This confirms the model is stable
+  across folds and no single observation drives the result.
 - **LOO p-value:** No LOO Fisher-exact p-value is reported for multicategorical
   (C > 2) class problems. No canonical reference distribution is defined for
-  the C×C LOO confusion matrix in this context. For binary class ODA, a
+  the C x C LOO confusion matrix in this context. For binary class ODA, a
   one-tailed Fisher exact p-value is available (MPE p. 34).
 
 ## Notes on reproducibility
@@ -192,11 +185,14 @@ against MegaODA.exe output in the package test suite
 in this CRAN vignette. Use the canonical run with `mc_iter = 25000L` (chunk
 `fit-canonical`, `eval=FALSE`) for publication-quality results.
 
-**Directional analysis.** `direction = "ascending"` implements MPE Chapter 4
-categorical identity-map DIRECTIONAL (Phase 6C): with k = C = 4 attribute
-categories and class values, `"ascending"` auto-creates the identity mapping
-(amino acid type i -> biological type i) and constrains both training and MC
-permutations to this mapping. Because the identity rule is the globally optimal
-categorical mapping for this dataset, training ESS is unchanged relative to a
-nondirectional analysis; only the MC p-value changes (directional p is at most
-half the nondirectional p, and typically much smaller).
+**Nondirectional search.** No `direction` argument is supplied. ODA evaluates
+all possible mappings from the four amino-acid categories to the four
+biological-type classes and selects the mapping that maximises ESS. This matches
+the MegaODA.exe gold run (`Hypothesis: NONDIRECTIONAL`).
+
+**Optional directional analysis.** A researcher with an *a priori* convergent-
+validity hypothesis (amino acid type i predicts biological type i) can supply
+`direction = "ascending"` for a constrained identity-map analysis
+(MPE Chapter 4 Phase 6C). For this dataset the two analyses yield identical
+ESS and confusion because the identity mapping happens to be the global optimum;
+they differ in MC interpretation (directional vs. nondirectional p-value).

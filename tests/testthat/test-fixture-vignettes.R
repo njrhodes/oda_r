@@ -2,12 +2,15 @@
 # test-fixture-vignettes.R - training gold for four legacy MegaODA vignettes
 #
 # Fixtures: tests/testthat/fixtures/vignettes/data/example-{1..4}/
-# Coverage: rule type/cut, confusion matrix (raw integer, actual x predicted), ESS.
+# Coverage: rule type/cut, confusion matrix (raw integer, actual x predicted), ESS,
+#           LOO ESS and LOO confusion parity.
 # All CRAN-safe (mcarlo = FALSE).
 #
 # Ex1 (n=407): binary class (vote Con/Pro), binary ordered attr (party affil)
 # Ex2 (n=720): binary class (motivation Ind/Com), 4-cat nominal attr (adjustment)
+#              Gold: nondirectional categorical ODA (no DIRECTION command in EXE)
 # Ex3 (n=325): 4-class (protein type), 4-cat nominal attr (amino acid type)
+#              Gold: nondirectional categorical ODA (no DIRECTION command in EXE)
 # Ex4 (n= 67): binary class (treatment arm), ordered attr (migraine attacks 0-7)
 ###############################################################################
 
@@ -65,6 +68,18 @@ test_that("vignette Ex2: nominal_cut {3,4}->0/{1,2}->1, confusion [[217,150],[10
   expect_equal(fit$ess, 56.30, tolerance = 0.05)
 })
 
+test_that("vignette Ex2 LOO: ess_loo=56.30 equals training ESS (stable nondirectional rule)", {
+  # Gold: MegaODA LOO same as training (optimal mapping stable across folds).
+  # No direction_map: nondirectional categorical search per fold.
+  df  <- .read_vignette_csv(2L, c("v1", "v2"))
+  fit <- oda_fit(x = df$v1, y = df$v2,
+                 attr_type = "categorical", mcarlo = FALSE, loo = "on")
+  expect_true(isTRUE(fit$loo$allowed), label = "Ex2 LOO allowed")
+  expect_equal(fit$loo$ess_loo, 56.30, tolerance = 0.05,
+               label = "Ex2 LOO ESS equals training ESS 56.30")
+  expect_lt(fit$loo$p_value, 0.001, label = "Ex2 LOO p < 0.001")
+})
+
 # =============================================================================
 # Ex3 - 4-class, 4-cat nominal attribute (MegaODA: Categorical=ON, CAT v2)
 # Gold rule: V2=k -> V1=k (identity mapping)
@@ -86,6 +101,26 @@ test_that("vignette Ex3: multiclass_nominal, confusion 4x4 gold, ESS=50.96", {
   ), nrow = 4L, byrow = TRUE)
   expect_equal(unname(fit$confusion), gold)
   expect_equal(fit$ess, 50.96, tolerance = 0.05)
+})
+
+test_that("vignette Ex3 LOO: ess_loo=50.96 equals training ESS; LOO confusion equals training", {
+  # Gold: MegaODA LOO same as training (identity mapping optimal and stable across folds).
+  # No direction command: nondirectional categorical search per fold.
+  df  <- .read_vignette_csv(3L, c("v1", "v2"))
+  fit <- oda_fit(x = df$v2, y = df$v1,
+                 attr_type = "categorical", mcarlo = FALSE, loo = "on")
+  expect_true(isTRUE(fit$loo$allowed), label = "Ex3 LOO allowed")
+  s <- summary(fit)
+  expect_equal(s$loo$ess_loo, 50.96, tolerance = 0.05,
+               label = "Ex3 LOO ESS equals training ESS 50.96")
+  gold <- matrix(c(
+    98L, 16L,  5L,  3L,
+    13L, 50L,  2L,  8L,
+     6L,  4L, 23L, 12L,
+     7L, 19L, 14L, 45L
+  ), nrow = 4L, byrow = TRUE)
+  expect_equal(unname(s$loo$confusion), gold,
+               label = "Ex3 LOO confusion equals training confusion (identity rule stable)")
 })
 
 # =============================================================================
