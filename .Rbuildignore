@@ -31,6 +31,7 @@
 ^_site$
 
 ^CONTRIBUTING\.md$
+^cran-comments\.md$
 ^PROD_CHECKPOINT\.md$
 ^tests/testthat/myeloma$
 ^tests/testthat/CTA_DEMO\.CSV$
