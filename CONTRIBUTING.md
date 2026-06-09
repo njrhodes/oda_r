@@ -136,6 +136,39 @@ and is not a package failure.
 
 ---
 
+## Branch policy
+
+`main` is canonical and must always be in a releasable state.
+
+| Rule | Detail |
+|------|--------|
+| **Base** | All work branches start from an up-to-date `main` (`git pull --ff-only`). |
+| **Lifetime** | Feature branches are short-lived; delete the branch after merge. |
+| **Merge gate** | PR + required CI checks must pass before merging to `main`. Run smoke locally before PRs that touch CTA, MDSA, reporting, or graphics. |
+| **Direct push** | Do not push directly to `main` except for repository-owner emergency maintenance. Once branch protection is enabled, direct pushes should be blocked. |
+
+Branch name prefixes:
+
+| Prefix | Use |
+|--------|-----|
+| `ci/` | CI configuration and workflow changes |
+| `docs/` | Documentation-only changes |
+| `test/` | Test additions or fixes |
+| `fix/` | Bug fixes |
+| `feature/` | New functionality |
+
+After a PR is merged, delete both ends:
+
+```bash
+# Delete local branch
+git branch -d <branch>
+
+# Delete remote branch (if not auto-deleted by GitHub)
+git push origin --delete <branch>
+```
+
+---
+
 ## Pull request checklist
 
 - [ ] `ODA_TEST_TIER=fast` suite: FAIL 0 / WARN 0
