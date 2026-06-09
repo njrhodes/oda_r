@@ -11,6 +11,10 @@
 
 \item{...}{Unused.}
 }
+\value{
+Invisibly returns \code{x}. Called primarily for its side effect of
+  printing a human-readable summary of the SDA plan to the console.
+}
 \description{
 Print an auto_sda_plan object
 }
