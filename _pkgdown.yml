@@ -13,6 +13,7 @@ navbar:
     github:
       icon: fab fa-github
       href: https://github.com/njrhodes/oda_r
+      aria-label: GitHub
 
 home:
   sidebar:
@@ -22,6 +23,13 @@ home:
 # Reference
 # ---------------------------------------------------------------------------
 reference:
+  - title: "Datasets"
+    desc: >
+      Built-in example datasets used in vignettes and canon fixture tests.
+    contents:
+      - cta_demo
+      - myeloma
+
   - title: "ODA - fitting and prediction"
     desc: >
       Unified dispatcher, binary-class engine, multiclass engine, rule
@@ -32,6 +40,9 @@ reference:
       - oda_multiclass_unioda_core
       - oda_rule_predict
       - oda_rule_predict_multiclass
+      - oda_propensity_weights
+      - oda_power
+      - oda_sample_size
 
   - title: "ODA - S3 methods and accessors"
     desc: >
@@ -53,6 +64,17 @@ reference:
       - oda_mean_pac
       - oda_ess_from_meanpac
       - oda_ess_from_mean
+
+  - title: "ODA - data preparation and validation"
+    desc: >
+      Preprocessing, attribute-type inference, group and weight validation,
+      and readiness checking.
+    contents:
+      - oda_clean_missing_codes
+      - oda_infer_attr_types
+      - oda_validate_group
+      - oda_validate_weights
+      - oda_readiness_check
 
   - title: "CTA - fitting and prediction"
     desc: >
@@ -88,6 +110,8 @@ reference:
       - cta_assign_endpoints
       - cta_observation_weights
       - cta_confusion_table
+      - as_confusion_matrix
+      - cta_confusion_matrix
 
   - title: "MDSA - family summary"
     desc: >
@@ -95,6 +119,9 @@ reference:
       D-statistic complexity measure, and minimum-D model selection.
     contents:
       - cta_family_table
+      - summary.cta_family
+      - print.cta_family
+      - print.cta_family_summary
 
   - title: "LORT - Locally Optimal Recursive Trees"
     desc: >
@@ -109,6 +136,10 @@ reference:
       - plot.cta_ort
       - cta_ort_node_table
       - ort_plot_data
+      - lort_index_path
+      - lort_local_tree
+      - lort_path_table
+      - lort_propensity_weights
 
   - title: "SDA - Sequential Discriminant Analysis"
     desc: >
@@ -121,11 +152,17 @@ reference:
       - print.sda_fit
       - summary.sda_fit
       - auto_sda_plan
+      - print.auto_sda_plan
       - sda_candidate_table
       - sda_selected_attributes
       - sda_step_table
       - sda_to_cta_data
       - as_cta_candidates
+      - sda_anchor
+      - as_sda_anchor
+      - validate_sda_anchor
+      - print.sda_anchor
+      - summary.sda_anchor
 
   - title: "Covariate balance diagnostics"
     desc: >
@@ -138,6 +175,9 @@ reference:
       - oda_balance_plot_data
       - cta_balance_table
       - cta_balance_plot_data
+      - oda_balance_effect_table
+      - cta_balance_effect_summary
+      - propensity_ess_balance
 
   - title: "Graphics - base-R renderers"
     desc: >
@@ -158,15 +198,33 @@ reference:
     contents:
       - plot_cta_tree
       - plot_lort_tree
+      - plot_lort_path
+      - plot_cta_family
       - plot_oda_balance
       - plot_smd_balance
       - plot_balance_love
       - plot_cta_balance
+      - plot_oda_balance_effects
+      - plot_cta_balance_effects
 
   - title: "NOVOboot"
     desc: Fixed-confusion NOVOmetric bootstrap confidence intervals.
     contents:
       - novo_boot_ci
+
+  - title: "Developer / internal helpers"
+    desc: >
+      Low-level engine helpers and secondary print methods. These are not part
+      of the primary user-facing API; documented for developer reference only.
+    contents:
+      - .lort_parent_maps
+      - oda_best_ordered_multiclass_partition
+      - oda_loo_multiclass_ordered
+      - oda_mc_p_value
+      - print.oda_fit_summary
+      - print.cta_tree_summary
+      - print.cta_ort_summary
+      - print.sda_fit_summary
 
 # ---------------------------------------------------------------------------
 # Articles
