@@ -31,5 +31,5 @@ Suggests:
 Config/testthat/edition: 3
 VignetteBuilder: knitr
 RoxygenNote: 7.3.3
-URL: https://njrhodes.github.io/oda/, https://github.com/njrhodes/oda_r
+URL: https://njrhodes.github.io/oda_r/, https://github.com/njrhodes/oda_r
 BugReports: https://github.com/njrhodes/oda_r/issues
