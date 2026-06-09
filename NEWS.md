@@ -1,3 +1,11 @@
+# oda 0.1.2
+
+## CRAN resubmission
+
+* Added missing return-value documentation for SDA print and summary methods, as requested by CRAN.
+* Replaced inappropriate `\dontrun{}` examples with `\donttest{}` or runnable examples, as requested by CRAN.
+* Audited exported functions and registered S3 methods for missing return-value documentation.
+
 # oda 0.1.1
 
 ## User-facing fixes
