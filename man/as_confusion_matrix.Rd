@@ -31,10 +31,13 @@ m <- as_confusion_matrix(df)
 novo_boot_ci(m, nboot = 200L, seed = 1L)
 
 # From a fitted tree:
-\dontrun{
-ct <- cta_confusion_table(tree)
+\donttest{
+fit <- cta_fit(data.frame(x = seq_len(8L)),
+               c(0L, 0L, 0L, 0L, 1L, 1L, 1L, 1L),
+               mindenom = 2L, mc_iter = 100L, loo = "off")
+ct <- cta_confusion_table(fit)
 m  <- as_confusion_matrix(ct)
-novo_boot_ci(m, nboot = 5000L, seed = 42L)
+novo_boot_ci(m, nboot = 200L, seed = 42L)
 }
 }
 \seealso{

@@ -35,7 +35,10 @@ panel is returned instead of an interval plot.
 \strong{This function does not fit any models.}
 }
 \examples{
-\dontrun{
+\donttest{
+group <- c(0L, 0L, 0L, 0L, 1L, 1L, 1L, 1L)
+X     <- data.frame(v1 = c(1, 2, 3, 4, 5, 6, 7, 8),
+                    v2 = c(0L, 1L, 0L, 1L, 0L, 1L, 0L, 1L))
 ces <- cta_balance_effect_summary(group, X, mindenom = 5L,
                                    mc_iter = 200L, mc_seed = 42L,
                                    nboot = 20L, chance_iter = 20L)

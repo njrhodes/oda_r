@@ -11,6 +11,12 @@
 
 \item{...}{Unused.}
 }
+\value{
+An object of class \code{"sda_fit_summary"} (a list) with elements:
+  \code{mode}, \code{n_initial}, \code{n_final_unresolved},
+  \code{stop_reason}, \code{selected_attributes}, \code{step_table}
+  (data.frame), and \code{settings}.
+}
 \description{
 Summarise an sda_fit object
 }

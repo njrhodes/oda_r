@@ -1925,7 +1925,10 @@ plot_cta_balance <- function(x,
 #' @return A \code{ggplot} object.
 #' @seealso \code{\link{oda_balance_effect_table}}
 #' @examples
-#' \dontrun{
+#' \donttest{
+#' group <- c(0L, 0L, 0L, 0L, 1L, 1L, 1L, 1L)
+#' X     <- data.frame(v1 = c(1, 2, 3, 4, 5, 6, 7, 8),
+#'                     v2 = c(0L, 1L, 0L, 1L, 0L, 1L, 0L, 1L))
 #' et <- oda_balance_effect_table(group, X,
 #'                                 nboot = 50L, chance_iter = 50L,
 #'                                 mc_iter = 200L, mc_seed = 1L)
@@ -2048,7 +2051,10 @@ plot_oda_balance_effects <- function(x,
 #' @return A \code{ggplot} object.
 #' @seealso \code{\link{cta_balance_effect_summary}}
 #' @examples
-#' \dontrun{
+#' \donttest{
+#' group <- c(0L, 0L, 0L, 0L, 1L, 1L, 1L, 1L)
+#' X     <- data.frame(v1 = c(1, 2, 3, 4, 5, 6, 7, 8),
+#'                     v2 = c(0L, 1L, 0L, 1L, 0L, 1L, 0L, 1L))
 #' ces <- cta_balance_effect_summary(group, X, mindenom = 5L,
 #'                                    mc_iter = 200L, mc_seed = 42L,
 #'                                    nboot = 20L, chance_iter = 20L)

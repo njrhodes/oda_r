@@ -302,6 +302,8 @@ auto_sda_plan <- function(
 #' Print an auto_sda_plan object
 #' @param x An \code{auto_sda_plan} object.
 #' @param ... Unused.
+#' @return Invisibly returns \code{x}. Called primarily for its side effect of
+#'   printing a human-readable summary of the SDA plan to the console.
 #' @export
 print.auto_sda_plan <- function(x, ...) {
   cat(sprintf("auto_sda_plan  [mode: %s  |  dry_run: %s]\n",

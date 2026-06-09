@@ -136,6 +136,8 @@ predict.sda_fit <- function(object, newdata, type = "class", ...) {
 #' Print an sda_fit object
 #' @param x An \code{sda_fit} object.
 #' @param ... Unused.
+#' @return Invisibly returns \code{x}. Called primarily for its side effect of
+#'   printing a human-readable summary of the SDA fit to the console.
 #' @export
 print.sda_fit <- function(x, ...) {
   steps <- x$steps
@@ -169,6 +171,10 @@ print.sda_fit <- function(x, ...) {
 #' Summarise an sda_fit object
 #' @param object An \code{sda_fit} object.
 #' @param ... Unused.
+#' @return An object of class \code{"sda_fit_summary"} (a list) with elements:
+#'   \code{mode}, \code{n_initial}, \code{n_final_unresolved},
+#'   \code{stop_reason}, \code{selected_attributes}, \code{step_table}
+#'   (data.frame), and \code{settings}.
 #' @export
 summary.sda_fit <- function(object, ...) {
   steps <- object$steps
@@ -202,6 +208,8 @@ summary.sda_fit <- function(object, ...) {
 #' Print an sda_fit_summary object
 #' @param x An \code{sda_fit_summary} object.
 #' @param ... Unused.
+#' @return Invisibly returns \code{x}. Called primarily for its side effect of
+#'   printing a human-readable summary of the SDA results to the console.
 #' @export
 print.sda_fit_summary <- function(x, ...) {
   cat(sprintf("SDA summary  [mode: %s  |  stop: %s]\n",

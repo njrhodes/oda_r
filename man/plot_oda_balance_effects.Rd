@@ -47,7 +47,10 @@ When the object contains multiple analysis scales (e.g.,
 \code{oda_balance_effect_table} from \code{\link{oda_balance_effect_table}}.
 }
 \examples{
-\dontrun{
+\donttest{
+group <- c(0L, 0L, 0L, 0L, 1L, 1L, 1L, 1L)
+X     <- data.frame(v1 = c(1, 2, 3, 4, 5, 6, 7, 8),
+                    v2 = c(0L, 1L, 0L, 1L, 0L, 1L, 0L, 1L))
 et <- oda_balance_effect_table(group, X,
                                 nboot = 50L, chance_iter = 50L,
                                 mc_iter = 200L, mc_seed = 1L)
