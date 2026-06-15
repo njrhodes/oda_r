@@ -1,5 +1,7 @@
 # oda
 
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.20707627.svg)](https://doi.org/10.5281/zenodo.20707627)
+
 Pure-R reimplementation of the MegaODA / CTA classification engine.
 
 - **`oda_fit()`** - ODA dispatcher: UniODA (C = 2) or MultiODA (C >= 3) for ordered, categorical, and binary attributes

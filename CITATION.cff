@@ -4,10 +4,12 @@ title: "oda: Pure-R Core Engine for Optimal Data Analysis (ODA / MultiODA)"
 version: 0.1.2
 repository-code: https://github.com/njrhodes/oda_r
 url: https://github.com/njrhodes/oda_r/releases/tag/v0.1.2
+doi: 10.5281/zenodo.20707627
 license: GPL-3.0-only
 authors:
   - family-names: Rhodes
     given-names: Nathaniel
     email: nrhode@midwestern.edu
+    orcid: https://orcid.org/0000-0002-0018-5434
   - family-names: Yarnold
     given-names: Paul
