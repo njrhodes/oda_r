@@ -1,6 +1,6 @@
 # oda
 
-[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.20707627.svg)](https://doi.org/10.5281/zenodo.20707627)
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.20708085.svg)](https://doi.org/10.5281/zenodo.20708085)
 
 Pure-R reimplementation of the MegaODA / CTA classification engine.
 
@@ -310,3 +310,9 @@ GitHub Actions runs `R CMD check` on:
 | macos-latest | release |
 
 Triggered on push/PR to `main`.
+
+## Citation
+
+If you use this package, please cite:
+
+Rhodes, N., & Yarnold, P. (2026). *oda: Pure-R Core Engine for Optimal Data Analysis (ODA / MultiODA)* (v0.1.2). Zenodo. https://doi.org/10.5281/zenodo.20708085
