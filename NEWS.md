@@ -1,3 +1,27 @@
+# oda 0.1.3
+
+## Bug fixes
+
+* Weighted ordered CTA splits now match CTA.exe. `.cta_ordered_scan()` and
+  `.cta_fast_scan_perm()` choose the cut that maximises count-priors weighted
+  accuracy (sum of correct case weights divided by the raw class count) among
+  admissible cuts, instead of the outermost cut with sensitivity > 0.5. This
+  reproduces all 118 attribute WESS reports in the CTA.exe myeloma MINDENOM=1
+  output (#19).
+* `mindenom` is now a gate on the selected cut, as in CTA.exe: a split whose
+  smaller side has fewer than `mindenom` observations is rejected rather than
+  replaced by a different cut. This stops ESS rising as `mindenom` increases.
+* Reported ESS is always the weighted ESS (class weight totals rescaled to 1),
+  including with `priors_on = FALSE`, so it stays within [-100, 100] and does
+  not depend on the scale of the weights (#20).
+* The Monte Carlo permutation scan shares one implementation with the observed
+  scan; the `mindenom` gate is not applied to permutations.
+* Weighted numeric binary (0/1) attributes now use the same CTA scan, so their
+  direction (and WESS, which can be negative) matches CTA.exe.
+* The weighted CTA path now drops observations missing on the attribute before
+  the scan, Monte Carlo permutations and LOO. Previously LOO scored missing rows
+  through the rule, which understated LOO WESS for attributes with missing values.
+
 # oda 0.1.2
 
 ## CRAN resubmission

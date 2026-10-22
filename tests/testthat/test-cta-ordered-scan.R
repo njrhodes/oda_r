@@ -1,16 +1,12 @@
 ###############################################################################
 # test-cta-ordered-scan.R
 #
-# Audit-evidence tests for .cta_ordered_scan().
+# Unit tests for .cta_ordered_scan() / .cta_fast_scan_perm().
 #
-# Scope: unit tests ONLY for the scan function itself.
-#   The rule (rightmost sens_wa > 0.5) is empirically confirmed only for
-#   myeloma V4 at Node 4 and Node 2 (direction 0->1, WEIGHT V2 active).
-#   It has NOT been verified against other fixtures (e.g. cta_demo).
-#   Do NOT integrate .cta_ordered_scan() into .fast_screen() or
-#   .full_fit_one() until confirmed against all canonical CTA fixtures.
-#
-# Reference: docs/CTA_ORDERED_CUT_AUDIT.md
+# Rule (docs/CTA_ORDERED_CUT_AUDIT.md): maximise count-priors weighted
+# accuracy sum(w x correct)/n_class over admissible cuts; MINDENOM gates the
+# selected cut; reported ess is the usual WESS.  Anchors: every CTA.exe V4
+# node report in the myeloma MINDENOM=1 output (11 nodes, Trees 1-3).
 ###############################################################################
 
 # ---- Myeloma data helpers ---------------------------------------------------
@@ -72,8 +68,7 @@ test_that(".cta_ordered_scan: myeloma Node 4 V4 returns cut 359.80 ESS ~34.90%",
                label = "cut value matches CTA.exe myeloma MINDENOM=1 fixture")
   expect_equal(res$ess,            34.90,  tolerance = 0.01,
                label = "WESS matches CTA.exe myeloma MINDENOM=1 fixture")
-  expect_gt(res$sens_wa, 0.5,
-            label = "sens_wa > 0.5: rightmost eligible cut confirmed")
+  expect_gt(res$sens_wa, 0.5)
 })
 
 test_that(".cta_ordered_scan: myeloma Node 2 V4 returns cut 371.20 ESS ~34.89%", {
@@ -153,4 +148,107 @@ test_that(".cta_ordered_scan: does not error under varying mindenom", {
   r5 <- oda:::.cta_ordered_scan(x, y, w, TRUE, NULL, 5L)
   expect_false(is.null(r1), label = "mindenom=1 finds a cut")
   expect_true(is.null(r5) || is.list(r5), label = "mindenom=5 returns NULL or list")
+})
+
+# =============================================================================
+# CTA.exe parity: every weighted V4 node report, myeloma MINDENOM=1
+# =============================================================================
+
+test_that(".cta_ordered_scan: reproduces all 11 CTA.exe myeloma V4 node WESS values", {
+  dat <- .myeloma_cta_dat()
+  if (is.null(dat)) skip("myeloma fixture missing")
+  le <- function(v) !(v %in% -9) & v <= 0.5
+  gt <- function(v) !(v %in% -9) & v >  0.5
+  all_rows <- rep(TRUE, nrow(dat))
+  cases <- list(
+    list("T1 N1", all_rows,                         6.93),
+    list("T1 N2", le(dat$V17),                     34.89),
+    list("T1 N4", le(dat$V17) & le(dat$V15),       34.90),
+    list("T1 N5", le(dat$V17) & gt(dat$V15),       33.41),
+    list("T1 N3", gt(dat$V17),                      3.42),
+    list("T2 N2", le(dat$V14),                     11.40),
+    list("T2 N4", le(dat$V14) & le(dat$V15),        1.70),
+    list("T2 N5", le(dat$V14) & gt(dat$V15),       28.09),
+    list("T2 N3", gt(dat$V14),                     20.22),
+    list("T3 N2", le(dat$V15),                      8.34),
+    list("T3 N3", gt(dat$V15),                     28.09)
+  )
+  for (cs in cases) {
+    idx <- which(cs[[2]])
+    res <- oda:::.cta_ordered_scan(dat$V4[idx], .recode01(dat$V1[idx]), dat$V2[idx],
+                                   priors_on = TRUE, miss_codes = -9, mindenom = 1L)
+    expect_false(is.null(res), label = cs[[1]])
+    expect_equal(round(res$ess, 2), cs[[3]], tolerance = 0.006, label = cs[[1]])
+  }
+})
+
+test_that(".cta_ordered_scan: MINDENOM gates the selected cut, it does not move it", {
+  dat <- .myeloma_cta_dat()
+  if (is.null(dat)) skip("myeloma fixture missing")
+  idx <- .node2_rows(dat)                       # selected cut 371.20: nL = 102, nR = 29
+  x <- dat$V4[idx]; y <- .recode01(dat$V1[idx]); w <- dat$V2[idx]
+  r1  <- oda:::.cta_ordered_scan(x, y, w, TRUE, -9, 1L)
+  r29 <- oda:::.cta_ordered_scan(x, y, w, TRUE, -9, 29L)
+  r30 <- oda:::.cta_ordered_scan(x, y, w, TRUE, -9, 30L)
+  expect_equal(r29$rule$cut_value, r1$rule$cut_value)
+  expect_equal(r29$ess, r1$ess)
+  expect_null(r30)
+})
+
+# =============================================================================
+# Invariants (CRAN-safe, synthetic)
+# =============================================================================
+
+.scan_synth <- function(seed, n = 60L) {
+  set.seed(seed)
+  list(x = round(stats::rnorm(n), 1), y = stats::rbinom(n, 1L, 0.4),
+       w = stats::runif(n, 0.2, 5))
+}
+
+test_that(".cta_ordered_scan: weight scale invariance and ESS within [-100, 100]", {
+  for (s in 1:20) {
+    d  <- .scan_synth(s)
+    r  <- oda:::.cta_ordered_scan(d$x, d$y, d$w,      TRUE, NULL, 1L)
+    rs <- oda:::.cta_ordered_scan(d$x, d$y, d$w * 10, TRUE, NULL, 1L)
+    if (is.null(r)) { expect_null(rs); next }
+    expect_equal(rs$rule$cut_value, r$rule$cut_value)
+    expect_equal(rs$rule$direction, r$rule$direction)
+    expect_equal(rs$ess, r$ess, tolerance = 1e-10)
+    expect_true(r$ess >= -100 && r$ess <= 100)
+    rf <- oda:::.cta_ordered_scan(d$x, d$y, d$w * 10, FALSE, NULL, 1L)
+    if (!is.null(rf)) expect_true(rf$ess >= -100 && rf$ess <= 100)
+  }
+})
+
+test_that(".cta_ordered_scan: uniform weights give the maximum admissible ESS", {
+  for (s in 1:20) {
+    d <- .scan_synth(s); w1 <- rep(1, length(d$x))
+    r <- oda:::.cta_ordered_scan(d$x, d$y, w1, TRUE, NULL, 1L)
+    u <- sort(unique(d$x)); best <- -Inf
+    for (j in seq_len(length(u) - 1L)) {
+      L <- d$x <= (u[j] + u[j + 1L]) / 2
+      e <- (mean(!L[d$y == 1]) + mean(L[d$y == 0]) - 1) * 100
+      if (any(L & d$y == 0) && any(!L & d$y == 1)) best <- max(best,  e)
+      if (any(L & d$y == 1) && any(!L & d$y == 0)) best <- max(best, -e)
+    }
+    expect_equal(r$ess, best, tolerance = 1e-10)
+  }
+})
+
+test_that(".cta_fast_scan_perm: identical to .cta_ordered_scan with no gate", {
+  for (s in 1:20) {
+    d  <- .scan_synth(s)
+    pc <- oda:::.cta_mc_precomp_ord(d$x, d$w, NULL, 1L)
+    for (pri in c(TRUE, FALSE)) {
+      expect_identical(oda:::.cta_fast_scan_perm(d$y, pc, pri),
+                       oda:::.cta_ordered_scan(d$x, d$y, d$w, pri, NULL, 1L))
+    }
+  }
+})
+
+test_that(".cta_fast_scan_perm: MINDENOM gate is not applied to permutations", {
+  d  <- .scan_synth(3)
+  pc <- oda:::.cta_mc_precomp_ord(d$x, d$w, NULL, 1000L)
+  expect_false(is.null(oda:::.cta_fast_scan_perm(d$y, pc, TRUE)))
+  expect_null(oda:::.cta_ordered_scan(d$x, d$y, d$w, TRUE, NULL, 1000L))
 })

@@ -15,8 +15,8 @@
 #     V4  CTA scan: cut=371.20, WESS=34.89%, Signif T.
 #         Generic ODA LOO WESSL~=38.52%; |34.89-38.52|=3.63 >> 0.01 -> UNSTABLE.
 #         V4 always rejected by LOO STABLE gate (regardless of MC outcome).
-#     V15 binary (2 unique values): CTA path bypassed; generic ODA WESS=17.57%.
-#         Generic ODA LOO WESSL=17.57% = WESS -> STABLE.
+#     V15 binary (numeric 0/1): CTA scan path; WESS=17.57% (= CTA.exe).
+#         LOO WESSL=17.57% = WESS -> STABLE.
 #         V15 Signif T -> selected as root.
 #
 #   cta_demo (uniform weights):
@@ -141,7 +141,7 @@ test_that("node-selection: Node 2 V4-only always LOO UNSTABLE -> leaf-only tree"
 # Test 3: Node 2, V4+V15 -> V4 rejected; root must be V15
 #
 # V4: CTA path -> LOO UNSTABLE -> rejected (see Test 2 above).
-# V15: binary (2 unique values) -> CTA path bypassed; generic ODA WESS=17.57%,
+# V15: numeric binary -> CTA scan path; WESS=17.57% (= CTA.exe),
 #      LOO WESSL=17.57% -> STABLE; Signif T -> selected as root.
 # =============================================================================
 

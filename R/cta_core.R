@@ -48,109 +48,102 @@
 
 # .cta_ordered_scan()
 #
-# CTA-faithful ordered-cut selection for binary class.
+# CTA.exe ordered-cut selection for a binary class.
 #
-# The rule differs from generic oda_univariate_core():
-#   "0->1" direction: select the RIGHTMOST cut where the class-1
-#     priors-adjusted PAC on the right branch (sens_wa) exceeds 0.5.
-#     Since sens_wa_01 = 1 - C1a[j] is non-increasing, this is the last j
-#     before sens_wa drops to <= 0.5 - equivalently, maximise spec_wa subject
-#     to sens_wa > 0.5.
-#   "1->0" direction: select the LEFTMOST cut where the class-1
-#     priors-adjusted PAC on the LEFT branch (sens_wa_10 = C1a[j]) exceeds 0.5.
-#     Since C1a[j] is non-decreasing, this is the first j where sens_wa_10
-#     crosses above 0.5 - equivalently, maximise spec_wa_10 subject to
-#     sens_wa_10 > 0.5.
-#   The two rules are symmetric: each picks the "outermost" cut that maintains
-#   class-1 majority on the prediction side.
-#   The direction yielding the higher ESS is returned (ties -> "0->1").
+# Rule (reproduces every CTA.exe weighted V4 node report in the myeloma
+# MINDENOM=1 and MINDENOM=30 fixtures; see docs/CTA_ORDERED_CUT_AUDIT.md):
+#
+#   1. Objective.  For each candidate cut j and direction, maximise the
+#      count-priors weighted accuracy
+#          O = sum_{correct, class 0} w / n0  +  sum_{correct, class 1} w / n1
+#      where n0, n1 are RAW class counts (priors from counts, not weight
+#      totals).  priors_on = FALSE drops the division by n_c (raw weighted
+#      hits).  Uniform weights reduce O to sens + spec, i.e. maximum ESS.
+#   2. Admissibility.  Each side must correctly classify at least one raw
+#      observation of the class it predicts.
+#   3. Ties.  Lowest cut first within a direction; "0->1" wins direction ties.
+#   4. MINDENOM is a GATE on the selected cut, not a constraint on the search:
+#      if either side of the selected cut has fewer than mindenom raw
+#      observations, the attribute has no eligible split (NULL).
+#   5. Reported ess / sens_wa / spec_wa are the usual weighted values: each
+#      class's weight total is rescaled to 1 (WESS), whatever priors_on is.
 #
 # Parameters
 #   x, y, w    raw data vectors (same length); y must be in {0, 1}.
-#   priors_on  if TRUE apply prior-odds weighting.
+#   priors_on  if TRUE use count priors in the objective (CTA.exe default).
 #   miss_codes numeric miss-code vector (may be NULL).
-#   mindenom   minimum raw obs count per child node.
+#   mindenom   minimum raw obs count per child node (gate on the selected cut).
 #
 # Returns list(rule, ess, sens_wa, spec_wa) or NULL if no eligible cut exists.
 .cta_ordered_scan <- function(x, y, w, priors_on, miss_codes, mindenom) {
-  # 1. Clean missing
   miss_mask <- is.na(x) | is.na(y)
   if (!is.null(miss_codes)) miss_mask <- miss_mask | (x %in% miss_codes)
   keep <- !miss_mask
   x <- x[keep]; y <- as.integer(y[keep]); w <- as.numeric(w[keep])
-  n <- length(x)
-  if (n < 2L * as.integer(mindenom)) return(NULL)
-  n0 <- sum(y == 0L); n1 <- sum(y == 1L)
-  if (n0 == 0L || n1 == 0L) return(NULL)
+  if (length(x) < 2L * as.integer(mindenom)) return(NULL)
+  precomp <- .cta_mc_precomp_ord(x, w, NULL, mindenom)
+  .cta_scan_core(y, precomp, priors_on, gate = TRUE)
+}
 
-  # 2. Priors-adjusted weights
-  W0 <- sum(w[y == 0L]); W1 <- sum(w[y == 1L])
-  if (W0 <= 0 || W1 <= 0) return(NULL)
-  w_adj <- w
-  if (isTRUE(priors_on)) {
-    w_adj[y == 0L] <- w_adj[y == 0L] / W0
-    w_adj[y == 1L] <- w_adj[y == 1L] / W1
-  }
-
-  # 3. Unique-value blocks (sorted left to right)
-  uvals <- sort(unique(x))
-  m     <- length(uvals)
+# .cta_scan_core()
+#
+# Shared implementation of the rule above for the observed scan and the
+# Monte Carlo permutation scan, so both always use the same statistic.
+#   y_c      class vector for the KEPT observations (same order as precomp).
+#   gate     apply the MINDENOM gate (TRUE for the observed fit; FALSE in
+#            permutations, matching CTA.exe MC p-values that do not vary
+#            with MINDENOM).
+.cta_scan_core <- function(y_c, precomp, priors_on, gate = TRUE) {
+  m <- precomp$m
   if (m < 2L) return(NULL)
+  y_c <- as.integer(y_c)
+  n0 <- sum(y_c == 0L); n1 <- sum(y_c == 1L)
+  if (n0 == 0L || n1 == 0L) return(NULL)
+  w_c <- precomp$w_clean
+  W0  <- sum(w_c[y_c == 0L]); W1 <- sum(w_c[y_c == 1L])
+  if (W0 <= 0 || W1 <= 0) return(NULL)
 
-  z0a <- numeric(m); z1a <- numeric(m); nv <- integer(m)
-  for (b in seq_len(m)) {
-    idx    <- x == uvals[b]
-    z0a[b] <- sum(w_adj[idx][y[idx] == 0L])
-    z1a[b] <- sum(w_adj[idx][y[idx] == 1L])
-    nv[b]  <- sum(idx)
+  is0 <- as.numeric(y_c == 0L); is1 <- as.numeric(y_c == 1L)
+  d0  <- if (isTRUE(priors_on)) n0 else 1
+  d1  <- if (isTRUE(priors_on)) n1 else 1
+  blk <- precomp$block_idx
+  .cs <- function(v) cumsum(as.numeric(rowsum(v, blk, reorder = TRUE)))
+  CA0 <- .cs(w_c * is0 / d0); CA1 <- .cs(w_c * is1 / d1)   # objective weights
+  CZ0 <- .cs(w_c * is0 / W0); CZ1 <- .cs(w_c * is1 / W1)   # WESS weights
+  K0  <- .cs(is0);            K1  <- .cs(is1)              # raw counts
+  TA0 <- CA0[m]; TA1 <- CA1[m]
+
+  j   <- seq_len(m - 1L)
+  o01 <- CA0[j] + (TA1 - CA1[j])          # left -> 0, right -> 1
+  o10 <- CA1[j] + (TA0 - CA0[j])          # left -> 1, right -> 0
+  o01[!(K0[j] > 0 & (n1 - K1[j]) > 0)] <- -Inf
+  o10[!(K1[j] > 0 & (n0 - K0[j]) > 0)] <- -Inf
+  if (all(!is.finite(o01)) && all(!is.finite(o10))) return(NULL)
+
+  b01 <- which.max(o01); b10 <- which.max(o10)
+  v01 <- if (length(b01)) o01[b01] else -Inf
+  v10 <- if (length(b10)) o10[b10] else -Inf
+  if (v01 >= v10) {
+    jj <- b01; dir <- "0->1"
+    sens <- 1 - CZ1[jj]; spec <- CZ0[jj]
+  } else {
+    jj <- b10; dir <- "1->0"
+    sens <- CZ1[jj]; spec <- 1 - CZ0[jj]
   }
-  C0a <- cumsum(z0a); C1a <- cumsum(z1a); Nv <- cumsum(nv); Nm <- sum(nv)
-
-  # 4. Direction "0->1": sens_wa = 1 - C1a[j] (non-increasing).
-  #    Condition: sens_wa > 0.5 <=> C1a[j] < 0.5.
-  #    Rule: RIGHTMOST eligible j -> overwrite on every valid j.
-  bj01 <- NA_integer_; bes01 <- NA_real_; bse01 <- NA_real_; bsp01 <- NA_real_
-  for (j in seq_len(m - 1L)) {
-    nL <- Nv[j]; nR <- Nm - nL
-    if (nL < mindenom || nR < mindenom) next
-    sens <- 1 - C1a[j]
-    if (sens <= 0.5) next
-    spec <- C0a[j]                        # non-decreasing: rightmost = max
-    bj01 <- j; bes01 <- (spec + sens - 1) * 100; bse01 <- sens; bsp01 <- spec
+  if (isTRUE(gate)) {
+    nL <- precomp$Nv[jj]; nR <- precomp$Nm - nL
+    if (nL < precomp$mindenom || nR < precomp$mindenom) return(NULL)
   }
-
-  # 5. Direction "1->0": sens_wa_10 = C1a[j] (non-decreasing).
-  #    Condition: sens_wa_10 > 0.5 <=> C1a[j] > 0.5.
-  #    Rule: LEFTMOST eligible j -> break on first valid j.
-  bj10 <- NA_integer_; bes10 <- NA_real_; bse10 <- NA_real_; bsp10 <- NA_real_
-  for (j in seq_len(m - 1L)) {
-    nL <- Nv[j]; nR <- Nm - nL
-    if (nL < mindenom || nR < mindenom) next
-    sens <- C1a[j]
-    if (sens <= 0.5) next
-    spec <- 1 - C0a[j]                   # non-increasing: leftmost = max
-    bj10 <- j; bes10 <- (spec + sens - 1) * 100; bse10 <- sens; bsp10 <- spec
-    break                                 # leftmost = first found
-  }
-
-  # 6. Build result for each direction, pick direction with higher ESS (ties -> "0->1")
-  .make_r <- function(dir, bj, bes, bse, bsp)
-    list(rule = list(type = "ordered_cut", direction = dir,
-                     cut_value = (uvals[bj] + uvals[bj + 1L]) / 2),
-         ess = bes, sens_wa = bse, spec_wa = bsp)
-
-  r01 <- if (!is.na(bj01)) .make_r("0->1", bj01, bes01, bse01, bsp01) else NULL
-  r10 <- if (!is.na(bj10)) .make_r("1->0", bj10, bes10, bse10, bsp10) else NULL
-
-  if (is.null(r01) && is.null(r10)) return(NULL)
-  if (is.null(r01)) return(r10)
-  if (is.null(r10)) return(r01)
-  if (r01$ess >= r10$ess) r01 else r10
+  uvals <- precomp$uvals
+  list(rule    = list(type = "ordered_cut", direction = dir,
+                      cut_value = (uvals[jj] + uvals[jj + 1L]) / 2),
+       ess     = (spec + sens - 1) * 100,
+       sens_wa = sens, spec_wa = spec)
 }
 
 # .cta_mc_precomp_ord()
 #
-# Precompute the fixed per-node/attribute structure used by .cta_fast_scan_perm().
+# Precompute the fixed per-node/attribute structure used by .cta_scan_core().
 # Called once per (node, attribute) pair before the MC permutation loop.
 #
 # Returns a list with:
@@ -162,7 +155,7 @@
 #   nv         - per-block observation counts (integer, length m)
 #   Nv         - cumsum(nv): left-side observation count at each cut (integer, length m)
 #   Nm         - total kept observations (integer)
-#   mindenom   - stored for use inside .cta_fast_scan_perm()
+#   mindenom   - MINDENOM gate value
 .cta_mc_precomp_ord <- function(x_raw, w_raw, miss_codes, mindenom) {
   miss_mask <- is.na(x_raw)
   if (!is.null(miss_codes)) miss_mask <- miss_mask | (x_raw %in% miss_codes)
@@ -187,77 +180,14 @@
 
 # .cta_fast_scan_perm()
 #
-# Fast per-permutation CTA ordered scan.  Equivalent to .cta_ordered_scan() called
-# with a permuted y, but uses precomputed block structure to eliminate the O(m)
-# R-level for-loop over unique x values.
+# Per-permutation CTA ordered scan: .cta_scan_core() on a permuted y using the
+# precomputed block structure.  Same objective, admissibility and tie rules as
+# .cta_ordered_scan(); the MINDENOM gate is not applied to permutations.
 #
-# Replaces:
-#   scan_b <- .cta_ordered_scan(x, y_star, w, priors_on, miss_codes, mindenom)
-# with:
-#   scan_b <- .cta_fast_scan_perm(y_star, precomp, priors_on)
-# where precomp = .cta_mc_precomp_ord(x, w, miss_codes, mindenom) built once.
-#
-# Canonical rule preserved:
-#   "0->1": rightmost eligible j where sens_wa = 1 - C1a[j] > 0.5
-#   "1->0": leftmost  eligible j where sens_wa = C1a[j]     > 0.5
-#   direction ties -> "0->1" wins
-#   mindenom applied to both nL and nR
-#
-# Returns the same structure as .cta_ordered_scan(): list(rule, ess, sens_wa, spec_wa)
-# or NULL when no eligible cut exists.
+# Returns list(rule, ess, sens_wa, spec_wa) or NULL when no admissible cut exists.
 .cta_fast_scan_perm <- function(y_star, precomp, priors_on) {
-  if (precomp$m < 2L) return(NULL)              # no candidate cuts possible
   y_c <- as.integer(y_star)[precomp$keep]
-  n0  <- sum(y_c == 0L); n1 <- sum(y_c == 1L)
-  if (n0 == 0L || n1 == 0L) return(NULL)
-
-  w_c <- precomp$w_clean
-  if (isTRUE(priors_on)) {
-    W0 <- sum(w_c[y_c == 0L]); W1 <- sum(w_c[y_c == 1L])
-    if (W0 <= 0 || W1 <= 0) return(NULL)
-    w0_adj <- w_c * (y_c == 0L) / W0
-    w1_adj <- w_c * (y_c == 1L) / W1
-  } else {
-    w0_adj <- w_c * (y_c == 0L)
-    w1_adj <- w_c * (y_c == 1L)
-  }
-
-  # Block aggregation via rowsum() (C-level) - replaces the O(m) R for-loop
-  z0a <- as.numeric(rowsum(w0_adj, precomp$block_idx, reorder = TRUE))
-  z1a <- as.numeric(rowsum(w1_adj, precomp$block_idx, reorder = TRUE))
-  C0a <- cumsum(z0a); C1a <- cumsum(z1a)
-
-  Nv       <- precomp$Nv; Nm <- precomp$Nm; m <- precomp$m
-  uvals    <- precomp$uvals; mindenom <- precomp$mindenom
-  j_seq    <- seq_len(m - 1L)
-  md_ok    <- Nv[j_seq] >= mindenom & (Nm - Nv[j_seq]) >= mindenom
-
-  # "0->1": rightmost eligible j with sens = 1 - C1a[j] > 0.5
-  elig01 <- j_seq[md_ok & C1a[j_seq] < 0.5]
-  r01 <- if (length(elig01) > 0L) {
-    j     <- elig01[length(elig01)]          # rightmost
-    sens  <- 1 - C1a[j]; spec <- C0a[j]
-    list(rule     = list(type = "ordered_cut", direction = "0->1",
-                         cut_value = (uvals[j] + uvals[j + 1L]) / 2),
-         ess      = (spec + sens - 1) * 100,
-         sens_wa  = sens, spec_wa  = spec)
-  } else NULL
-
-  # "1->0": leftmost eligible j with sens = C1a[j] > 0.5
-  elig10 <- j_seq[md_ok & C1a[j_seq] > 0.5]
-  r10 <- if (length(elig10) > 0L) {
-    j     <- elig10[1L]                      # leftmost
-    sens  <- C1a[j]; spec <- 1 - C0a[j]
-    list(rule     = list(type = "ordered_cut", direction = "1->0",
-                         cut_value = (uvals[j] + uvals[j + 1L]) / 2),
-         ess      = (spec + sens - 1) * 100,
-         sens_wa  = sens, spec_wa  = spec)
-  } else NULL
-
-  if (is.null(r01) && is.null(r10)) return(NULL)
-  if (is.null(r01)) return(r10)
-  if (is.null(r10)) return(r01)
-  if (r01$ess >= r10$ess) r01 else r10
+  .cta_scan_core(y_c, precomp, priors_on, gate = FALSE)
 }
 
 # .cta_mc_ordered()
@@ -614,15 +544,17 @@ oda_cta_fit <- function(
   # CTA-specific candidate evaluation for weighted ordered binary predictors.
   #
   # Canon (docs/CTA_ORDERED_CUT_AUDIT.md, MPE.pdf):
-  #   Full WESS: .cta_ordered_scan() - rightmost cut with class-1 right-branch
-  #              priors-adjusted PAC (sens_wa) > 0.5.
+  #   Full WESS: .cta_ordered_scan() - count-priors objective, admissible
+  #              cuts only, MINDENOM gate on the selected cut.
   #   MC p-value: .cta_mc_ordered() - Fisher randomization on CTA scan.
   #   LOO STABLE: generic ODA per-fold refit (oda_loo_for_rule()).
   #               Canon: WESSL must equal WESS (|WESS - WESSL| <= 0.01 pp).
   #               Signif T alone is insufficient; WESSL = WESS is required.
   #
-  # Trigger: non-uniform case weights AND binary class AND >2 unique attr values.
-  # Binary attributes (<=2 unique values) use the generic ODA path unchanged.
+  # Trigger: non-uniform case weights AND binary class AND numeric attribute
+  # with >=2 unique values.  Numeric binary (0/1) attributes use this path too:
+  # CTA.exe chooses their direction with the same count-priors objective, so
+  # their reported WESS can be negative.  Non-numeric attributes use generic ODA.
   # Returns a fit-like list or NULL if rejected (Signif F, no eligible cut, or
   # LOO UNSTABLE). When this path is triggered, callers must not fall back to
   # generic ODA - the candidate is either accepted here or rejected entirely.
@@ -633,13 +565,21 @@ oda_cta_fit <- function(
     # Guard: binary class (C = 2) only
     y_uniq <- sort(unique(as.integer(y_n[!is.na(y_n)])))
     if (length(y_uniq) != 2L) return(NULL)
-    # Guard: attribute must have >2 distinct non-missing values
+    # Guard: numeric attribute with >=2 distinct non-missing values
     x_v <- x_j[!is.na(x_j)]
     if (!is.null(miss_codes)) x_v <- x_v[!(x_v %in% miss_codes)]
-    if (length(unique(x_v)) <= 2L) return(NULL)
+    if (!is.numeric(x_j) || length(unique(x_v)) < 2L) return(NULL)
 
     # Recode y to {0, 1} using sorted label order
     y_01 <- ifelse(as.integer(y_n) == y_uniq[1L], 0L, 1L)
+
+    # Drop observations missing on this attribute (as CTA.exe does) before the
+    # scan, the MC permutations and LOO.  Otherwise LOO scores missing rows
+    # through the rule (e.g. -9 <= cut) and MC permutes labels across them.
+    ok_x <- !is.na(x_j) & !is.na(y_01)
+    if (!is.null(miss_codes)) ok_x <- ok_x & !(x_j %in% miss_codes)
+    x_j <- x_j[ok_x]; y_01 <- y_01[ok_x]; w_n <- w_n[ok_x]
+    if (length(unique(y_01)) < 2L) return(NULL)
 
     # Full-model WESS: CTA-specific ordered scan
     cta_scan <- .cta_ordered_scan(x_j, y_01, w_n,
@@ -842,12 +782,12 @@ oda_cta_fit <- function(
   # Returns a validated candidate list(j,name,fit,ess,p_mc) or NULL if rejected.
   .full_fit_one <- function(j, idx, pos_id) {
     y_n <- y[idx]; w_n <- w[idx]; x_j <- X[[j]][idx]
-    # ---- CTA-specific ordered-cut path (weighted binary ordered predictors) ----
+    # ---- CTA-specific path (weighted binary class, numeric attributes) --------
     if (any(w_n != w_n[1L]) &&
         length(unique(as.integer(y_n[!is.na(y_n)]))) == 2L) {
       x_v <- x_j[!is.na(x_j)]
       if (!is.null(miss_codes)) x_v <- x_v[!(x_v %in% miss_codes)]
-      if (length(unique(x_v)) > 2L) {
+      if (is.numeric(x_j) && length(unique(x_v)) >= 2L) {
         .vmsg("[CTA node ", pos_id, "] CTA-scan path: ", attr_names[j])
         rh      <- .row_hash(idx)
         cta_fit <- .cta_full_fit_ordered(j, x_j, y_n, w_n, pos_id,
