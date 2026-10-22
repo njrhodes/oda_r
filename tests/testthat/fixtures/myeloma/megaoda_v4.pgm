@@ -1,0 +1,9 @@
+OPEN data.txt;
+OUTPUT UNIV4.OUT;
+VARS v1 to v19;
+CLASS v1;
+ATTRIBUTE v4;
+EX v2=0;
+MISSING ALL (-9);
+WEIGHT v2;
+GO;

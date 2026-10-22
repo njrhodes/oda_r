@@ -302,23 +302,20 @@ test_that("C-9: binary predictor LOO routes through oda_loo_binary_map_counts() 
 })
 
 # =============================================================================
-# CRAN-safe: weighted binary predictor LOO wiring through CTA generic ODA path
+# CRAN-safe: weighted binary predictor routes through the CTA-specific path
 # =============================================================================
 
-test_that("C-10: weighted binary predictor LOO routes through oda_loo_binary_map_counts() via CTA generic path", {
-  # B3-structure weighted data: same x/y as B3 (n00=8,n01=1,n10=1,n11=8),
-  # w_c10: x=0 obs weight=2, x=1 obs weight=1 (WESS ~74.12%).
-  # Non-uniform weights with binary predictor (<=2 unique x values):
-  # CTA-specific ordered path requires >2 unique x values; binary falls through
-  # to generic ODA path -> oda_loo_binary_map_counts() handles weighted case.
-  # V_noise: balanced noise, expected Signif F.
+test_that("C-10: weighted numeric binary predictor uses the CTA scan path and its LOO", {
+  # B3-structure weighted data (n00=8, n01=1, n10=1, n11=8); x=0 obs weight 2.
+  # Non-uniform weights + numeric attribute -> CTA-specific path (CTA.exe chooses
+  # binary-attribute direction with the same count-priors objective as ordered
+  # attributes).  LOO is the CTA path's oda_loo_for_rule(attr_type = "ordered").
   x_bin  <- c(rep(0L, 9L), rep(1L, 9L))
-  y_c10  <- c(rep(0L, 8L), 1L, 0L, rep(1L, 8L))   # n00=8, n01=1, n10=1, n11=8
-  w_c10  <- c(rep(2, 9L), rep(1, 9L))               # non-uniform: x=0 obs weight=2
-  x_nz   <- rep(c(0L, 1L, 0L), 6L)                 # balanced noise: 0 ESS
+  y_c10  <- c(rep(0L, 8L), 1L, 0L, rep(1L, 8L))
+  w_c10  <- c(rep(2, 9L), rep(1, 9L))
+  x_nz   <- rep(c(0L, 1L, 0L), 6L)
 
   de <- new.env(parent = emptyenv())
-
   cta_fit(
     X           = data.frame(V_binary = x_bin, V_noise = x_nz),
     y           = y_c10,
@@ -330,42 +327,19 @@ test_that("C-10: weighted binary predictor LOO routes through oda_loo_binary_map
     diag_env    = de
   )
 
-  # Step 1: LOO must have run for V_binary
   bin_loo <- Filter(function(z) z$attr_name == "V_binary", de$loo_log)
-  expect_gt(length(bin_loo), 0L,
-    label = "C-10: loo_log must have an entry for V_binary (weighted)")
+  expect_gt(length(bin_loo), 0L, label = "C-10: loo_log must have an entry for V_binary")
   bl <- bin_loo[[1L]]
-  expect_identical(bl$loo_mode, "n_fold_or_algebraic",
-    label = "C-10: weighted binary LOO mode must be n_fold_or_algebraic (not failed)")
-  expect_false(is.na(bl$ess_loo),
-    label = "C-10: weighted binary ess_loo must not be NA")
+  expect_identical(bl$path, "cta_specific")
+  expect_false(is.na(bl$ess_loo))
 
-  # Step 2: oracle -- direct oda_loo_for_rule() with same x/y/w
-  fit_ref <- oda_fit(x = x_bin, y = y_c10, w = w_c10, priors_on = TRUE,
-                     mcarlo = FALSE, loo = "off")
-  expect_true(isTRUE(fit_ref$ok),   label = "C-10: oracle oda_fit must succeed")
-  expect_equal(fit_ref$rule$type, "binary_map",
-    label = "C-10: binary attribute must produce binary_map rule")
-
+  scan <- oda:::.cta_ordered_scan(x_bin, y_c10, w_c10, TRUE, NULL, 1L)
+  expect_equal(scan$rule$cut_value, 0.5)
   loo_ref <- oda:::oda_loo_for_rule(
-    x         = x_bin,
-    y         = y_c10,
-    w         = w_c10,
-    rule      = fit_ref$rule,
-    attr_type = "binary",
-    priors_on = TRUE
+    x = x_bin, y = y_c10, w = w_c10, rule = scan$rule,
+    attr_type = "ordered", priors_on = TRUE, miss_codes = NULL
   )
-  expect_true(isTRUE(loo_ref$allowed), label = "C-10: oracle loo_for_rule must be allowed")
-
-  # Step 3: CTA internal ess_loo must equal oracle ess_loo.
-  # Proves oda_loo_binary_map_counts() handles case weights correctly through
-  # the CTA generic path (not only through direct B3/B4 proof tests).
-  expect_equal(bl$ess_loo, loo_ref$ess_loo, tolerance = 1e-6,
-    label = paste0(
-      "C-10: weighted CTA binary ess_loo (", round(bl$ess_loo, 4), "%) ",
-      "must match oracle oda_loo_for_rule ess_loo (", round(loo_ref$ess_loo, 4), "%)"
-    )
-  )
+  expect_equal(bl$ess_loo, loo_ref$ess_loo, tolerance = 1e-6)
 })
 
 # =============================================================================
