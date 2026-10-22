@@ -154,3 +154,58 @@ test_that(".cta_ordered_scan: does not error under varying mindenom", {
   expect_false(is.null(r1), label = "mindenom=1 finds a cut")
   expect_true(is.null(r5) || is.list(r5), label = "mindenom=5 returns NULL or list")
 })
+
+test_that("weighted CTA scans are scale-invariant when priors are off", {
+  x <- seq_len(8)
+  y <- c(rep(0L, 4), rep(1L, 4))
+  w <- c(0.3, 0.7, 1.2, 1.8, 0.2, 0.8, 1.4, 1.6)
+
+  reference <- oda:::.cta_ordered_scan(
+    x, y, w, priors_on = FALSE, miss_codes = NULL, mindenom = 1L
+  )
+  reference_mc <- oda:::.cta_mc_ordered(
+    x = x, y_coded = y, w = w, obs_ess = reference$ess,
+    priors_on = FALSE, miss_codes = NULL, mindenom = 1L,
+    mc_iter = 200L, mc_target = NA_real_, mc_stop = NA_real_,
+    mc_stopup = NA_real_, mc_seed = 42L
+  )
+  expect_gte(reference$ess, -100)
+  expect_lte(reference$ess, 100)
+
+  for (scale in c(0.1, 10)) {
+    scaled <- oda:::.cta_ordered_scan(
+      x, y, w * scale, priors_on = FALSE, miss_codes = NULL, mindenom = 1L
+    )
+    expect_equal(scaled$rule, reference$rule)
+    expect_equal(scaled$ess, reference$ess)
+    expect_gte(scaled$ess, -100)
+    expect_lte(scaled$ess, 100)
+
+    mc <- oda:::.cta_mc_ordered(
+      x = x, y_coded = y, w = w * scale, obs_ess = scaled$ess,
+      priors_on = FALSE, miss_codes = NULL, mindenom = 1L,
+      mc_iter = 200L, mc_target = NA_real_, mc_stop = NA_real_,
+      mc_stopup = NA_real_, mc_seed = 42L
+    )
+    expect_equal(mc$p_mc, reference_mc$p_mc)
+  }
+})
+
+test_that("uniform case weights retain the unweighted CTA ESS when priors are off", {
+  x <- seq_len(8)
+  y <- c(rep(0L, 4), rep(1L, 4))
+
+  uniform <- oda:::.cta_ordered_scan(
+    x, y, rep(1, length(y)), priors_on = FALSE,
+    miss_codes = NULL, mindenom = 1L
+  )
+  unweighted <- oda:::.cta_ordered_scan(
+    x, y, rep(1, length(y)), priors_on = TRUE,
+    miss_codes = NULL, mindenom = 1L
+  )
+
+  expect_equal(uniform$rule, unweighted$rule)
+  expect_equal(uniform$ess, unweighted$ess)
+  expect_gte(uniform$ess, -100)
+  expect_lte(uniform$ess, 100)
+})

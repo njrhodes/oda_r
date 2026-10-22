@@ -1,3 +1,9 @@
+# oda (development version)
+
+* Weighted CTA ordered scans normalize case weights within each class when
+  `priors_on = FALSE`, so cuts, ESS, and Monte Carlo p-values do not depend on
+  the overall scale of the weights.
+
 # oda 0.1.2
 
 ## CRAN resubmission

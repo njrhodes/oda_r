@@ -83,14 +83,14 @@
   n0 <- sum(y == 0L); n1 <- sum(y == 1L)
   if (n0 == 0L || n1 == 0L) return(NULL)
 
-  # 2. Priors-adjusted weights
+  # 2. Normalize case weights within each class.
+  #    Sensitivity, specificity, and ESS use class-conditional proportions in
+  #    both prior modes; priors_on must not change the scale of these weights.
   W0 <- sum(w[y == 0L]); W1 <- sum(w[y == 1L])
   if (W0 <= 0 || W1 <= 0) return(NULL)
   w_adj <- w
-  if (isTRUE(priors_on)) {
-    w_adj[y == 0L] <- w_adj[y == 0L] / W0
-    w_adj[y == 1L] <- w_adj[y == 1L] / W1
-  }
+  w_adj[y == 0L] <- w_adj[y == 0L] / W0
+  w_adj[y == 1L] <- w_adj[y == 1L] / W1
 
   # 3. Unique-value blocks (sorted left to right)
   uvals <- sort(unique(x))
@@ -212,15 +212,10 @@
   if (n0 == 0L || n1 == 0L) return(NULL)
 
   w_c <- precomp$w_clean
-  if (isTRUE(priors_on)) {
-    W0 <- sum(w_c[y_c == 0L]); W1 <- sum(w_c[y_c == 1L])
-    if (W0 <= 0 || W1 <= 0) return(NULL)
-    w0_adj <- w_c * (y_c == 0L) / W0
-    w1_adj <- w_c * (y_c == 1L) / W1
-  } else {
-    w0_adj <- w_c * (y_c == 0L)
-    w1_adj <- w_c * (y_c == 1L)
-  }
+  W0 <- sum(w_c[y_c == 0L]); W1 <- sum(w_c[y_c == 1L])
+  if (W0 <= 0 || W1 <= 0) return(NULL)
+  w0_adj <- w_c * (y_c == 0L) / W0
+  w1_adj <- w_c * (y_c == 1L) / W1
 
   # Block aggregation via rowsum() (C-level) - replaces the O(m) R for-loop
   z0a <- as.numeric(rowsum(w0_adj, precomp$block_idx, reorder = TRUE))
