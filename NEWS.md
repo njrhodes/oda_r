@@ -8,6 +8,13 @@
   with the best `"1->0"` cut; it also scored inadmissible cuts, which changed p
   when the observed ESS was <= 0. Non-directional MC p-values are unchanged
   (for `"off"` the admissible maximum equals max |ESS| over all cuts).
+* Weighted UniODA (non-uniform case weights, priors on) now matches MegaODA.exe:
+  the rule maximises the count-priors objective sum(w x correct) / n_class over
+  raw class counts, as CTA already does, instead of WESS; the MC p permutes
+  (class, weight) pairs jointly with that objective as the statistic; and LOO
+  refits every fold (the count-table shortcuts re-select folds by ESS).
+  Reported ESS is still WESS. Unweighted and priors-off fits are unchanged.
+  Myeloma V4 now gives MegaODA's cut 890.25 (was 64.0), WESS 6.93, LOO stable.
 
 # oda 0.1.4
 

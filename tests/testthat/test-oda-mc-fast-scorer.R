@@ -31,11 +31,21 @@
   conf_stopup <- if (!is.na(mc_stopup) && mc_stopup > 1) mc_stopup / 100 else mc_stopup
   ge_count <- 0L; iter_used <- 0L
   min_check <- 50L; check_every <- 50L
+  # Weighted + priors on: (class, weight) pairs permuted jointly; statistic =
+  # count-priors objective. Otherwise: class labels permuted; statistic = ESS.
+  count_pri <- isTRUE(priors_on) && any(w != w[1L])
+  stat_obs  <- if (count_pri) oda_univariate_core(
+    x = x, y = y, w = w, attr_type = attr_type, priors_on = priors_on,
+    primary = primary, secondary = secondary, miss_codes = miss_codes,
+    loo = "off", mcarlo = FALSE, chance_model = chance_model,
+    direction = direction)$obj else ess_obs
+  tol <- if (count_pri) 1e-12 * max(1, abs(stat_obs)) else 1e-12
   for (b in seq_len(mc_iter)) {
     iter_used <- b
-    y_star <- sample(y, n, replace = FALSE)
+    perm   <- sample.int(n)
+    y_star <- y[perm]
     fit_b  <- oda_univariate_core(
-      x = x, y = y_star, w = w,
+      x = x, y = y_star, w = if (count_pri) w[perm] else w,
       attr_type    = attr_type,
       priors_on    = priors_on,
       primary      = primary,
@@ -52,8 +62,8 @@
       chance_model = chance_model,
       direction    = direction
     )
-    ess_b <- if (!isTRUE(fit_b$ok)) 0 else fit_b$ess
-    if (ess_b >= ess_obs - 1e-12) ge_count <- ge_count + 1L
+    ess_b <- if (!isTRUE(fit_b$ok)) 0 else if (count_pri) fit_b$obj else fit_b$ess
+    if (ess_b >= stat_obs - tol) ge_count <- ge_count + 1L
     if (b >= min_check && (b %% check_every == 0L)) {
       if (ge_count == 0L) {
         lower <- 0
@@ -109,7 +119,7 @@ test_that("fast scorer matches oda_univariate_core ESS for binary x (unweighted)
   }
 })
 
-test_that("fast scorer matches oda_univariate_core ESS for binary x (weighted, priors on)", {
+test_that("fast objective scorer matches oda_univariate_core obj for binary x (weighted, priors on)", {
   set.seed(2L)
   n  <- 50L
   x  <- sample(c(0L, 1L), n, replace = TRUE)
@@ -121,14 +131,14 @@ test_that("fast scorer matches oda_univariate_core ESS for binary x (weighted, p
 
   set.seed(77L)
   for (i in seq_len(200L)) {
-    y_perm <- sample(y, n, replace = FALSE)
-    fast   <- oda:::.oda_fast_ess_perm(y_perm, pc, "off")
+    perm   <- sample.int(n)                       # (class, weight) pairs move together
+    fast   <- oda:::.oda_fast_obj_perm(y[perm], w[perm], pc, "off")
     slow   <- {
-      fit <- oda_univariate_core(x = x, y = y_perm, w = w,
+      fit <- oda_univariate_core(x = x, y = y[perm], w = w[perm],
                attr_type = "binary", priors_on = TRUE,
                primary = NULL, secondary = NULL,
                loo = "off", mcarlo = FALSE, mc_iter = 0L)
-      if (!isTRUE(fit$ok)) 0 else fit$ess
+      if (!isTRUE(fit$ok)) 0 else fit$obj
     }
     expect_equal(fast, slow, tolerance = 1e-10,
       label = paste("binary weighted perm", i))
@@ -177,14 +187,19 @@ test_that("fast scorer matches oda_univariate_core ESS for ordered x (weighted, 
     expect_false(is.null(pc))
     set.seed(33L)
     for (i in seq_len(200L)) {
-      y_perm <- sample(y, n, replace = FALSE)
-      fast   <- oda:::.oda_fast_ess_perm(y_perm, pc, "off")
-      slow   <- {
-        fit <- oda_univariate_core(x = x, y = y_perm, w = w,
-                 attr_type = "ordered", priors_on = priors,
-                 primary = NULL, secondary = NULL,
-                 loo = "off", mcarlo = FALSE, mc_iter = 0L)
-        if (!isTRUE(fit$ok)) 0 else fit$ess
+      perm <- sample.int(n)
+      if (priors) {          # count priors: (class, weight) pairs permuted, objective scored
+        fast <- oda:::.oda_fast_obj_perm(y[perm], w[perm], pc, "off")
+        fit  <- oda_univariate_core(x = x, y = y[perm], w = w[perm],
+                  attr_type = "ordered", priors_on = TRUE, primary = NULL, secondary = NULL,
+                  loo = "off", mcarlo = FALSE, mc_iter = 0L)
+        slow <- if (!isTRUE(fit$ok)) 0 else fit$obj
+      } else {               # priors off: class labels permuted, ESS scored
+        fast <- oda:::.oda_fast_ess_perm(y[perm], pc, "off")
+        fit  <- oda_univariate_core(x = x, y = y[perm], w = w,
+                  attr_type = "ordered", priors_on = FALSE, primary = NULL, secondary = NULL,
+                  loo = "off", mcarlo = FALSE, mc_iter = 0L)
+        slow <- if (!isTRUE(fit$ok)) 0 else fit$ess
       }
       expect_equal(fast, slow, tolerance = 1e-10,
         label = paste("ordered weighted priors_on=", priors, "perm", i))
