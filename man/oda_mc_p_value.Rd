@@ -21,6 +21,7 @@ oda_mc_p_value(
   mc_adjust = FALSE,
   seed = NULL,
   ess_obs = NULL,
+  obj_obs = NULL,
   direction = c("both", "off", "greater", "less"),
   direction_map = NULL
 )
@@ -51,6 +52,10 @@ oda_mc_p_value(
 \item{seed}{Optional RNG seed.}
 
 \item{ess_obs}{Observed ESS (must be supplied).}
+
+\item{obj_obs}{Observed count-priors objective, used instead of ESS as the
+statistic when weights are non-uniform and priors are on (default NULL:
+computed from the data).}
 
 \item{direction}{Directional constraint forwarded from oda_univariate_core():
 "both" (canonical non-directional default), "off" (synonym for "both"),

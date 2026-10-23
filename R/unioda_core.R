@@ -340,6 +340,9 @@ oda_apply_primary_secondary <- function(cand_df, primary, secondary, y, w,
 #' @param mc_adjust  Kept for API compatibility; not used.
 #' @param seed  Optional RNG seed.
 #' @param ess_obs  Observed ESS (must be supplied).
+#' @param obj_obs  Observed count-priors objective, used instead of ESS as the
+#'   statistic when weights are non-uniform and priors are on (default NULL:
+#'   computed from the data).
 #' @param direction  Directional constraint forwarded from oda_univariate_core():
 #'   "both" (canonical non-directional default), "off" (synonym for "both"),
 #'   "greater", or "less". Each permutation refit uses the same constraint.
