@@ -273,6 +273,56 @@ test_that("oda_mc_p_value fast path gives identical ge_count/iter_used to slow r
 })
 
 # --------------------------------------------------------------------------- #
+# Test 3b -- Directional MC: fast path == slow path for "greater" and "less"  #
+# --------------------------------------------------------------------------- #
+# Regression: the fast scorer was called with the public direction label, so
+# "greater" was scored as "1->0"; and inadmissible cuts were scored, which
+# changes p when the observed ESS is <= 0. Both directions, ordered and binary,
+# including a direction whose observed ESS is negative.
+test_that("directional MC: fast path ge_count equals full-refit reference", {
+  set.seed(11L)
+  n <- 40L
+  y <- rep(0:1, c(28L, 12L))
+  x_ord <- round(rnorm(n, mean = 0.6 * y), 2)
+  x_bin <- as.integer(x_ord > 0.3)
+  for (case in list(list(x = x_ord, type = "ordered"), list(x = x_bin, type = "binary"))) {
+    for (dir in c("greater", "less")) {
+      obs <- oda_univariate_core(x = case$x, y = y, attr_type = case$type,
+                                 direction = dir, loo = "off", mcarlo = FALSE)
+      expect_true(isTRUE(obs$ok))
+      args <- list(x = case$x, y = y, w = NULL, attr_type = case$type,
+                   priors_on = TRUE, chance_model = "class", mc_iter = 400L,
+                   mc_target = NA, mc_stop = 99.9, mc_stopup = NA,
+                   seed = 5L, ess_obs = obs$ess, direction = dir)
+      fast <- do.call(oda_mc_p_value, c(args, list(primary = "maxsens", secondary = "samplerep")))
+      slow <- do.call(.mc_slow_ref, args)
+      expect_identical(fast$ge_count, slow$ge_count,
+        label = sprintf("%s %s (obs ESS %.2f): ge_count", case$type, dir, obs$ess))
+      expect_identical(fast$iter_used, slow$iter_used)
+    }
+  }
+})
+
+test_that("fast scorer: non-directional statistic unchanged by the admissibility rule", {
+  # For "off", max over admissible cuts in both directions == max |ESS| over all cuts.
+  set.seed(12L)
+  n <- 30L
+  x <- round(rnorm(n), 1)
+  y <- rep(0:1, c(20L, 10L))
+  pc <- oda:::.oda_mc_precomp(x, rep(1, n), "ordered", mindenom = 1L)
+  ord <- order(x)
+  set.seed(9L)
+  for (i in seq_len(200L)) {
+    ys  <- sample(y, n)
+    y_s <- ys[ord]
+    O   <- cumsum(as.numeric(rowsum(as.numeric(y_s == 1L), pc$block_id, reorder = FALSE)))
+    j   <- pc$adm_j
+    e01 <- ((O[pc$m] - O[j]) / O[pc$m] + (pc$TW[j] - O[j]) / (n - O[pc$m]) - 1) * 100
+    expect_equal(oda:::.oda_fast_ess_perm(ys, pc, "off"), max(abs(e01)), tolerance = 1e-12)
+  }
+})
+
+# --------------------------------------------------------------------------- #
 # Test 4 -- Performance: fast path materially faster (smoke tier)             #
 # --------------------------------------------------------------------------- #
 test_that("oda_mc_p_value fast path is materially faster than slow reference (smoke)", {

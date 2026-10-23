@@ -254,30 +254,46 @@ oda_apply_primary_secondary <- function(cand_df, primary, secondary, y, w,
   adm_j <- adm_j[N_v[adm_j] >= mindenom & (Nm - N_v[adm_j]) >= mindenom]
   if (length(adm_j) == 0L) return(NULL)
   list(ord = ord, block_id = block_id, w_s = w_s,
-       TW = TW, total_w = TW[m], m = m, adm_j = adm_j)
+       TW = TW, total_w = TW[m], m = m, adm_j = adm_j, N_v = N_v)
 }
 
 # Per-permutation max ESS for chance_model = "class" (chance = 0.5).
 # y_star: permuted integer y (length == length(precomp$ord)).
-# direction: "off" (non-directional), "0->1", or "1->0".
+# direction: "off" (non-directional), "0->1", or "1->0" (internal codes; the
+#   caller maps "greater" -> "0->1" and "less" -> "1->0").
 # Priors are irrelevant here: sens = class-1-right / total-class-1 and
 # spec = class-0-left / total-class-0 are identical whether weights are
 # priors-scaled or not (the class totals cancel in both numerator and
-# denominator). Returns the max ESS scalar >= 0.
+# denominator).
+# Only admissible cuts are scored, as in oda_univariate_core(): for "0->1" the
+# left side must hold >= 1 class-0 case and the right side >= 1 class-1 case
+# (mirrored for "1->0"). With no admissible cut the statistic is 0, matching
+# the refit path (a failed refit scores ESS 0). For "off" this is identical to
+# max |ESS| over all cuts: whenever one direction is inadmissible at a cut, the
+# opposite direction at that cut is admissible with the same |ESS|.
 .oda_fast_ess_perm <- function(y_star, precomp, direction) {
   y_s <- y_star[precomp$ord]
-  c1  <- as.numeric(rowsum(precomp$w_s * (y_s == 1L), precomp$block_id,
-                           reorder = FALSE))
+  is1 <- as.numeric(y_s == 1L)
+  c1  <- as.numeric(rowsum(precomp$w_s * is1, precomp$block_id, reorder = FALSE))
+  k1  <- as.numeric(rowsum(is1, precomp$block_id, reorder = FALSE))
   O   <- cumsum(c1)
+  K1  <- cumsum(k1)                                   # class-1 count, left side
   W1  <- O[precomp$m]
   W0  <- precomp$total_w - W1
   if (W1 <= 0 || W0 <= 0) return(0)
-  # ESS_01 at each admissible cut (direction "0->1"; ESS_10 = -ESS_01).
-  ess_01 <- ((W1 - O[precomp$adm_j]) / W1 +
-              (precomp$TW[precomp$adm_j] - O[precomp$adm_j]) / W0 - 1) * 100
-  if (direction == "off") max(abs(ess_01))
-  else if (direction == "0->1") max(ess_01)
-  else max(-ess_01)   # "1->0"
+  j   <- precomp$adm_j
+  K0  <- precomp$N_v[j] - K1[j]                       # class-0 count, left side
+  n1  <- K1[precomp$m]; n0 <- precomp$N_v[precomp$m] - n1
+  # ESS_01 at each MINDENOM-admissible cut (direction "0->1"; ESS_10 = -ESS_01).
+  ess_01 <- ((W1 - O[j]) / W1 + (precomp$TW[j] - O[j]) / W0 - 1) * 100
+  e01 <- ifelse(K0 > 0 & (n1 - K1[j]) > 0,  ess_01, -Inf)
+  e10 <- ifelse(K1[j] > 0 & (n0 - K0) > 0, -ess_01, -Inf)
+  best <- switch(direction,
+                 "off"  = max(e01, e10),
+                 "0->1" = max(e01),
+                 "1->0" = max(e10),
+                 stop(".oda_fast_ess_perm: unknown direction '", direction, "'"))
+  if (is.finite(best)) best else 0
 }
 
 #' Monte Carlo Fisher-randomization p-value with Clopper-Pearson early stopping.
@@ -348,13 +364,16 @@ oda_mc_p_value <- function(
   .fast_pc <- if (chance_model == "class") {
     .oda_mc_precomp(x, w, oda_resolve_attr_type(x, attr_type), mindenom = 1L)
   } else NULL
+  # Public direction -> internal rule code (same mapping as oda_univariate_core's
+  # direction filter: "greater" = x > cut predicts class 1 = "0->1").
+  .fast_dir <- switch(direction, off = "off", greater = "0->1", less = "1->0")
 
   for (b in seq_len(mc_iter)) {
     iter_used <- b
     y_star    <- sample(y, size = n, replace = FALSE)
 
     if (!is.null(.fast_pc)) {
-      ess_b <- .oda_fast_ess_perm(y_star, .fast_pc, direction)
+      ess_b <- .oda_fast_ess_perm(y_star, .fast_pc, .fast_dir)
     } else {
       fit_b <- oda_univariate_core(
         x = x, y = y_star, w = w,

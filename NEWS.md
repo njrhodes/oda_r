@@ -1,3 +1,14 @@
+# oda 0.1.5
+
+## Bug fixes
+
+* Directional UniODA Monte Carlo p-values (`direction = "greater"` / `"less"`)
+  now score each permutation exactly as a full refit does. The fast scorer
+  received the public direction label, so `"greater"` permutations were scored
+  with the best `"1->0"` cut; it also scored inadmissible cuts, which changed p
+  when the observed ESS was <= 0. Non-directional MC p-values are unchanged
+  (for `"off"` the admissible maximum equals max |ESS| over all cuts).
+
 # oda 0.1.4
 
 ## Bug fixes
