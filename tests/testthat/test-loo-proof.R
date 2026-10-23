@@ -551,6 +551,16 @@ test_that("A3: algebraic ordered_cut tie-forcing -- LOO ESS matches explicit", {
 }
 
 
+
+# Per-fold refit used by the ordered-cut shortcut on tied folds (the same refit
+# oda_loo_for_rule() supplies), so the shortcut can be compared to the oracle.
+.refit_fold_fn <- function(x, y, w, priors_on) function(i) {
+  keep <- seq_along(y) != i
+  fi <- oda_univariate_core(x = x[keep], y = y[keep], w = w[keep], attr_type = "ordered",
+                            priors_on = priors_on, mcarlo = FALSE, loo = "off")
+  oda_rule_predict(x[i], fi$rule)
+}
+
 # =============================================================================
 # Probe W-A1: weighted ordered_cut algebraic LOO -- stable case, priors_on=TRUE
 #
@@ -661,7 +671,8 @@ test_that("W-A2: weighted ordered_cut algebraic LOO matches oracle pred-by-pred 
   # Compare algebraic prediction vector to explicit oracle, obs-by-obs.
   # Obtain algebraic predictions by running oda_loo_ordered_cut_counts directly.
   alg_pred_wa2 <- oda:::oda_loo_ordered_cut_counts(
-    x = x_wa2, y = y_wa2, w = w_wa2, priors_on = TRUE, rule = fit_wa2$rule
+    x = x_wa2, y = y_wa2, w = w_wa2, priors_on = TRUE, rule = fit_wa2$rule,
+    refit_fold = .refit_fold_fn(x_wa2, y_wa2, w_wa2, TRUE)
   )
   expect_false(is.null(alg_pred_wa2),
     label = "W-A2: weighted algebraic path must not return NULL for non-uniform w")
@@ -784,7 +795,8 @@ test_that("W-A4: weighted ordered_cut algebraic LOO matches explicit (priors_on=
     label = "W-A4: oda_loo_for_rule must be allowed for priors_on=FALSE")
 
   alg_pred_wa4 <- oda:::oda_loo_ordered_cut_counts(
-    x = x_wa4, y = y_wa4, w = w_wa4, priors_on = FALSE, rule = fit_wa4$rule
+    x = x_wa4, y = y_wa4, w = w_wa4, priors_on = FALSE, rule = fit_wa4$rule,
+    refit_fold = .refit_fold_fn(x_wa4, y_wa4, w_wa4, FALSE)
   )
   expect_false(is.null(alg_pred_wa4),
     label = "W-A4: algebraic path must not return NULL for non-uniform w, priors_on=FALSE")

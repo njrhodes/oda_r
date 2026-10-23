@@ -20,7 +20,7 @@
 #         V15 Signif T -> selected as root.
 #
 #   cta_demo (uniform weights):
-#     CTA path guard (any(w != w[1])) is FALSE -> CTA path bypassed entirely.
+#     Uniform weights: numeric attributes take the CTA scan path (objective = ESS).
 #     Generic ODA path unchanged -> root=V2, ESS=52.63%.
 #
 # Reference: docs/CTA_ORDERED_CUT_AUDIT.md
@@ -189,12 +189,12 @@ test_that("node-selection: Node 2 V4+V15 -> V4 rejected; root is V15 (STABLE)", 
 })
 
 # =============================================================================
-# Test 4: uniform weights bypass CTA path - observable contract in fixture file
+# Test 4: uniform weights - CTA scan path; observable contract in fixture file
 #
 # any(w != w[1]) is FALSE for uniform w -> CTA dispatch guard skips the
 # CTA-specific ordered scan -> generic ODA path -> root=V2, cut=4.5, ESS=52.63%.
-# Duplicate full CTA_DEMO fit removed; bypass is explicitly asserted in
-# test-fixture-cta-demo.R B20 (line 54): root=V2 label "uniform weights bypass".
+# Duplicate full CTA_DEMO fit removed; root=V2 is asserted in
+# test-fixture-cta-demo.R (root attr=V2, cut=4.5).
 # =============================================================================
 
 # =============================================================================

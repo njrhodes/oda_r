@@ -93,13 +93,14 @@
 #   gate     apply the MINDENOM gate (TRUE for the observed fit; FALSE in
 #            permutations, matching CTA.exe MC p-values that do not vary
 #            with MINDENOM).
-.cta_scan_core <- function(y_c, precomp, priors_on, gate = TRUE) {
+.cta_scan_core <- function(y_c, precomp, priors_on, gate = TRUE,
+                           w_c = precomp$w_clean) {
   m <- precomp$m
   if (m < 2L) return(NULL)
   y_c <- as.integer(y_c)
   n0 <- sum(y_c == 0L); n1 <- sum(y_c == 1L)
   if (n0 == 0L || n1 == 0L) return(NULL)
-  w_c <- precomp$w_clean
+  w_c <- as.numeric(w_c)
   W0  <- sum(w_c[y_c == 0L]); W1 <- sum(w_c[y_c == 1L])
   if (W0 <= 0 || W1 <= 0) return(NULL)
 
@@ -123,6 +124,7 @@
   b01 <- which.max(o01); b10 <- which.max(o10)
   v01 <- if (length(b01)) o01[b01] else -Inf
   v10 <- if (length(b10)) o10[b10] else -Inf
+  obj <- max(v01, v10)
   if (v01 >= v10) {
     jj <- b01; dir <- "0->1"
     sens <- 1 - CZ1[jj]; spec <- CZ0[jj]
@@ -138,6 +140,7 @@
   list(rule    = list(type = "ordered_cut", direction = dir,
                       cut_value = (uvals[jj] + uvals[jj + 1L]) / 2),
        ess     = (spec + sens - 1) * 100,
+       obj     = obj,
        sens_wa = sens, spec_wa = spec)
 }
 
@@ -190,11 +193,46 @@
   .cta_scan_core(y_c, precomp, priors_on, gate = FALSE)
 }
 
+# .cta_loo_scan()
+#
+# Leave-one-out for a CTA node: each held-out observation is classified by the
+# rule the CTA scan (.cta_ordered_scan, no MINDENOM gate) selects on the other
+# n - 1 observations, i.e. the same optimizer that selected the training rule
+# (CTA.exe parity: cta_demo MODEL8 node 6 STABLE; myeloma Tree 1 node 2 V4
+# UNSTABLE / V15 STABLE).  A fold with no admissible cut keeps the training rule.
+# Inputs are the node's observations with attribute-missing rows removed;
+# y in {0, 1}.  Returns list(allowed, ess_loo (WESS, %), p_value (one-tailed
+# Fisher on raw counts, MPE p. 34), y_pred_loo).
+.cta_loo_scan <- function(x, y, w, priors_on, rule) {
+  y <- as.integer(y); w <- as.numeric(w); n <- length(y)
+  .pred <- function(xv, r) if (identical(r$direction, "0->1"))
+    as.integer(xv > r$cut_value) else as.integer(xv <= r$cut_value)
+  p <- integer(n)
+  for (i in seq_len(n)) {
+    r_i  <- .cta_ordered_scan(x[-i], y[-i], w[-i], priors_on, NULL, 1L)
+    p[i] <- .pred(x[i], if (is.null(r_i)) rule else r_i$rule)
+  }
+  W0 <- sum(w[y == 0L]); W1 <- sum(w[y == 1L])
+  ess_loo <- (sum(w[y == 1L & p == 1L]) / W1 + sum(w[y == 0L & p == 0L]) / W0 - 1) * 100
+  tab <- matrix(c(sum(y == 1L & p == 1L), sum(y == 0L & p == 1L),
+                  sum(y == 1L & p == 0L), sum(y == 0L & p == 0L)), nrow = 2L, byrow = TRUE)
+  p_value <- tryCatch(stats::fisher.test(tab, alternative = "greater")$p.value,
+                      error = function(e) NA_real_)
+  list(allowed = TRUE, ess_loo = ess_loo, p_value = p_value, y_pred_loo = p)
+}
+
 # .cta_mc_ordered()
 #
-# CTA-specific Monte Carlo Fisher-randomization p-value for ordered attributes.
-# Mirrors oda_mc_p_value() but applies .cta_ordered_scan() to each permutation
-# so permuted fits respect the same CTA cut-selection rule as the observed fit.
+# CTA-specific Monte Carlo Fisher-randomization p-value (CTA.exe parity):
+#   * each permutation shuffles the ATTRIBUTE relative to the observations,
+#     i.e. every observation keeps its class AND its case weight (equivalently
+#     (class, weight) pairs are permuted jointly across attribute values);
+#   * the test statistic is the count-priors objective that selects the cut
+#     (.cta_scan_core()$obj), not WESS;
+#   * the MINDENOM gate is not applied to permutations.
+# With uniform weights this is identical to permuting class labels with an
+# ESS statistic.  Reproduces CTA.exe Signif T/F for all 10 myeloma root
+# attributes (weighted) and the CTA.exe weighted FEP fixture p-values.
 #
 # Parameters
 #   x, y_coded   raw vectors (with miss_codes intact); y must be in {0,1}.
@@ -231,12 +269,21 @@
   # Precompute fixed block structure once per (node, attribute) call
   precomp <- .cta_mc_precomp_ord(x, w, miss_codes, mindenom)
 
+  y_k   <- y_coded[precomp$keep]
+  w_k   <- precomp$w_clean
+  n_k   <- length(y_k)
+  obs_s <- .cta_scan_core(y_k, precomp, priors_on, gate = FALSE)
+  if (is.null(obs_s)) mc_iter <- 0L
+  obs_obj <- if (is.null(obs_s)) Inf else obs_s$obj
+  tol     <- 1e-10 * max(1, abs(obs_obj))
+
   for (b in seq_len(mc_iter)) {
     iter_used <- b
-    y_star    <- sample(y_coded, size = n, replace = FALSE)
-    scan_b    <- .cta_fast_scan_perm(y_star, precomp, priors_on)
-    ess_b     <- if (is.null(scan_b) || is.null(scan_b$ess)) 0 else scan_b$ess %||% 0
-    if (ess_b >= obs_ess - 1e-12) ge_count <- ge_count + 1L
+    perm      <- sample.int(n_k)
+    scan_b    <- .cta_scan_core(y_k[perm], precomp, priors_on, gate = FALSE,
+                                w_c = w_k[perm])
+    obj_b     <- if (is.null(scan_b)) -Inf else scan_b$obj
+    if (obj_b >= obs_obj - tol) ge_count <- ge_count + 1L
 
     if (b >= min_check && (b %% check_every == 0L)) {
       if (ge_count == 0L) {
@@ -551,17 +598,18 @@ oda_cta_fit <- function(
   #               Canon: WESSL must equal WESS (|WESS - WESSL| <= 0.01 pp).
   #               Signif T alone is insufficient; WESSL = WESS is required.
   #
-  # Trigger: non-uniform case weights AND binary class AND numeric attribute
-  # with >=2 unique values.  Numeric binary (0/1) attributes use this path too:
-  # CTA.exe chooses their direction with the same count-priors objective, so
-  # their reported WESS can be negative.  Non-numeric attributes use generic ODA.
+  # Trigger: binary class AND numeric attribute with >=2 unique values, with or
+  # without case weights (uniform weights reduce the objective to ESS).  Numeric
+  # binary (0/1) attributes use this path too: CTA.exe chooses their direction
+  # with the same objective, so their reported WESS can be negative.
+  # Non-numeric (categorical) attributes use generic ODA.
+  # One optimizer per node: the CTA scan chooses the cut, its permutations give
+  # the MC p, and its per-fold refits give LOO (.cta_loo_scan).
   # Returns a fit-like list or NULL if rejected (Signif F, no eligible cut, or
   # LOO UNSTABLE). When this path is triggered, callers must not fall back to
   # generic ODA - the candidate is either accepted here or rejected entirely.
   .cta_full_fit_ordered <- function(j, x_j, y_n, w_n, pos_id,
                                      row_hash = NULL, n_obs_parent = NA_integer_) {
-    # Guard: uniform weights -> generic ODA applies
-    if (all(w_n == w_n[1L])) return(NULL)
     # Guard: binary class (C = 2) only
     y_uniq <- sort(unique(as.integer(y_n[!is.na(y_n)])))
     if (length(y_uniq) != 2L) return(NULL)
@@ -621,20 +669,13 @@ oda_cta_fit <- function(
     }
 
     # LOO STABLE gate (MPE.pdf canon): WESSL must equal WESS.
-    # LOO uses generic ODA per-fold refit - true refit-per-fold LOO.
+    # True refit-per-fold LOO with the SAME optimizer that chose the node's
+    # rule (the CTA scan), as CTA.exe does.
     loo_result <- NULL
     if (!identical(loo_arg, "off")) {
       t0_loo <- if (!is.null(diag_env)) proc.time()[["elapsed"]] else NULL
       loo_result <- tryCatch(
-        oda_loo_for_rule(
-          x          = x_j,
-          y          = y_01,
-          w          = w_n,
-          rule       = cta_scan$rule,
-          attr_type  = "ordered",
-          priors_on  = priors_on,
-          miss_codes = miss_codes
-        ),
+        .cta_loo_scan(x_j, y_01, w_n, priors_on, cta_scan$rule),
         error = function(e) NULL
       )
       if (!is.null(diag_env)) {
@@ -782,9 +823,8 @@ oda_cta_fit <- function(
   # Returns a validated candidate list(j,name,fit,ess,p_mc) or NULL if rejected.
   .full_fit_one <- function(j, idx, pos_id) {
     y_n <- y[idx]; w_n <- w[idx]; x_j <- X[[j]][idx]
-    # ---- CTA-specific path (weighted binary class, numeric attributes) --------
-    if (any(w_n != w_n[1L]) &&
-        length(unique(as.integer(y_n[!is.na(y_n)]))) == 2L) {
+    # ---- CTA-specific path (binary class, numeric attributes) -----------------
+    if (length(unique(as.integer(y_n[!is.na(y_n)]))) == 2L) {
       x_v <- x_j[!is.na(x_j)]
       if (!is.null(miss_codes)) x_v <- x_v[!(x_v %in% miss_codes)]
       if (is.numeric(x_j) && length(unique(x_v)) >= 2L) {
