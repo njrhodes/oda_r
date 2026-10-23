@@ -1,3 +1,23 @@
+# oda 0.1.4
+
+## Bug fixes
+
+* Weighted CTA Monte Carlo p-values now match CTA.exe: each permutation shuffles
+  the attribute relative to the observations (class and case weight stay
+  together) and the test statistic is the count-priors objective that selects
+  the cut, not WESS. Reproduces CTA.exe significance for all 10 weighted myeloma
+  root attributes. Unweighted CTA is unchanged.
+* LOO refits each fold with the same optimizer that chose the training rule.
+  UniODA: tied folds are refit (MAXSENS / SAMPLEREP) instead of taking the
+  first-identified cut, and directional rules always refit (the shortcut
+  ignored the direction); matches MegaODA LOO tables. CTA: node LOO refits each
+  fold with the CTA scan (`.cta_loo_scan()`) instead of generic ODA; matches
+  CTA.exe (cta_demo MODEL8 node 6 STABLE; myeloma node 2 V4 UNSTABLE).
+* CTA fits every numeric attribute with the CTA scan, with or without case
+  weights (uniform weights reduce its objective to ESS), so each node uses one
+  optimizer for the cut, the MC p and LOO. Categorical attributes still use
+  generic ODA.
+
 # oda 0.1.3
 
 ## Bug fixes

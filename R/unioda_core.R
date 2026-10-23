@@ -420,12 +420,16 @@ oda_mc_p_value <- function(
 # Conservative fallback: returns NULL when raw weights are non-uniform within
 # any bin (non-canonical case), leaving the caller to use full refits.
 #
-# Tie-breaking: strict > throughout preserves FIRST IDENTIFIED (ascending cut
-# scan) as the tertiary rule, matching oda_univariate_core().
+# Tie-breaking: a fold whose optimum is TIED (two or more cut/direction pairs
+# within 1e-10 of the best ESS) is not resolved here.  If `refit_fold` is given
+# (function(i) -> 0L/1L prediction for held-out i from a full refit) that fold
+# is refit, so MAXSENS / SAMPLEREP apply exactly as in oda_univariate_core();
+# otherwise the function returns NULL and the caller must refit.  Folds with a
+# unique optimum need no tie rule, so the shortcut is exact for them.
 #
 # Returns: integer vector y_pred_loo of length n (same 0L/1L encoding as
 # oda_loo_for_rule), or NULL if the algebraic path is not applicable.
-oda_loo_ordered_cut_counts <- function(x, y, w, priors_on, rule) {
+oda_loo_ordered_cut_counts <- function(x, y, w, priors_on, rule, refit_fold = NULL) {
 
   if (!identical(rule$type, "ordered_cut")) return(NULL)
 
@@ -479,6 +483,7 @@ oda_loo_ordered_cut_counts <- function(x, y, w, priors_on, rule) {
     best_e <- -Inf
     best_c <- NA_real_
     best_d <- NA_character_
+    all_e  <- numeric(0)
     cum0   <- 0L
     cum1   <- 0L
     for (i in seq_len(ka - 1L)) {
@@ -490,10 +495,12 @@ oda_loo_ordered_cut_counts <- function(x, y, w, priors_on, rule) {
       cut  <- (vls[i] + vls[i + 1L]) / 2.0
       e01  <- (cum0 / tc0a + r1   / tc1a - 1.0) * 100.0  # "0->1"
       e10  <- (r0   / tc0a + cum1 / tc1a - 1.0) * 100.0  # "1->0"
+      all_e <- c(all_e, e01, e10)
       if (e01 > best_e) { best_e <- e01; best_c <- cut; best_d <- "0->1" }
       if (e10 > best_e) { best_e <- e10; best_c <- cut; best_d <- "1->0" }
     }
-    if (is.na(best_c)) NULL else list(cut = best_c, dir = best_d)
+    if (is.na(best_c)) NULL else
+      list(cut = best_c, dir = best_d, tied = sum(abs(all_e - best_e) <= 1e-10) > 1L)
   }
 
   eps        <- 1e-12
@@ -525,7 +532,10 @@ oda_loo_ordered_cut_counts <- function(x, y, w, priors_on, rule) {
       y_pred_loo[i] <- oda_rule_predict(val, rule)
     } else {
       best <- .find_best(z0a_k, z1a_k, tc0a, tc1a, vls_a)
-      if (is.null(best)) {
+      if (!is.null(best) && isTRUE(best$tied)) {
+        if (is.null(refit_fold)) return(NULL)   # tie: caller must refit
+        y_pred_loo[i] <- refit_fold(i)
+      } else if (is.null(best)) {
         y_pred_loo[i] <- oda_rule_predict(val, rule)
       } else if (identical(best$dir, "0->1")) {
         y_pred_loo[i] <- if (val <= best$cut) 0L else 1L
@@ -734,8 +744,21 @@ oda_loo_for_rule <- function(
     }
   }
 
-  if (!.loo_done && identical(rule$type, "ordered_cut")) {
-    .alg <- oda_loo_ordered_cut_counts(x, y, w, priors_on, rule)
+  # The ordered-cut shortcut searches both directions, so it is used only for
+  # non-directional rules; tied folds are refit exactly (MAXSENS / SAMPLEREP).
+  .refit_fold <- function(i) {
+    keep  <- seq_len(n) != i
+    fit_i <- oda_univariate_core(
+      x = x[keep], y = y[keep], w = w[keep], attr_type = attr_type,
+      priors_on = priors_on, primary = primary, secondary = secondary,
+      miss_codes = miss_codes, loo = "off", mcarlo = FALSE,
+      chance_model = chance_model, direction = direction,
+      direction_map = direction_map)
+    if (!isTRUE(fit_i$ok)) return(oda_rule_predict(x[i], rule))
+    oda_rule_predict(x[i], fit_i$rule)
+  }
+  if (!.loo_done && identical(rule$type, "ordered_cut") && direction == "off") {
+    .alg <- oda_loo_ordered_cut_counts(x, y, w, priors_on, rule, refit_fold = .refit_fold)
     if (!is.null(.alg)) {
       y_pred_loo <- .alg
       .loo_done  <- TRUE

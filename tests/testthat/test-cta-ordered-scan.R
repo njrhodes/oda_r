@@ -252,3 +252,56 @@ test_that(".cta_fast_scan_perm: MINDENOM gate is not applied to permutations", {
   expect_false(is.null(oda:::.cta_fast_scan_perm(d$y, pc, TRUE)))
   expect_null(oda:::.cta_ordered_scan(d$x, d$y, d$w, TRUE, NULL, 1000L))
 })
+
+# =============================================================================
+# Monte Carlo: attribute permutation with the count-priors objective statistic
+# =============================================================================
+
+.mc_ord <- function(x, y, w, seed, iter = 400L, priors_on = TRUE, miss = NULL)
+  oda:::.cta_mc_ordered(x, y, w, obs_ess = NA_real_, priors_on = priors_on,
+                        miss_codes = miss, mindenom = 1L, mc_iter = iter,
+                        mc_target = 0.05, mc_stop = NA, mc_stopup = NA, mc_seed = seed)
+
+test_that(".cta_scan_core: obj is the maximum admissible count-priors objective", {
+  for (s in 1:10) {
+    d <- .scan_synth(s)
+    r <- oda:::.cta_ordered_scan(d$x, d$y, d$w, TRUE, NULL, 1L)
+    n0 <- sum(d$y == 0); n1 <- sum(d$y == 1); u <- sort(unique(d$x)); best <- -Inf
+    for (j in seq_len(length(u) - 1L)) {
+      L <- d$x <= (u[j] + u[j + 1L]) / 2
+      if (any(L & d$y == 0) && any(!L & d$y == 1))
+        best <- max(best, sum(d$w[L & d$y == 0]) / n0 + sum(d$w[!L & d$y == 1]) / n1)
+      if (any(L & d$y == 1) && any(!L & d$y == 0))
+        best <- max(best, sum(d$w[L & d$y == 1]) / n1 + sum(d$w[!L & d$y == 0]) / n0)
+    }
+    expect_equal(r$obj, best, tolerance = 1e-12)
+  }
+})
+
+test_that(".cta_mc_ordered: p-value is invariant to weight scale", {
+  for (s in 1:5) {
+    d  <- .scan_synth(s)
+    p1 <- .mc_ord(d$x, d$y, d$w,      seed = 11L)
+    p2 <- .mc_ord(d$x, d$y, d$w * 37, seed = 11L)
+    expect_identical(p1$ge_count, p2$ge_count)
+    expect_identical(p1$p_mc, p2$p_mc)
+  }
+})
+
+test_that(".cta_mc_ordered: missing attribute rows are excluded from permutation", {
+  d  <- .scan_synth(4)
+  x9 <- c(d$x, rep(-9, 15)); y9 <- c(d$y, rep(1L, 15)); w9 <- c(d$w, rep(50, 15))
+  expect_identical(.mc_ord(x9, y9, w9, seed = 5L, miss = -9)$p_mc,
+                   .mc_ord(d$x, d$y, d$w, seed = 5L)$p_mc)
+})
+
+test_that(".cta_mc_ordered: reproduces CTA.exe Signif at the myeloma root (V15 T, V16 F, V17 T)", {
+  skip_if_slow_tests_disabled("cta-mc-permutation")
+  dat <- .myeloma_cta_dat()
+  if (is.null(dat)) skip("myeloma fixture missing")
+  p <- function(v) .mc_ord(dat[[v]], .recode01(dat$V1), dat$V2, seed = 2026L,
+                           iter = 5000L, miss = -9)$p_mc
+  expect_lt(p("V15"), 0.05)
+  expect_gte(p("V16"), 0.05)   # WESS 13.57%: CTA.exe Signif F
+  expect_lt(p("V17"), 0.05)    # WESS 16.51%: CTA.exe Signif T
+})

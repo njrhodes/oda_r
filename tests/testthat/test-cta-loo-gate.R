@@ -118,7 +118,7 @@ test_that("C-4: weighted CTA ordered path - loo=0.99 passes (PVALUE); loo=1e-9 r
 # CRAN-safe: MC-gate ordering (LOO called only for MC-significant candidates)
 # =============================================================================
 
-test_that("C-6: LOO called only for MC-significant generic_oda candidates", {
+test_that("C-6: LOO called only for MC-significant candidates", {
   # CRAN-safe: mc_iter=10, n=20, deterministic.
   y_c6 <- c(rep(0L, 10L), rep(1L, 10L))
   X_c6 <- data.frame(
@@ -134,8 +134,8 @@ test_that("C-6: LOO called only for MC-significant generic_oda candidates", {
     prune_alpha = 1.0, diag_env = de
   )
 
-  gen_mc  <- Filter(function(x) identical(x$path, "generic_oda"), de$mc_log)
-  gen_loo <- Filter(function(x) identical(x$path, "generic_oda"), de$loo_log)
+  gen_mc  <- Filter(function(x) isTRUE(x$path %in% c("generic_oda", "cta_specific")), de$mc_log)
+  gen_loo <- Filter(function(x) isTRUE(x$path %in% c("generic_oda", "cta_specific")), de$loo_log)
 
   # LOO was actually called for at least one candidate
   expect_gt(length(gen_loo), 0L,
@@ -161,7 +161,10 @@ test_that("C-6: LOO called only for MC-significant generic_oda candidates", {
 
 test_that("C-7: CTA family LOO gate - family enumeration inherits MC-before-LOO", {
   y_c7 <- c(rep(0L, 10L), rep(1L, 10L))
-  X_c7 <- data.frame(V_signal = 1:20, V_noise = rep(c(0L, 1L), 10L))
+  # V_noise: weak (ESS 10%) so it reaches the MC test and is Signif F; an ESS of
+  # exactly 0 is rejected before MC and would never be logged.
+  X_c7 <- data.frame(V_signal = 1:20,
+                     V_noise  = c(0L,1L,0L,1L,0L,1L,0L,1L,0L,1L, 1L,0L,1L,0L,1L,0L,1L,0L,1L,1L))
   de <- new.env(parent = emptyenv())
 
   fam <- cta_descendant_family(
@@ -173,8 +176,8 @@ test_that("C-7: CTA family LOO gate - family enumeration inherits MC-before-LOO"
 
   expect_gt(length(fam$members), 0L)
 
-  gen_mc  <- Filter(function(x) identical(x$path, "generic_oda"), de$mc_log)
-  gen_loo <- Filter(function(x) identical(x$path, "generic_oda"), de$loo_log)
+  gen_mc  <- Filter(function(x) isTRUE(x$path %in% c("generic_oda", "cta_specific")), de$mc_log)
+  gen_loo <- Filter(function(x) isTRUE(x$path %in% c("generic_oda", "cta_specific")), de$loo_log)
 
   expect_true(any(vapply(gen_mc, function(z) isFALSE(z$signif_current), logical(1L))),
               label = "at least one Signif F candidate must exist")
@@ -215,8 +218,8 @@ test_that("C-8: LORT LOO gate - local CTA recursion inherits MC-before-LOO", {
 
   expect_true(inherits(ort, "cta_ort"))
 
-  gen_mc  <- Filter(function(x) identical(x$path, "generic_oda"), de$mc_log)
-  gen_loo <- Filter(function(x) identical(x$path, "generic_oda"), de$loo_log)
+  gen_mc  <- Filter(function(x) isTRUE(x$path %in% c("generic_oda", "cta_specific")), de$mc_log)
+  gen_loo <- Filter(function(x) isTRUE(x$path %in% c("generic_oda", "cta_specific")), de$loo_log)
 
   expect_true(any(vapply(gen_mc, function(z) isFALSE(z$signif_current), logical(1L))),
               label = "at least one Signif F candidate must exist")
@@ -241,12 +244,12 @@ test_that("C-8: LORT LOO gate - local CTA recursion inherits MC-before-LOO", {
 # CRAN-safe: binary predictor LOO wiring through CTA generic ODA path
 # =============================================================================
 
-test_that("C-9: binary predictor LOO routes through oda_loo_binary_map_counts() via CTA generic path", {
+test_that("C-9: numeric binary predictor LOO is the CTA-scan refit (uniform weights)", {
   # B1-structure binary data: n00=8, n01=1, n10=1, n11=8 (ESS ~77.78%).
   # V_noise: alternating 0/1 balanced equally across classes (ESS = 0, Signif F).
-  # Uniform weights -> CTA-specific ordered path bypassed; generic ODA path used.
-  # Binary attribute (<=2 unique values) -> oda_fit() produces binary_map rule ->
-  # oda_loo_for_rule() dispatches to oda_loo_binary_map_counts().
+  # Uniform weights: numeric attributes still take the CTA scan path.
+  # Numeric attribute (0/1) -> CTA scan path even with uniform weights ->
+  # node LOO = .cta_loo_scan() (CTA-scan refit per fold).
   # loo=0.99: permissive p-value gate; V_binary passes, loo_status="PVALUE".
   x_bin <- c(rep(0L, 9L), rep(1L, 9L))
   y_c9  <- c(rep(0L, 8L), 1L, 0L, rep(1L, 8L))   # n00=8, n01=1, n10=1, n11=8
@@ -274,29 +277,18 @@ test_that("C-9: binary predictor LOO routes through oda_loo_binary_map_counts() 
   expect_false(is.na(bl$ess_loo),
     label = "C-9: binary ess_loo must not be NA")
 
-  # Step 2: oracle -- direct oda_loo_for_rule() on the same x/y
-  fit_ref <- oda_fit(x = x_bin, y = y_c9, priors_on = TRUE,
-                     mcarlo = FALSE, loo = "off")
-  expect_true(isTRUE(fit_ref$ok),   label = "C-9: oracle oda_fit must succeed")
-  expect_equal(fit_ref$rule$type, "binary_map",
-    label = "C-9: binary attribute must produce binary_map rule")
-
-  loo_ref <- oda:::oda_loo_for_rule(
-    x         = x_bin,
-    y         = y_c9,
-    rule      = fit_ref$rule,
-    attr_type = "binary",
-    priors_on = TRUE
-  )
-  expect_true(isTRUE(loo_ref$allowed), label = "C-9: oracle loo_for_rule must be allowed")
+  # Step 2: oracle -- CTA node LOO refits each fold with the CTA scan
+  scan_ref <- oda:::.cta_ordered_scan(x_bin, y_c9, rep(1, length(y_c9)), TRUE, NULL, 1L)
+  loo_ref  <- oda:::.cta_loo_scan(x_bin, y_c9, rep(1, length(y_c9)), TRUE, scan_ref$rule)
+  expect_true(isTRUE(loo_ref$allowed), label = "C-9: oracle CTA-scan LOO must be allowed")
 
   # Step 3: CTA internal ess_loo must equal oracle ess_loo.
-  # Proves oda_loo_binary_map_counts() is exercised through the CTA generic path,
-  # not only through the direct oda_loo_for_rule() proof tests (B1-B4).
+  # Proves the CTA node LOO is the CTA-scan refit,
+  # the same optimizer that selected the node rule.
   expect_equal(bl$ess_loo, loo_ref$ess_loo, tolerance = 1e-6,
     label = paste0(
       "C-9: CTA binary ess_loo (", round(bl$ess_loo, 4), "%) ",
-      "must match oracle oda_loo_for_rule ess_loo (", round(loo_ref$ess_loo, 4), "%)"
+      "must match oracle CTA-scan LOO ess_loo (", round(loo_ref$ess_loo, 4), "%)"
     )
   )
 })
@@ -309,7 +301,7 @@ test_that("C-10: weighted numeric binary predictor uses the CTA scan path and it
   # B3-structure weighted data (n00=8, n01=1, n10=1, n11=8); x=0 obs weight 2.
   # Non-uniform weights + numeric attribute -> CTA-specific path (CTA.exe chooses
   # binary-attribute direction with the same count-priors objective as ordered
-  # attributes).  LOO is the CTA path's oda_loo_for_rule(attr_type = "ordered").
+  # attributes).  LOO is the CTA path's .cta_loo_scan().
   x_bin  <- c(rep(0L, 9L), rep(1L, 9L))
   y_c10  <- c(rep(0L, 8L), 1L, 0L, rep(1L, 8L))
   w_c10  <- c(rep(2, 9L), rep(1, 9L))
@@ -335,10 +327,7 @@ test_that("C-10: weighted numeric binary predictor uses the CTA scan path and it
 
   scan <- oda:::.cta_ordered_scan(x_bin, y_c10, w_c10, TRUE, NULL, 1L)
   expect_equal(scan$rule$cut_value, 0.5)
-  loo_ref <- oda:::oda_loo_for_rule(
-    x = x_bin, y = y_c10, w = w_c10, rule = scan$rule,
-    attr_type = "ordered", priors_on = TRUE, miss_codes = NULL
-  )
+  loo_ref <- oda:::.cta_loo_scan(x_bin, y_c10, w_c10, TRUE, scan$rule)
   expect_equal(bl$ess_loo, loo_ref$ess_loo, tolerance = 1e-6)
 })
 
@@ -346,12 +335,12 @@ test_that("C-10: weighted numeric binary predictor uses the CTA scan path and it
 # CRAN-safe: LORT recursive=TRUE binary LOO forwarding
 # =============================================================================
 
-test_that("C-11: LORT recursive=TRUE forwards binary LOO to oda_loo_binary_map_counts()", {
+test_that("C-11: LORT recursive=TRUE uses the CTA-scan LOO for a numeric binary predictor", {
   # B1-structure binary data: n00=8, n01=1, n10=1, n11=8 (ESS ~77.78%).
   # V_noise: balanced, expected Signif F.
   # cta_fit(recursive=TRUE) -> .cta_ort_fit() -> .cta_ort_fit_internal() ->
   # cta_descendant_family() -> oda_cta_fit() -> .full_fit_one() (generic ODA path
-  # for binary predictor) -> oda_loo_for_rule() -> oda_loo_binary_map_counts().
+  # for a numeric 0/1 predictor) -> .cta_loo_scan().
   # diag_env is forwarded intact through the full LORT chain.
   # Root-level entry (n_obs == 18) is the relevant one; after V_binary split each
   # child has only one unique V_binary value so V_binary is not re-evaluated.
@@ -388,28 +377,17 @@ test_that("C-11: LORT recursive=TRUE forwards binary LOO to oda_loo_binary_map_c
   expect_false(is.na(bl$ess_loo),
     label = "C-11: LORT binary ess_loo must not be NA")
 
-  # Oracle -- same x/y, no weights
-  fit_ref <- oda_fit(x = x_bin, y = y_c11, priors_on = TRUE,
-                     mcarlo = FALSE, loo = "off")
-  expect_true(isTRUE(fit_ref$ok), label = "C-11: oracle oda_fit must succeed")
-  expect_equal(fit_ref$rule$type, "binary_map",
-    label = "C-11: binary attribute must produce binary_map rule")
-
-  loo_ref <- oda:::oda_loo_for_rule(
-    x         = x_bin,
-    y         = y_c11,
-    rule      = fit_ref$rule,
-    attr_type = "binary",
-    priors_on = TRUE
-  )
-  expect_true(isTRUE(loo_ref$allowed), label = "C-11: oracle loo_for_rule must be allowed")
+  # Oracle -- CTA-scan refit LOO on the same x/y, uniform weights
+  scan_ref <- oda:::.cta_ordered_scan(x_bin, y_c11, rep(1, length(y_c11)), TRUE, NULL, 1L)
+  loo_ref  <- oda:::.cta_loo_scan(x_bin, y_c11, rep(1, length(y_c11)), TRUE, scan_ref$rule)
+  expect_true(isTRUE(loo_ref$allowed), label = "C-11: oracle CTA-scan LOO must be allowed")
 
   # CTA-internal ess_loo (via LORT -> cta_descendant_family -> oda_cta_fit chain)
   # must equal oracle ess_loo, proving the algebraic path is not bypassed by LORT.
   expect_equal(bl$ess_loo, loo_ref$ess_loo, tolerance = 1e-6,
     label = paste0(
       "C-11: LORT binary ess_loo (", round(bl$ess_loo, 4), "%) ",
-      "must match oracle oda_loo_for_rule ess_loo (", round(loo_ref$ess_loo, 4), "%)"
+      "must match oracle CTA-scan LOO ess_loo (", round(loo_ref$ess_loo, 4), "%)"
     )
   )
 })
