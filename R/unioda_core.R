@@ -171,12 +171,15 @@ oda_apply_primary_secondary <- function(cand_df, primary, secondary, y, w,
                                          preds_list) {
   w <- as.numeric(w)
 
-  # 1. ESS filter
+  # 1. Objective filter: ESS, or the count-priors objective `obj` when the
+  #    caller supplies it (weighted, priors on; see oda_univariate_core step 4b).
   if (!"ess" %in% names(cand_df))
     stop("cand_df must have column 'ess'.")
-  max_ess <- max(cand_df$ess, na.rm = TRUE)
-  tol_ess <- 1e-10
-  keep    <- which(cand_df$ess >= max_ess - tol_ess)
+  use_obj <- "obj" %in% names(cand_df) && !anyNA(cand_df$obj)
+  score   <- if (use_obj) cand_df$obj else cand_df$ess
+  max_s   <- max(score, na.rm = TRUE)
+  tol_s   <- if (use_obj) 1e-12 * max(1, abs(max_s)) else 1e-10
+  keep    <- which(score >= max_s - tol_s)
   cand    <- cand_df[keep, , drop = FALSE]
 
   # 2. SAMPLEREP side counts (needed for secondary even when primary finishes)
@@ -254,30 +257,72 @@ oda_apply_primary_secondary <- function(cand_df, primary, secondary, y, w,
   adm_j <- adm_j[N_v[adm_j] >= mindenom & (Nm - N_v[adm_j]) >= mindenom]
   if (length(adm_j) == 0L) return(NULL)
   list(ord = ord, block_id = block_id, w_s = w_s,
-       TW = TW, total_w = TW[m], m = m, adm_j = adm_j)
+       TW = TW, total_w = TW[m], m = m, adm_j = adm_j, N_v = N_v)
 }
 
 # Per-permutation max ESS for chance_model = "class" (chance = 0.5).
 # y_star: permuted integer y (length == length(precomp$ord)).
-# direction: "off" (non-directional), "0->1", or "1->0".
+# direction: "off" (non-directional), "0->1", or "1->0" (internal codes; the
+#   caller maps "greater" -> "0->1" and "less" -> "1->0").
 # Priors are irrelevant here: sens = class-1-right / total-class-1 and
 # spec = class-0-left / total-class-0 are identical whether weights are
 # priors-scaled or not (the class totals cancel in both numerator and
-# denominator). Returns the max ESS scalar >= 0.
+# denominator).
+# Only admissible cuts are scored, as in oda_univariate_core(): for "0->1" the
+# left side must hold >= 1 class-0 case and the right side >= 1 class-1 case
+# (mirrored for "1->0"). With no admissible cut the statistic is 0, matching
+# the refit path (a failed refit scores ESS 0). For "off" this is identical to
+# max |ESS| over all cuts: whenever one direction is inadmissible at a cut, the
+# opposite direction at that cut is admissible with the same |ESS|.
 .oda_fast_ess_perm <- function(y_star, precomp, direction) {
   y_s <- y_star[precomp$ord]
-  c1  <- as.numeric(rowsum(precomp$w_s * (y_s == 1L), precomp$block_id,
-                           reorder = FALSE))
+  is1 <- as.numeric(y_s == 1L)
+  c1  <- as.numeric(rowsum(precomp$w_s * is1, precomp$block_id, reorder = FALSE))
+  k1  <- as.numeric(rowsum(is1, precomp$block_id, reorder = FALSE))
   O   <- cumsum(c1)
+  K1  <- cumsum(k1)                                   # class-1 count, left side
   W1  <- O[precomp$m]
   W0  <- precomp$total_w - W1
   if (W1 <= 0 || W0 <= 0) return(0)
-  # ESS_01 at each admissible cut (direction "0->1"; ESS_10 = -ESS_01).
-  ess_01 <- ((W1 - O[precomp$adm_j]) / W1 +
-              (precomp$TW[precomp$adm_j] - O[precomp$adm_j]) / W0 - 1) * 100
-  if (direction == "off") max(abs(ess_01))
-  else if (direction == "0->1") max(ess_01)
-  else max(-ess_01)   # "1->0"
+  j   <- precomp$adm_j
+  K0  <- precomp$N_v[j] - K1[j]                       # class-0 count, left side
+  n1  <- K1[precomp$m]; n0 <- precomp$N_v[precomp$m] - n1
+  # ESS_01 at each MINDENOM-admissible cut (direction "0->1"; ESS_10 = -ESS_01).
+  ess_01 <- ((W1 - O[j]) / W1 + (precomp$TW[j] - O[j]) / W0 - 1) * 100
+  e01 <- ifelse(K0 > 0 & (n1 - K1[j]) > 0,  ess_01, -Inf)
+  e10 <- ifelse(K1[j] > 0 & (n0 - K0) > 0, -ess_01, -Inf)
+  best <- switch(direction,
+                 "off"  = max(e01, e10),
+                 "0->1" = max(e01),
+                 "1->0" = max(e10),
+                 stop(".oda_fast_ess_perm: unknown direction '", direction, "'"))
+  if (is.finite(best)) best else 0
+}
+
+# Per-permutation max count-priors objective (weighted, priors on).
+# The permutation moves (class, weight) pairs jointly across the fixed attribute
+# values, so each case keeps its own weight; n1/n0 are the raw class counts.
+# obj_01 at cut j = (class-1 weight right) / n1 + (class-0 weight left) / n0,
+# obj_10 mirrored; admissible cuts only, 0 when none (as the refit path).
+.oda_fast_obj_perm <- function(y_star, w_star, precomp, direction) {
+  ord <- precomp$ord
+  y_s <- y_star[ord]; w_s <- as.numeric(w_star[ord])
+  is1 <- as.numeric(y_s == 1L)
+  bs  <- function(v) cumsum(as.numeric(rowsum(v, precomp$block_id, reorder = FALSE)))
+  A1  <- bs(w_s * is1); A0 <- bs(w_s * (1 - is1)); K1 <- bs(is1)
+  m   <- precomp$m
+  n1  <- K1[m]; n0 <- precomp$N_v[m] - n1
+  if (n1 <= 0 || n0 <= 0) return(0)
+  j   <- precomp$adm_j
+  K0  <- precomp$N_v[j] - K1[j]
+  o01 <- ifelse(K0 > 0 & (n1 - K1[j]) > 0, (A1[m] - A1[j]) / n1 + A0[j] / n0, -Inf)
+  o10 <- ifelse(K1[j] > 0 & (n0 - K0) > 0,  A1[j] / n1 + (A0[m] - A0[j]) / n0, -Inf)
+  best <- switch(direction,
+                 "off"  = max(o01, o10),
+                 "0->1" = max(o01),
+                 "1->0" = max(o10),
+                 stop(".oda_fast_obj_perm: unknown direction '", direction, "'"))
+  if (is.finite(best)) best else 0
 }
 
 #' Monte Carlo Fisher-randomization p-value with Clopper-Pearson early stopping.
@@ -318,6 +363,7 @@ oda_mc_p_value <- function(
     mc_adjust    = FALSE,
     seed         = NULL,
     ess_obs      = NULL,
+    obj_obs      = NULL,
     direction    = c("both", "off", "greater", "less"),
     direction_map = NULL
 ) {
@@ -327,10 +373,28 @@ oda_mc_p_value <- function(
   y <- as.integer(y)
   n <- length(y)
   if (is.null(w)) w <- rep(1, n) else w <- as.numeric(w)
-  if (!is.null(seed)) set.seed(seed)
 
   if (is.null(ess_obs) || !is.finite(ess_obs))
     stop("oda_mc_p_value: ess_obs must be supplied and finite.")
+
+  # Weighted with priors on (count priors, MegaODA / CTA.exe): each permutation
+  # moves (class, weight) pairs jointly across the attribute values, and the
+  # statistic is the count-priors objective that selects the rule. Otherwise
+  # (uniform weights, or priors off) the class labels are permuted and the
+  # statistic is ESS, exactly as before.
+  count_pri <- isTRUE(priors_on) && any(w != w[1L])
+  if (count_pri && (is.null(obj_obs) || !is.finite(obj_obs))) {
+    obj_obs <- oda_univariate_core(
+      x = x, y = y, w = w, attr_type = attr_type, priors_on = priors_on,
+      primary = primary, secondary = secondary, miss_codes = miss_codes,
+      loo = "off", mcarlo = FALSE, chance_model = chance_model,
+      direction = direction, direction_map = direction_map)$obj
+    if (is.null(obj_obs) || !is.finite(obj_obs))
+      stop("oda_mc_p_value: observed count-priors objective unavailable.")
+  }
+  stat_obs <- if (count_pri) obj_obs else ess_obs
+  tol_stat <- if (count_pri) 1e-12 * max(1, abs(stat_obs)) else 1e-12
+  if (!is.null(seed)) set.seed(seed)
 
   # Convert stop confidence levels to probability scale.
   # STOP  (lower-tail): early accept when upper CP bound < mc_target at conf_stop  confidence.
@@ -348,16 +412,22 @@ oda_mc_p_value <- function(
   .fast_pc <- if (chance_model == "class") {
     .oda_mc_precomp(x, w, oda_resolve_attr_type(x, attr_type), mindenom = 1L)
   } else NULL
+  # Public direction -> internal rule code (same mapping as oda_univariate_core's
+  # direction filter: "greater" = x > cut predicts class 1 = "0->1").
+  .fast_dir <- switch(direction, off = "off", greater = "0->1", less = "1->0")
 
   for (b in seq_len(mc_iter)) {
     iter_used <- b
-    y_star    <- sample(y, size = n, replace = FALSE)
+    perm      <- sample.int(n)            # same draws as sample(y, size = n)
+    y_star    <- y[perm]
+    w_star    <- if (count_pri) w[perm] else w
 
     if (!is.null(.fast_pc)) {
-      ess_b <- .oda_fast_ess_perm(y_star, .fast_pc, direction)
+      ess_b <- if (count_pri) .oda_fast_obj_perm(y_star, w_star, .fast_pc, .fast_dir)
+               else .oda_fast_ess_perm(y_star, .fast_pc, .fast_dir)
     } else {
       fit_b <- oda_univariate_core(
-        x = x, y = y_star, w = w,
+        x = x, y = y_star, w = w_star,
         attr_type     = attr_type,
         priors_on     = priors_on,
         primary       = primary,
@@ -375,10 +445,10 @@ oda_mc_p_value <- function(
         direction     = direction,
         direction_map = direction_map
       )
-      ess_b <- if (!isTRUE(fit_b$ok)) 0 else fit_b$ess
+      ess_b <- if (!isTRUE(fit_b$ok)) 0 else if (count_pri) fit_b$obj else fit_b$ess
     }
 
-    if (ess_b >= ess_obs - 1e-12) ge_count <- ge_count + 1L
+    if (ess_b >= stat_obs - tol_stat) ge_count <- ge_count + 1L
 
     # Clopper-Pearson early stopping
     if (b >= min_check && (b %% check_every == 0L)) {
@@ -736,7 +806,12 @@ oda_loo_for_rule <- function(
 
   .loo_done <- FALSE
 
-  if (identical(rule$type, "binary_map")) {
+  # Weighted with priors on: the rule is chosen by count priors (see
+  # oda_univariate_core step 4b), but both count-table shortcuts below re-select
+  # fold rules by ESS. Refit every fold with oda_univariate_core() instead.
+  .count_pri <- isTRUE(priors_on) && any(w != w[1L])
+
+  if (!.count_pri && identical(rule$type, "binary_map")) {
     .alg <- oda_loo_binary_map_counts(x, y, w, priors_on, rule)
     if (!is.null(.alg)) {
       y_pred_loo <- .alg
@@ -757,7 +832,7 @@ oda_loo_for_rule <- function(
     if (!isTRUE(fit_i$ok)) return(oda_rule_predict(x[i], rule))
     oda_rule_predict(x[i], fit_i$rule)
   }
-  if (!.loo_done && identical(rule$type, "ordered_cut") && direction == "off") {
+  if (!.loo_done && !.count_pri && identical(rule$type, "ordered_cut") && direction == "off") {
     .alg <- oda_loo_ordered_cut_counts(x, y, w, priors_on, rule, refit_fold = .refit_fold)
     if (!is.null(.alg)) {
       y_pred_loo <- .alg
@@ -942,6 +1017,16 @@ oda_univariate_core <- function(
   n0 <- sum(w[y == 0L]); n1 <- sum(w[y == 1L])
   if (n0 == 0 || n1 == 0) return(list(ok = FALSE, reason = "pure_node", type = "leaf"))
 
+  # 4b. Count priors for non-uniform case weights (CTA.exe / MegaODA objective).
+  # With priors on, the rule maximises sum(w x correct) / n_class, where n_class
+  # is the RAW class count: obj = (W1/n1) * sens + (W0/n0) * spec, with W the
+  # class weight totals and sens/spec the weighted within-class accuracies. ESS
+  # (WESS) is still what is reported. With uniform weights W1/n1 = W0/n0, so obj
+  # ranks rules exactly as ESS does; that path is left unchanged.
+  count_pri <- isTRUE(priors_on) && any(w_raw != w_raw[1L])
+  a1 <- if (count_pri) sum(w_raw[y == 1L]) / sum(y == 1L) else NA_real_
+  a0 <- if (count_pri) sum(w_raw[y == 0L]) / sum(y == 0L) else NA_real_
+
   # 4a. Categorical DIRECTION not supported in Phase 6A.
   # MPE Chapter 4 TABLE/DIRECTIONAL semantics are deferred to Phase 6C.
   if (direction != "off" && attr_type == "categorical")
@@ -974,6 +1059,7 @@ oda_univariate_core <- function(
   cand_spec_0    <- numeric(0)
   cand_mean_pac  <- numeric(0)
   cand_balance   <- numeric(0)
+  cand_obj       <- numeric(0)
   preds_list     <- list()   # parallel to cand_* vectors; indexed by row_id
 
   add_candidate <- function(rule, j_index = NA_integer_) {
@@ -999,6 +1085,8 @@ oda_univariate_core <- function(
     cand_spec_0    <<- c(cand_spec_0,    conf$specificity)
     cand_mean_pac  <<- c(cand_mean_pac,  mp)
     cand_balance   <<- c(cand_balance,   abs(conf$sensitivity - conf$specificity))
+    cand_obj       <<- c(cand_obj, if (count_pri)
+                           a1 * conf$sensitivity + a0 * conf$specificity else NA_real_)
   }
 
   # --- binary attribute ---
@@ -1120,6 +1208,7 @@ oda_univariate_core <- function(
     balance   = cand_balance,
     stringsAsFactors = FALSE
   )
+  if (count_pri) cand_df$obj <- cand_obj   # selection objective (step 8)
 
   # 6b. Direction filter (ordered and binary attributes; categorical already
   # returned early above). Restricts the candidate set to the declared
@@ -1188,6 +1277,8 @@ oda_univariate_core <- function(
   ess_attr   <- oda_ess_from_meanpac(mp_best, chance_a)
   ess_obj    <- if (chance_model == "class") ess_class else ess_attr
   pac        <- mp_best * 100
+  obj_best   <- if (count_pri)
+    a1 * conf_best$sensitivity + a0 * conf_best$specificity else NA_real_
 
   # 10a. Early LOO stability gate (loo_then_mc mode only).
   # For ordered_cut rules with uniform weights, the algebraic count-table LOO
@@ -1195,7 +1286,8 @@ oda_univariate_core <- function(
   # instability, reject before burning MC iterations.
   # Conditions: eval_order=="loo_then_mc", loo=="stable", mcarlo==TRUE,
   #             ordered_cut rule, algebraic helper applicable (uniform w).
-  if (eval_order == "loo_then_mc" && loo == "stable" &&
+  # Not used with count priors: the count-table shortcut selects fold rules by ESS.
+  if (eval_order == "loo_then_mc" && loo == "stable" && !count_pri &&
       isTRUE(mcarlo) && identical(rule_best$type, "ordered_cut")) {
     .pre_alg <- oda_loo_ordered_cut_counts(x, y, w_raw, priors_on, rule_best)
     if (!is.null(.pre_alg)) {
@@ -1227,6 +1319,7 @@ oda_univariate_core <- function(
       mc_adjust     = mc_adjust,
       seed          = mc_seed,
       ess_obs       = ess_obj,
+      obj_obs       = obj_best,
       direction     = direction,
       direction_map = direction_map
     )
@@ -1305,6 +1398,7 @@ oda_univariate_core <- function(
     ess_class = ess_class,
     ess_attr  = ess_attr,
     ess       = ess_obj,
+    obj       = obj_best,   # count-priors objective (NA unless weighted, priors on)
     pac       = pac,
     p_mc      = p_mc,
     mc_info   = mc_res,

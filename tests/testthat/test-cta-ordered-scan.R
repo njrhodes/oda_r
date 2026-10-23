@@ -94,10 +94,13 @@ test_that(".cta_ordered_scan: myeloma Node 2 V4 returns cut 371.20 ESS ~34.89%",
 })
 
 # =============================================================================
-# Generic oda_univariate_core() is unchanged
+# Generic oda_univariate_core() now uses count priors for weighted data
 # =============================================================================
+# Before 0.1.5 the generic weighted path maximised WESS (cut 85.70, WESS 46.99).
+# It now uses the same count-priors objective as CTA.exe / MegaODA, so it
+# agrees with the CTA scan and the CTA.exe Node 4 V4 audit (cut 359.80, 34.90%).
 
-test_that("generic oda_univariate_core: myeloma Node 4 V4 still finds cut ~85.70", {
+test_that("generic oda_univariate_core: myeloma Node 4 V4 matches CTA.exe cut 359.80", {
   dat <- .myeloma_cta_dat()
   if (is.null(dat)) skip("myeloma fixture missing")
 
@@ -117,10 +120,14 @@ test_that("generic oda_univariate_core: myeloma Node 4 V4 still finds cut ~85.70
   )
 
   expect_true(isTRUE(fit$ok), label = "generic ODA returns a result")
-  expect_equal(fit$rule$cut_value, 85.70, tolerance = 0.01,
-               label = "generic ODA cut unchanged at 85.70")
-  expect_equal(fit$ess, 46.99, tolerance = 0.05,
-               label = "generic ODA WESS unchanged near 46.99%")
+  expect_equal(fit$rule$cut_value, 359.80, tolerance = 0.01,
+               label = "generic ODA cut = CTA.exe Node 4 V4 (359.80)")
+  expect_equal(fit$ess, 34.90, tolerance = 0.05,
+               label = "generic ODA WESS = CTA.exe Node 4 V4 (34.90%)")
+  scan <- oda:::.cta_ordered_scan(x, y01, w, TRUE, -9, 1L)
+  expect_equal(fit$rule$cut_value, scan$rule$cut_value, tolerance = 1e-9,
+               label = "generic ODA and CTA scan choose the same cut")
+  expect_identical(fit$rule$direction, scan$rule$direction)
 })
 
 # =============================================================================

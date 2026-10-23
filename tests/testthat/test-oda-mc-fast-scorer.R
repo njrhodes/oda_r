@@ -31,11 +31,21 @@
   conf_stopup <- if (!is.na(mc_stopup) && mc_stopup > 1) mc_stopup / 100 else mc_stopup
   ge_count <- 0L; iter_used <- 0L
   min_check <- 50L; check_every <- 50L
+  # Weighted + priors on: (class, weight) pairs permuted jointly; statistic =
+  # count-priors objective. Otherwise: class labels permuted; statistic = ESS.
+  count_pri <- isTRUE(priors_on) && any(w != w[1L])
+  stat_obs  <- if (count_pri) oda_univariate_core(
+    x = x, y = y, w = w, attr_type = attr_type, priors_on = priors_on,
+    primary = primary, secondary = secondary, miss_codes = miss_codes,
+    loo = "off", mcarlo = FALSE, chance_model = chance_model,
+    direction = direction)$obj else ess_obs
+  tol <- if (count_pri) 1e-12 * max(1, abs(stat_obs)) else 1e-12
   for (b in seq_len(mc_iter)) {
     iter_used <- b
-    y_star <- sample(y, n, replace = FALSE)
+    perm   <- sample.int(n)
+    y_star <- y[perm]
     fit_b  <- oda_univariate_core(
-      x = x, y = y_star, w = w,
+      x = x, y = y_star, w = if (count_pri) w[perm] else w,
       attr_type    = attr_type,
       priors_on    = priors_on,
       primary      = primary,
@@ -52,8 +62,8 @@
       chance_model = chance_model,
       direction    = direction
     )
-    ess_b <- if (!isTRUE(fit_b$ok)) 0 else fit_b$ess
-    if (ess_b >= ess_obs - 1e-12) ge_count <- ge_count + 1L
+    ess_b <- if (!isTRUE(fit_b$ok)) 0 else if (count_pri) fit_b$obj else fit_b$ess
+    if (ess_b >= stat_obs - tol) ge_count <- ge_count + 1L
     if (b >= min_check && (b %% check_every == 0L)) {
       if (ge_count == 0L) {
         lower <- 0
@@ -109,7 +119,7 @@ test_that("fast scorer matches oda_univariate_core ESS for binary x (unweighted)
   }
 })
 
-test_that("fast scorer matches oda_univariate_core ESS for binary x (weighted, priors on)", {
+test_that("fast objective scorer matches oda_univariate_core obj for binary x (weighted, priors on)", {
   set.seed(2L)
   n  <- 50L
   x  <- sample(c(0L, 1L), n, replace = TRUE)
@@ -121,14 +131,14 @@ test_that("fast scorer matches oda_univariate_core ESS for binary x (weighted, p
 
   set.seed(77L)
   for (i in seq_len(200L)) {
-    y_perm <- sample(y, n, replace = FALSE)
-    fast   <- oda:::.oda_fast_ess_perm(y_perm, pc, "off")
+    perm   <- sample.int(n)                       # (class, weight) pairs move together
+    fast   <- oda:::.oda_fast_obj_perm(y[perm], w[perm], pc, "off")
     slow   <- {
-      fit <- oda_univariate_core(x = x, y = y_perm, w = w,
+      fit <- oda_univariate_core(x = x, y = y[perm], w = w[perm],
                attr_type = "binary", priors_on = TRUE,
                primary = NULL, secondary = NULL,
                loo = "off", mcarlo = FALSE, mc_iter = 0L)
-      if (!isTRUE(fit$ok)) 0 else fit$ess
+      if (!isTRUE(fit$ok)) 0 else fit$obj
     }
     expect_equal(fast, slow, tolerance = 1e-10,
       label = paste("binary weighted perm", i))
@@ -177,14 +187,19 @@ test_that("fast scorer matches oda_univariate_core ESS for ordered x (weighted, 
     expect_false(is.null(pc))
     set.seed(33L)
     for (i in seq_len(200L)) {
-      y_perm <- sample(y, n, replace = FALSE)
-      fast   <- oda:::.oda_fast_ess_perm(y_perm, pc, "off")
-      slow   <- {
-        fit <- oda_univariate_core(x = x, y = y_perm, w = w,
-                 attr_type = "ordered", priors_on = priors,
-                 primary = NULL, secondary = NULL,
-                 loo = "off", mcarlo = FALSE, mc_iter = 0L)
-        if (!isTRUE(fit$ok)) 0 else fit$ess
+      perm <- sample.int(n)
+      if (priors) {          # count priors: (class, weight) pairs permuted, objective scored
+        fast <- oda:::.oda_fast_obj_perm(y[perm], w[perm], pc, "off")
+        fit  <- oda_univariate_core(x = x, y = y[perm], w = w[perm],
+                  attr_type = "ordered", priors_on = TRUE, primary = NULL, secondary = NULL,
+                  loo = "off", mcarlo = FALSE, mc_iter = 0L)
+        slow <- if (!isTRUE(fit$ok)) 0 else fit$obj
+      } else {               # priors off: class labels permuted, ESS scored
+        fast <- oda:::.oda_fast_ess_perm(y[perm], pc, "off")
+        fit  <- oda_univariate_core(x = x, y = y[perm], w = w,
+                  attr_type = "ordered", priors_on = FALSE, primary = NULL, secondary = NULL,
+                  loo = "off", mcarlo = FALSE, mc_iter = 0L)
+        slow <- if (!isTRUE(fit$ok)) 0 else fit$ess
       }
       expect_equal(fast, slow, tolerance = 1e-10,
         label = paste("ordered weighted priors_on=", priors, "perm", i))
@@ -270,6 +285,56 @@ test_that("oda_mc_p_value fast path gives identical ge_count/iter_used to slow r
     label = "ordered weighted: ge_count")
   expect_identical(fast_res2$iter_used, slow_res2$iter_used,
     label = "ordered weighted: iter_used")
+})
+
+# --------------------------------------------------------------------------- #
+# Test 3b -- Directional MC: fast path == slow path for "greater" and "less"  #
+# --------------------------------------------------------------------------- #
+# Regression: the fast scorer was called with the public direction label, so
+# "greater" was scored as "1->0"; and inadmissible cuts were scored, which
+# changes p when the observed ESS is <= 0. Both directions, ordered and binary,
+# including a direction whose observed ESS is negative.
+test_that("directional MC: fast path ge_count equals full-refit reference", {
+  set.seed(11L)
+  n <- 40L
+  y <- rep(0:1, c(28L, 12L))
+  x_ord <- round(rnorm(n, mean = 0.6 * y), 2)
+  x_bin <- as.integer(x_ord > 0.3)
+  for (case in list(list(x = x_ord, type = "ordered"), list(x = x_bin, type = "binary"))) {
+    for (dir in c("greater", "less")) {
+      obs <- oda_univariate_core(x = case$x, y = y, attr_type = case$type,
+                                 direction = dir, loo = "off", mcarlo = FALSE)
+      expect_true(isTRUE(obs$ok))
+      args <- list(x = case$x, y = y, w = NULL, attr_type = case$type,
+                   priors_on = TRUE, chance_model = "class", mc_iter = 400L,
+                   mc_target = NA, mc_stop = 99.9, mc_stopup = NA,
+                   seed = 5L, ess_obs = obs$ess, direction = dir)
+      fast <- do.call(oda_mc_p_value, c(args, list(primary = "maxsens", secondary = "samplerep")))
+      slow <- do.call(.mc_slow_ref, args)
+      expect_identical(fast$ge_count, slow$ge_count,
+        label = sprintf("%s %s (obs ESS %.2f): ge_count", case$type, dir, obs$ess))
+      expect_identical(fast$iter_used, slow$iter_used)
+    }
+  }
+})
+
+test_that("fast scorer: non-directional statistic unchanged by the admissibility rule", {
+  # For "off", max over admissible cuts in both directions == max |ESS| over all cuts.
+  set.seed(12L)
+  n <- 30L
+  x <- round(rnorm(n), 1)
+  y <- rep(0:1, c(20L, 10L))
+  pc <- oda:::.oda_mc_precomp(x, rep(1, n), "ordered", mindenom = 1L)
+  ord <- order(x)
+  set.seed(9L)
+  for (i in seq_len(200L)) {
+    ys  <- sample(y, n)
+    y_s <- ys[ord]
+    O   <- cumsum(as.numeric(rowsum(as.numeric(y_s == 1L), pc$block_id, reorder = FALSE)))
+    j   <- pc$adm_j
+    e01 <- ((O[pc$m] - O[j]) / O[pc$m] + (pc$TW[j] - O[j]) / (n - O[pc$m]) - 1) * 100
+    expect_equal(oda:::.oda_fast_ess_perm(ys, pc, "off"), max(abs(e01)), tolerance = 1e-12)
+  }
 })
 
 # --------------------------------------------------------------------------- #
