@@ -204,6 +204,75 @@ helpers in `cta_core.R` but are **not** wired into `.fast_screen()` or
 
 ---
 
+## Known EXE LOO Limitations
+
+The leave-one-out (LOO) results printed by CTA.exe and MegaODA.exe do not
+always equal a true leave-one-out refit, i.e. a model refit on the other n-1
+observations and then used to classify the held-out one. oda_r performs a
+true refit. When oda_r's LOO disagrees with an EXE, check it against a manual
+LOO run in the EXE itself before treating it as an oda_r bug (issue #25).
+
+### CTA.exe: weighted LOO
+
+**Observed.** With a `WEIGHT` variable, CTA.exe can report a node as
+`LOO UNSTAB`, with a weighted LOO ESS near 0%. On the same data and weights:
+
+- oda_r reports the LOO as stable (LOO table equals the training table);
+- MegaODA.exe (`WEIGHT`, `LOO`) gives the same LOO table, LOO ESS and Fisher
+  p as oda_r.
+
+**Pattern.** CTA.exe's LOO ESS falls further below the true value as the
+weights become more uneven, while the training cut, leaves, WESS and MC p
+stay the same. With no weights, or nearly equal weights, CTA.exe's LOO agrees
+with oda_r.
+
+**Ruled out:**
+
+- weight scale (rescaling the weights to sum to n fails the same way);
+- the weight's column position in the data file;
+- invalid weight values (none missing, non-finite or <= 0);
+- the objective used to refit each fold (count priors, weighted ESS,
+  unweighted);
+- re-selecting the attribute within each fold (node-level LOO).
+
+The cause inside CTA.exe is unknown.
+
+**Consequence.** With uneven weights, CTA.exe `LOO STABLE` can reject splits
+whose LOO is actually stable. CTA.exe remains a valid reference for cut
+selection, WESS and MC p.
+
+### MegaODA.exe: built-in LOO vs. its own refits
+
+**Observed.** For an unweighted, non-directional UniODA model, MegaODA's
+built-in `LOO` table differed from a manual LOO built by running MegaODA once
+per fold on n-1 observations (LOO off). The manual LOO matched oda_r fold by
+fold: same cut, same direction, same ESS, same held-out prediction. The
+built-in table differed by one held-out observation.
+
+**Probable cause (unconfirmed).** The held-out observation was one of the two
+values the full-sample cut lies between, which suggests the built-in LOO does
+not fully refit in that case.
+
+### Recommended practice
+
+- Weighted LOO: compare oda_r with MegaODA (`WEIGHT`, `LOO`), not with
+  CTA.exe `LOO STABLE`.
+- Any LOO disagreement: build a manual LOO in the EXE (one run per fold on
+  n-1 rows, LOO off, then classify the held-out case with that run's rule)
+  and compare oda_r fold by fold.
+- CTA.exe parity for cut selection, WESS and MC p is unaffected.
+
+### Weighted UniODA in oda_r (0.1.5)
+
+Weighted fits with priors on select the cut by the count-priors objective,
+`(W1/n1) * sens + (W0/n0) * spec`, as MegaODA.exe and CTA.exe do; the
+reported ESS is still the weighted ESS. The MC permutes (class, weight) pairs
+together and uses the same objective. The myeloma Node 4 V4 fixture
+(`UNIV4.OUT`, `UNIV4MC.OUT`) pins cut, WESS, MC p and LOO to MegaODA output
+(`tests/testthat/test-unioda-weighted-megaoda.R`).
+
+---
+
 ## Current Code Status
 
 - `.cta_ordered_scan()` and `.cta_mc_ordered()`  -  isolated helpers in
@@ -211,4 +280,5 @@ helpers in `cta_core.R` but are **not** wired into `.fast_screen()` or
 - `tests/testthat/test-cta-ordered-scan.R`  -  unit tests scoped to myeloma V4
   audit evidence at Node 4 and Node 2. Does not assert universal integration.
 - All existing CTA fixture tests pass.
-- Generic `oda_univariate_core()` is unchanged.
+- Generic `oda_univariate_core()`: weighted fits with priors on use count
+  priors (0.1.5); unweighted fits are unchanged.
