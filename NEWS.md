@@ -1,3 +1,22 @@
+# oda 0.1.6
+
+## Bug fixes
+
+* Directional UniODA LOO for binary attributes (`direction = "greater"` /
+  `"less"`) now refits each fold with the declared direction. The binary
+  2x2-table shortcut re-selected the better direction per fold, so when the
+  data ran against the declared direction LOO scored the reversed rule
+  (`ess_loo` = -`ess`, a spurious `loo_not_stable`, and a LOO p for the
+  opposite rule). 0.1.4 fixed the same issue for ordered attributes at the
+  call site; both count-table shortcuts now refuse directional rules
+  themselves, including the early `eval_order = "loo_then_mc"` stability gate.
+* `oda_loo_for_rule()` now stops if the rule's direction contradicts the
+  declared `direction`, and stops if directional binary LOO predictions differ
+  from the declared-direction rule (an internal invariant).
+* This also applied to weighted fits with `priors_on = FALSE`, which used the
+  same 2x2 shortcut. Non-directional fits, weighted fits with priors on (which
+  already refit every fold), and CTA are unchanged.
+
 # oda 0.1.5
 
 ## Bug fixes
