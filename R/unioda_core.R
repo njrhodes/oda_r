@@ -502,9 +502,14 @@ oda_mc_p_value <- function(
 #
 # Returns: integer vector y_pred_loo of length n (same 0L/1L encoding as
 # oda_loo_for_rule), or NULL if the algebraic path is not applicable.
-oda_loo_ordered_cut_counts <- function(x, y, w, priors_on, rule, refit_fold = NULL) {
+oda_loo_ordered_cut_counts <- function(x, y, w, priors_on, rule, refit_fold = NULL,
+                                       direction = "off") {
 
   if (!identical(rule$type, "ordered_cut")) return(NULL)
+  # The fold scan below searches both directions, so it reproduces delete-one
+  # refits only for non-directional rules. Directional callers get NULL and
+  # fall through to explicit refits with the declared direction.
+  if (!identical(direction, "off")) return(NULL)
 
   y <- as.integer(y)
   n <- length(y)
@@ -648,9 +653,13 @@ oda_loo_ordered_cut_counts <- function(x, y, w, priors_on, rule, refit_fold = NU
 #
 # Returns integer vector y_pred_loo of length n, or NULL if not applicable
 # (rule type mismatch or pure-node training data).
-oda_loo_binary_map_counts <- function(x, y, w, priors_on, rule) {
+oda_loo_binary_map_counts <- function(x, y, w, priors_on, rule, direction = "off") {
 
   if (!identical(rule$type, "binary_map")) return(NULL)
+  # .best_dir() re-selects the better direction in every fold, so this
+  # shortcut reproduces delete-one refits only for non-directional rules.
+  # Directional callers get NULL and fall through to explicit refits.
+  if (!identical(direction, "off")) return(NULL)
 
   y <- as.integer(y)
   n <- length(y)
@@ -765,6 +774,16 @@ oda_loo_for_rule <- function(
   direction    <- match.arg(direction)
   if (direction == "both") direction <- "off"  # canonical synonym
 
+  # A directional LOO must start from a rule in the declared direction;
+  # anything else is a caller error, not something to cross-validate.
+  if (direction != "off" && rule$type %in% c("ordered_cut", "binary_map")) {
+    target_dir <- if (direction == "greater") "0->1" else "1->0"
+    if (!identical(rule$direction, target_dir))
+      stop("oda_loo_for_rule: rule direction '", rule$direction,
+           "' contradicts direction = '", direction, "' (expected '",
+           target_dir, "').", call. = FALSE)
+  }
+
   y <- as.integer(y)
   n <- length(y)
   if (is.null(w)) w <- rep(1, n) else w <- as.numeric(w)
@@ -815,7 +834,7 @@ oda_loo_for_rule <- function(
   .count_pri <- isTRUE(priors_on) && any(w != w[1L])
 
   if (!.count_pri && identical(rule$type, "binary_map")) {
-    .alg <- oda_loo_binary_map_counts(x, y, w, priors_on, rule)
+    .alg <- oda_loo_binary_map_counts(x, y, w, priors_on, rule, direction = direction)
     if (!is.null(.alg)) {
       y_pred_loo <- .alg
       .loo_done  <- TRUE
@@ -836,7 +855,8 @@ oda_loo_for_rule <- function(
     oda_rule_predict(x[i], fit_i$rule)
   }
   if (!.loo_done && !.count_pri && identical(rule$type, "ordered_cut") && direction == "off") {
-    .alg <- oda_loo_ordered_cut_counts(x, y, w, priors_on, rule, refit_fold = .refit_fold)
+    .alg <- oda_loo_ordered_cut_counts(x, y, w, priors_on, rule, refit_fold = .refit_fold,
+                                       direction = direction)
     if (!is.null(.alg)) {
       y_pred_loo <- .alg
       .loo_done  <- TRUE
@@ -901,6 +921,17 @@ oda_loo_for_rule <- function(
         y_pred_loo[i] <- oda_rule_predict(x[i], fit_i$rule)
       }
     }
+  }
+
+  # Invariant: with a declared direction a binary attribute admits exactly one
+  # rule, so every fold reproduces the training rule. A mismatch here means the
+  # LOO path ignored the direction; fail loudly rather than report it.
+  if (direction != "off" && identical(rule$type, "binary_map")) {
+    obs_i <- !is.na(y_pred_loo)
+    if (!identical(as.integer(y_pred_loo[obs_i]),
+                   as.integer(oda_rule_predict(x[obs_i], rule))))
+      stop("oda_loo_for_rule: internal error - directional binary LOO ",
+           "predictions differ from the declared-direction rule.", call. = FALSE)
   }
 
   # ESS for LOO  -  use the same priors+case-weight scheme as training so that
@@ -1292,7 +1323,8 @@ oda_univariate_core <- function(
   # Not used with count priors: the count-table shortcut selects fold rules by ESS.
   if (eval_order == "loo_then_mc" && loo == "stable" && !count_pri &&
       isTRUE(mcarlo) && identical(rule_best$type, "ordered_cut")) {
-    .pre_alg <- oda_loo_ordered_cut_counts(x, y, w_raw, priors_on, rule_best)
+    .pre_alg <- oda_loo_ordered_cut_counts(x, y, w_raw, priors_on, rule_best,
+                                           direction = direction)
     if (!is.null(.pre_alg)) {
       .w_pre      <- oda_apply_priors(y, w_raw, priors_on)
       .conf_pre   <- oda_confusion_binary(y, .pre_alg, .w_pre)
